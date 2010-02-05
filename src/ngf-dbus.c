@@ -84,7 +84,7 @@ _msg_parse_dict (DBusMessageIter *iter, const char **key, NgfValue **value)
 
     if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_DICT_ENTRY)
         return FALSE;
-        
+
     dbus_message_iter_recurse (iter, &dict);
 
     /* Get the key for the dict entry */
@@ -99,7 +99,7 @@ _msg_parse_dict (DBusMessageIter *iter, const char **key, NgfValue **value)
     if (!_msg_parse_variant (&dict, value))
         return FALSE;
 
-    return TRUE; 
+    return TRUE;
 }
 
 static void
@@ -150,8 +150,6 @@ _handle_play (DBusConnection *connection,
     GHashTable *properties = NULL;
     guint id = 0;
 
-    const char *sender = dbus_message_get_sender (msg);
-
     dbus_message_iter_init (msg, &iter);
     if (dbus_message_iter_get_arg_type (&iter) != DBUS_TYPE_STRING)
         goto invalid;
@@ -163,9 +161,9 @@ _handle_play (DBusConnection *connection,
         goto invalid;
 
     /* Call the play function handler */
-    
+
     if (self->play_function)
-        id = self->play_function (self, sender, event, properties, self->userdata);
+        id = self->play_function (self, event, properties, self->userdata);
 
     /* Free the property data */
     g_hash_table_destroy (properties);
@@ -213,11 +211,9 @@ _message_function (DBusConnection *connection,
     const char *member = dbus_message_get_member (msg);
     const char *sender = dbus_message_get_sender (msg);
 
-    if (!dbus_message_has_interface (msg, NGF_DBUS_BACKEND_IFACE))
+    if (!dbus_message_has_interface (msg, NGF_DBUS_IFACE))
         return DBUS_HANDLER_RESULT_HANDLED;
 
-    g_print ("DBUS (member=%s, sender=%s)\n", member, sender);
-    
     if (g_str_equal (member, NGF_DBUS_BACKEND_PLAY))
         return _handle_play (connection, msg, userdata);
 
@@ -270,7 +266,7 @@ ngf_dbus_create (NgfDBusPlayFunction play, NgfDBusStopFunction stop, gpointer us
     if ((self = g_new0 (NgfDBus, 1)) == NULL)
         return NULL;
 
-    if (!_dbus_initialize (self, NGF_DBUS_BACKEND_NAME, NGF_DBUS_BACKEND_PATH)) {
+    if (!_dbus_initialize (self, NGF_DBUS_BACKEND_NAME, NGF_DBUS_PATH)) {
         ngf_dbus_destroy (self);
         return NULL;
     }
@@ -297,14 +293,14 @@ ngf_dbus_destroy (NgfDBus *self)
 }
 
 void
-ngf_dbus_send_status (NgfDBus *self, const char *destination, guint id, guint status)
+ngf_dbus_send_status (NgfDBus *self, guint id, guint status)
 {
     if (self == NULL)
         return;
 
     DBusMessage *msg = NULL;
-    
-    if ((msg = dbus_message_new_method_call (destination, NGF_DBUS_PATH, NGF_DBUS_IFACE, NGF_DBUS_STATUS)) == NULL)
+
+    if ((msg = dbus_message_new_method_call (NGF_DBUS_PROXY_NAME, NGF_DBUS_PATH, NGF_DBUS_IFACE, NGF_DBUS_STATUS)) == NULL)
         return;
 
     dbus_message_append_args (msg,

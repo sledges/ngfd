@@ -27,7 +27,7 @@ static guint    _properties_get_policy_id    (GHashTable *properties);
 static guint    _properties_get_play_timeout (GHashTable *properties);
 static gint     _properties_get_play_mode    (GHashTable *properties);
 static gint     _properties_get_resources    (GHashTable *properties);
-static guint    _handle_play_cb              (NgfDBus *dbus, const char *sender, const char *event, GHashTable *properties, gpointer userdata);
+static guint    _handle_play_cb              (NgfDBus *dbus, const char *event, GHashTable *properties, gpointer userdata);
 static void     _handle_stop_cb              (NgfDBus *dbus, guint id, gpointer userdata);
 
 static void
@@ -161,7 +161,7 @@ static gboolean
 _properties_get_boolean (GHashTable *properties, const char *key)
 {
     NgfValue *value = NULL;
-    
+
     if ((value = g_hash_table_lookup (properties, key)) == NULL)
         return FALSE;
 
@@ -273,7 +273,7 @@ _event_state_cb (NgfEvent *event, NgfEventState state, gpointer userdata)
 }
 
 guint
-ngf_daemon_event_play (NgfDaemon *self, const char *sender, const char *event_name, GHashTable *properties)
+ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *properties)
 {
     NgfEventPrototype *proto = NULL;
     NgfEvent *event = NULL;
@@ -345,10 +345,10 @@ ngf_daemon_event_stop (NgfDaemon *self, guint id)
 }
 
 static guint
-_handle_play_cb (NgfDBus *dbus, const char *sender, const char *event, GHashTable *properties, gpointer userdata)
+_handle_play_cb (NgfDBus *dbus, const char *event, GHashTable *properties, gpointer userdata)
 {
     NgfDaemon *self = (NgfDaemon*) userdata;
-    return ngf_daemon_event_play (self, sender, event, properties);
+    return ngf_daemon_event_play (self, event, properties);
 }
 
 static void

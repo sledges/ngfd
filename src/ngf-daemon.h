@@ -35,7 +35,7 @@ struct _NgfDaemon
 
     /* D-Bus interface */
     NgfDBus         *dbus;
-    
+
     /* Context containing the backends. */
     NgfContext      context;
 };
@@ -44,7 +44,7 @@ NgfDaemon*  ngf_daemon_create ();
 void        ngf_daemon_destroy (NgfDaemon *self);
 void        ngf_daemon_run (NgfDaemon *self);
 
-guint       ngf_daemon_event_play (NgfDaemon *self, const char *sender, const char *event_name, GHashTable *properties);
+guint       ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *properties);
 void        ngf_daemon_event_stop (NgfDaemon *self, guint id);
 
 #endif /* NGF_DAEMON_H */
