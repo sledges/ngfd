@@ -25,7 +25,8 @@ typedef enum _NgfAudioState
 {
     NGF_AUDIO_READY = 0,
     NGF_AUDIO_FAILED,
-    NGF_AUDIO_TERMINATED
+    NGF_AUDIO_TERMINATED,
+    NGF_AUDIO_SAMPLE_LIST
 } NgfAudioState;
 
 typedef enum _NgfStreamState
@@ -47,5 +48,8 @@ void        ngf_audio_set_volume (NgfAudio *self, const char *role, gint volume)
 
 guint       ngf_audio_play_stream (NgfAudio *self, const char *filename, NgfStreamCallback callback, gpointer userdata);
 void        ngf_audio_stop_stream (NgfAudio *self, guint stream_id);
+
+GList*      ngf_audio_get_sample_list (NgfAudio *self);
+void        ngf_audio_free_sample_list (GList *sample_list);
 
 #endif /* NGF_AUDIO_H */
