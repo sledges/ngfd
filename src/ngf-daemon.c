@@ -254,11 +254,13 @@ _event_state_cb (NgfEvent *event, NgfEventState state, gpointer userdata)
 
         case NGF_EVENT_FAILED:
             g_print ("EVENT FAILED (id=%d)\n", event->policy_id);
+            ngf_dbus_send_status (self->dbus, event->policy_id, 0);
             remove_event = TRUE;
             break;
 
         case NGF_EVENT_COMPLETED:
             g_print ("EVENT COMPLETED (id=%d)\n", event->policy_id);
+            ngf_dbus_send_status (self->dbus, event->policy_id, 0);
             remove_event = TRUE;
             break;
 
