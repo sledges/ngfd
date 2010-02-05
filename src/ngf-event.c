@@ -67,6 +67,7 @@ static gboolean
 _event_max_timeout_cb (gpointer userdata)
 {
     NgfEvent *self = (NgfEvent*) userdata;
+    self->max_length_timeout_id = 0;
     ngf_event_stop (self);
 
     if (self->callback)
@@ -112,6 +113,8 @@ _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpoint
 
         case NGF_STREAM_FAILED: {
 
+            g_print ("%s: STREAM FAILED\n", __FUNCTION__);
+
             /* Stream failed to start, most probably reason is that the file
                does not exist. In this case, if the fallback is specified we will
                try to play it. */
@@ -124,6 +127,8 @@ _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpoint
 
         case NGF_STREAM_TERMINATED: {
 
+            g_print ("%s: STREAM TERMINATED\n", __FUNCTION__);
+
             /* Audio stream terminated. This means that the underlying audio context
                was lost (probably Pulseaudio went down). We will stop the event at
                this point (consider it completed). */
@@ -135,6 +140,8 @@ _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpoint
         }
 
         case NGF_STREAM_COMPLETED: {
+
+            g_print ("%s: STREAM COMPLETED\n", __FUNCTION__);
 
             /* Stream was played and completed successfully. If the repeat flag is
                set, then we will restart the stream again. Otherwise, let's notify
@@ -161,10 +168,8 @@ ngf_event_start (NgfEvent *self)
 
     if (self->resources & NGF_RESOURCE_AUDIO) {
 
-        if (self->play_mode == NGF_PLAY_MODE_LONG) {
-            if ((tone = _event_get_tone (self)) != NULL)
-                self->audio_id = ngf_audio_play_stream (self->context->audio, tone, _stream_state_cb, self);
-        }
+        if ((tone = _event_get_tone (self)) != NULL)
+            self->audio_id = ngf_audio_play_stream (self->context->audio, tone, _stream_state_cb, self);
 
     }
 
