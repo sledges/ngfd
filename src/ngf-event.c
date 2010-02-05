@@ -67,8 +67,10 @@ static gboolean
 _event_max_timeout_cb (gpointer userdata)
 {
     NgfEvent *self = (NgfEvent*) userdata;
-    g_print ("max_timeout reached\n");
     ngf_event_stop (self);
+
+    if (self->callback)
+        self->callback (self, NGF_EVENT_COMPLETED, self->userdata);
 
     return FALSE;
 }
@@ -77,7 +79,7 @@ static const char*
 _event_get_tone (NgfEvent *self)
 {
     NgfValue *value = NULL;
-    
+
     value = g_hash_table_lookup (self->properties, "audio");
     if (value && ngf_value_get_type (value) == NGF_VALUE_STRING)
         return (const char*) ngf_value_get_string (value);
@@ -191,7 +193,4 @@ ngf_event_stop (NgfEvent *self)
         ngf_audio_stop_stream (self->context->audio, self->audio_id);
         self->audio_id = 0;
     }
-
-    if (self->callback)
-        self->callback (self, NGF_EVENT_COMPLETED, self->userdata);
 }

@@ -269,6 +269,7 @@ _event_state_cb (NgfEvent *event, NgfEventState state, gpointer userdata)
     }
 
     if (remove_event) {
+        g_print ("EVENT REMOVED (id=%d)\n", event->policy_id);
         self->event_list = g_list_remove (self->event_list, event);
         ngf_event_free (event);
     }
@@ -300,6 +301,9 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
 
     if (policy_id == 0 || resources == 0 || play_mode == 0)
         return 0;
+
+    g_print ("EVENT (event_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d)\n",
+		    event_name, policy_id, play_timeout, resources, play_mode);
 
     /* Create a new event based on the prototype and feed the properties
        to it. */
@@ -335,9 +339,13 @@ ngf_daemon_event_stop (NgfDaemon *self, guint id)
     NgfEvent *event = NULL;
     GList *iter = NULL;
 
+    if (self->event_list == NULL)
+        return;
+
     for (iter = g_list_first (self->event_list); iter; iter = g_list_next (self->event_list)) {
         event = (NgfEvent*) iter->data;
         if (event->policy_id == id) {
+            g_print ("EVENT STOP (id=%d)\n", id);
             self->event_list = g_list_remove (self->event_list, event);
             ngf_event_stop (event);
             ngf_event_free (event);
