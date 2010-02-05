@@ -18,6 +18,9 @@ AC_PATH_X
 AC_PATH_XTRA
 AC_SUBST(X_CFLAGS)
 
+ngfconfdir=${sysconfdir}/ngf
+AC_SUBST(ngfconfdir)
+
 PKG_CHECK_MODULES(NGFD,
 		  [glib-2.0
 		   dbus-1
@@ -29,4 +32,4 @@ PKG_CHECK_MODULES(NGFD,
 AC_SUBST(NGFD_LIBS)
 AC_SUBST(NGFD_CFLAGS)
 
-AC_OUTPUT(Makefile src/Makefile tests/Makefile)
+AC_OUTPUT(Makefile src/Makefile tests/Makefile data/Makefile)
