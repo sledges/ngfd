@@ -58,6 +58,8 @@ typedef struct _AudioStream
 
     unsigned char       buffer[MAX_BUFFER_SIZE];
 
+    pa_operation        *drain_op;
+
     NgfAudio            *audio;
     NgfStreamCallback   callback;
     gpointer            userdata;
@@ -110,10 +112,14 @@ stream_drain_cb (pa_stream *s, int success, void *userdata)
 {
     AudioStream *stream = (AudioStream*) userdata;
 
+    pulseaudio_destroy_stream (stream->audio, stream);
+
     if (stream->callback)
         stream->callback (stream->audio, stream->stream_id, NGF_STREAM_COMPLETED, stream->userdata);
 
-    pulseaudio_destroy_stream (stream->audio, stream);
+    pa_operation_unref (stream->drain_op);
+    stream->drain_op = NULL;
+
     audio_stream_free (stream);
 }
 
@@ -144,8 +150,7 @@ stream_write_cb (pa_stream *s, size_t bytes, void *userdata)
 
 stream_drain:
     pa_stream_set_write_callback (s, NULL, NULL);
-    if ((o = pa_stream_drain (s, stream_drain_cb, stream)) != NULL)
-        pa_operation_unref (o);
+    stream->drain_op = pa_stream_drain (s, stream_drain_cb, stream);
 
     return;
 }
@@ -596,6 +601,12 @@ ngf_audio_stop_stream (NgfAudio *self, guint stream_id)
     for (iter = g_list_first (self->active_streams); iter; iter = g_list_next (iter)) {
         stream = (AudioStream*) iter->data;
         if (stream->stream_id == stream_id) {
+            if (stream->drain_op) {
+                g_print ("DRAIN OP (stream_id=%d)\n", stream_id);
+                pa_operation_cancel (stream->drain_op);
+                pa_operation_unref (stream->drain_op);
+            }
+
             pulseaudio_destroy_stream (self, stream);
 
             if (stream->callback)
