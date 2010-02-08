@@ -52,13 +52,21 @@ _configuration_parse_event (NgfConf *c, const char *group, const char *name, gpo
     ngf_conf_get_boolean (c, group, "repeat", &proto->event_repeat, FALSE);
     ngf_conf_get_integer (c, group, "max_length", &proto->event_max_length, 0);
 
-    ngf_conf_get_string (c, group, "audio_filename", &proto->audio_filename, NULL);
-    ngf_conf_get_string (c, group, "audio_fallback", &proto->audio_fallback, NULL);
+    ngf_conf_get_string  (c, group, "long.filename", &proto->long_filename, NULL);
+    ngf_conf_get_string  (c, group, "long.fallback", &proto->long_fallback, NULL);
+    ngf_conf_get_string  (c, group, "long.tone_key", &proto->long_tone_key, NULL);
+    ngf_conf_get_string  (c, group, "long.fallback_key", &proto->long_fallback_key, NULL);
+    ngf_conf_get_integer (c, group, "long.volume_key", &proto->long_volume, 0);
+    ngf_conf_get_string  (c, group, "long.volume_key", &proto->long_volume_key, NULL);
 
-    ngf_conf_get_string (c, group, "audio_tone_key", &proto->audio_tone_key, NULL);
-    ngf_conf_get_string (c, group, "audio_fallback_key", &proto->audio_fallback_key, NULL);
-    ngf_conf_get_string (c, group, "audio_volume_key", &proto->audio_volume_key, NULL);
-    ngf_conf_get_string (c, group, "audio_stream_restore", &proto->audio_stream_restore, NULL);
+    ngf_conf_get_string  (c, group, "short.filename", &proto->short_filename, NULL);
+    ngf_conf_get_string  (c, group, "short.fallback", &proto->short_fallback, NULL);
+    ngf_conf_get_string  (c, group, "short.tone_key", &proto->short_tone_key, NULL);
+    ngf_conf_get_string  (c, group, "short.fallback_key", &proto->short_fallback_key, NULL);
+    ngf_conf_get_integer (c, group, "short.volume_key", &proto->short_volume, 0);
+    ngf_conf_get_string  (c, group, "short.volume_key", &proto->short_volume_key, NULL);
+
+    ngf_conf_get_string  (c, group, "audio_stream_restore", &proto->audio_stream_restore, NULL);
 
     g_print ("Registering event prototype: %s\n", name);
     ngf_event_manager_register_prototype (self->event_manager, name, proto);
@@ -105,6 +113,9 @@ ngf_daemon_create ()
     if ((self->event_manager = ngf_event_manager_create ()) == NULL)
         return NULL;
 
+    if ((self->context.profile = ngf_profile_create ()) == NULL)
+        return NULL;
+
     if ((self->context.audio = ngf_audio_create ()) == NULL)
         return NULL;
 
@@ -136,6 +147,11 @@ ngf_daemon_destroy (NgfDaemon *self)
     if (self->context.audio) {
         ngf_audio_destroy (self->context.audio);
         self->context.audio = NULL;
+    }
+
+    if (self->context.profile) {
+        ngf_profile_destroy (self->context.profile);
+        self->context.profile = NULL;
     }
 
     if (self->event_manager) {

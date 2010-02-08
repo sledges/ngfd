@@ -26,12 +26,20 @@ struct _NgfEventPrototype
     gboolean    event_repeat;
     gint        event_max_length;
 
-    gchar       *audio_filename;
-    gchar       *audio_fallback;
+    gchar       *long_filename;
+    gchar       *long_fallback;
+    gchar       *long_tone_key;
+    gchar       *long_fallback_key;
+    gint        long_volume;
+    gchar       *long_volume_key;
 
-    gchar       *audio_tone_key;
-    gchar       *audio_fallback_key;
-    gchar       *audio_volume_key;
+    gchar       *short_filename;
+    gchar       *short_fallback;
+    gchar       *short_tone_key;
+    gchar       *short_fallback_key;
+    gint        short_volume;
+    gchar       *short_volume_key;
+
     gchar       *audio_stream_restore;
 };
 

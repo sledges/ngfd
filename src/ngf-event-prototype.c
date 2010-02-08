@@ -28,12 +28,18 @@ ngf_event_prototype_free (NgfEventPrototype *proto)
     if (proto == NULL)
         return;
 
-    g_free (proto->audio_filename);
-    g_free (proto->audio_fallback);
+    g_free (proto->long_filename);
+    g_free (proto->long_fallback);
+    g_free (proto->long_tone_key);
+    g_free (proto->long_fallback_key);
+    g_free (proto->long_volume_key);
 
-    g_free (proto->audio_tone_key);
-    g_free (proto->audio_fallback_key);
-    g_free (proto->audio_volume_key);
+    g_free (proto->short_filename);
+    g_free (proto->short_fallback);
+    g_free (proto->short_tone_key);
+    g_free (proto->short_fallback_key);
+    g_free (proto->short_volume_key);
+
     g_free (proto->audio_stream_restore);
 
     g_free (proto);

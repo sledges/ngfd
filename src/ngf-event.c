@@ -81,16 +81,33 @@ _event_get_tone (NgfEvent *self)
 {
     NgfValue *value = NULL;
 
-    value = g_hash_table_lookup (self->properties, "audio");
+    const char *prop_name = NULL;
+    const char *filename = NULL;
+    const char *tone_key = NULL;
+    const char *tone = NULL;
+
+    if (self->play_mode == NGF_PLAY_MODE_LONG) {
+        prop_name = "long.audio";
+        filename = self->proto->long_filename;
+        tone_key = self->proto->long_tone_key;
+    }
+    else if (self->play_mode == NGF_PLAY_MODE_SHORT) {
+        prop_name = "short.audio";
+        filename = self->proto->short_filename;
+        tone_key = self->proto->short_tone_key;
+    }
+    else
+        return NULL;
+
+    value = g_hash_table_lookup (self->properties, prop_name);
     if (value && ngf_value_get_type (value) == NGF_VALUE_STRING)
         return (const char*) ngf_value_get_string (value);
 
-    if (self->proto->audio_filename)
-        return self->proto->audio_filename;
+    if (filename)
+        return filename;
 
-    if (self->proto->audio_tone_key)
-        return NULL;
-        /*return ngf_profile_get_string (self->context->profile, self->proto->audio_tone_key);*/
+    if (ngf_profile_get_string (self->context->profile, NGF_PROFILE_GENERAL, tone_key, &tone))
+        return tone;
 
     return NULL;
 }
