@@ -287,6 +287,7 @@ _event_state_cb (NgfEvent *event, NgfEventState state, gpointer userdata)
     if (remove_event) {
         g_print ("EVENT REMOVED (id=%d)\n", event->policy_id);
         self->event_list = g_list_remove (self->event_list, event);
+        ngf_event_stop (event);
         ngf_event_free (event);
     }
 }
