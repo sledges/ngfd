@@ -52,6 +52,8 @@ typedef struct _AudioStream
     guint               stream_id;
     uint32_t            stream_index;
 
+    pa_proplist         *proplist;
+
     int                 fd;
     int                 fd_error;
     SNDFILE             *sf;
@@ -103,7 +105,14 @@ audio_stream_free (AudioStream *stream)
     if (stream == NULL)
         return;
 
+    if (stream->proplist) {
+        pa_proplist_free (stream->proplist);
+        stream->proplist = NULL;
+    }
+
     g_free (stream->filename);
+    stream->filename = NULL;
+
     g_free (stream);
 }
 
@@ -351,7 +360,6 @@ pulseaudio_create_stream (NgfAudio *self, AudioStream *stream)
 {
     SF_INFO sf_info;
     pa_sample_spec ss;
-    pa_proplist *proplist = NULL;
 
     if (stream->filename == NULL)
         goto failed;
@@ -372,15 +380,10 @@ pulseaudio_create_stream (NgfAudio *self, AudioStream *stream)
     if (ss.format == PA_SAMPLE_INVALID)
         goto failed;
 
-    proplist = pa_proplist_new ();
-
-    stream->stream = pa_stream_new_with_proplist (self->context, APPLICATION_NAME, &ss, NULL, proplist);
+    stream->stream = pa_stream_new_with_proplist (self->context, APPLICATION_NAME, &ss, NULL, stream->proplist);
     if (stream->stream == NULL) {
         goto failed;
     }
-
-	pa_proplist_free (proplist);
-    proplist = NULL;
 
     pa_stream_set_state_callback (stream->stream, stream_state_cb, stream);
     pa_stream_set_write_callback (stream->stream, stream_write_cb, stream);
@@ -393,9 +396,6 @@ pulseaudio_create_stream (NgfAudio *self, AudioStream *stream)
     return TRUE;
 
 failed:
-    if (proplist)
-        pa_proplist_free (proplist);
-
     pulseaudio_destroy_stream (self, stream);
     audio_stream_free (stream);
     return FALSE;
@@ -554,7 +554,7 @@ ngf_audio_set_volume (NgfAudio *self, const char *role, gint volume)
 }
 
 guint
-ngf_audio_play_stream (NgfAudio *self, const char *filename, NgfStreamCallback callback, gpointer userdata)
+ngf_audio_play_stream (NgfAudio *self, const char *filename, pa_proplist *p, NgfStreamCallback callback, gpointer userdata)
 {
     AudioStream *stream = NULL;
 
@@ -569,6 +569,7 @@ ngf_audio_play_stream (NgfAudio *self, const char *filename, NgfStreamCallback c
 
     stream->stream_id = ++self->stream_count;
     stream->filename = g_strdup (filename);
+    stream->proplist = p != NULL ? pa_proplist_copy (p) : NULL;
     stream->callback = callback;
     stream->userdata = userdata;
     stream->audio = self;

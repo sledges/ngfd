@@ -186,7 +186,7 @@ ngf_event_start (NgfEvent *self)
     if (self->resources & NGF_RESOURCE_AUDIO) {
 
         if ((tone = _event_get_tone (self)) != NULL)
-            self->audio_id = ngf_audio_play_stream (self->context->audio, tone, _stream_state_cb, self);
+            self->audio_id = ngf_audio_play_stream (self->context->audio, tone, NULL, _stream_state_cb, self);
 
     }
 

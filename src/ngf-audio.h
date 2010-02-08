@@ -18,6 +18,7 @@
 #define NGF_AUDIO_H
 
 #include <glib.h>
+#include <pulse/proplist.h>
 
 typedef struct _NgfAudio NgfAudio;
 
@@ -46,7 +47,7 @@ void        ngf_audio_destroy (NgfAudio *self);
 void        ngf_audio_set_callback (NgfAudio *self, NgfAudioCallback callback, gpointer userdata);
 void        ngf_audio_set_volume (NgfAudio *self, const char *role, gint volume);
 
-guint       ngf_audio_play_stream (NgfAudio *self, const char *filename, NgfStreamCallback callback, gpointer userdata);
+guint       ngf_audio_play_stream (NgfAudio *self, const char *filename, pa_proplist *p, NgfStreamCallback callback, gpointer userdata);
 void        ngf_audio_stop_stream (NgfAudio *self, guint stream_id);
 
 GList*      ngf_audio_get_sample_list (NgfAudio *self);
