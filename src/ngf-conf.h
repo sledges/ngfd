@@ -40,6 +40,7 @@ gboolean    ngf_conf_load (NgfConf *conf, const gchar *filename);
 
 void        ngf_conf_add_group (NgfConf *conf, NgfConfParseType parse_type, const gchar *match, NgfConfParseCallback callback, gpointer userdata);
 
+char**      ngf_conf_get_keys (NgfConf *conf, const gchar *group);
 void        ngf_conf_get_boolean (NgfConf *conf, const gchar *group, const gchar *key, gboolean *value, gboolean def_value);
 void        ngf_conf_get_string (NgfConf *conf, const gchar *group, const gchar *key, gchar **value, const gchar *def_value);
 void        ngf_conf_get_integer (NgfConf *conf, const gchar *group, const gchar *key, gint *value, gint def_value);

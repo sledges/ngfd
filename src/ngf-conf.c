@@ -171,6 +171,24 @@ ngf_conf_add_group (NgfConf *conf,
     conf->parse_rules = g_slist_append (conf->parse_rules, rule);
 }
 
+char**
+ngf_conf_get_keys (NgfConf *conf, const gchar *group)
+{
+    GError *error = NULL;
+    char **keys = NULL;
+
+    if (!conf)
+        return;
+
+    keys = g_key_file_get_keys (conf->f, group, NULL, &error);
+    if (keys == NULL) {
+        g_error_free (error);
+        return NULL;
+    }
+
+    return keys;
+}
+
 void
 ngf_conf_get_boolean (NgfConf *conf, const gchar *group, const gchar *key, gboolean *value, gboolean def_value)
 {
