@@ -84,12 +84,10 @@ _profile_query_values (NgfProfile *self, char **keys, const char *profile)
     
     entry = _profile_entry_new (profile);
     self->profiles = g_list_append (self->profiles, entry);
-    g_print ("Profile: %s\n", profile);
 
     for (k = keys; *k; k++) {
         value = profile_get_value (profile, *k);
         if (value) {
-            g_print ("+ %s = %s\n", *k, value);
             g_hash_table_replace (entry->values, g_strdup (*k), g_strdup (value));
             free (value);
         }
