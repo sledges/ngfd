@@ -27,6 +27,7 @@ PKG_CHECK_MODULES(NGFD,
 		   dbus-glib-1
 		   libpulse
 		   libpulse-mainloop-glib
+		   profile
 		   sndfile])
 
 AC_SUBST(NGFD_LIBS)
