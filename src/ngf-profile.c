@@ -212,6 +212,9 @@ _get_value (NgfProfile *self, const char *profile, const char *key)
     ProfileEntry *entry = NULL;
     const char *search_profile = profile;
 
+    if (key == NULL)
+        return NULL;
+
     if (profile == NULL)
         search_profile = (const char*) self->current_profile;
 
