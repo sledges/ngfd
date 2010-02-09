@@ -187,6 +187,17 @@ _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpoint
     }
 }
 
+static gboolean
+_volume_control_cb (guint id, guint step_time, guint step_value, gpointer userdata)
+{
+    NgfEvent *self = (NgfEvent*) userdata;
+
+    g_print ("CONTROL SET VOLUME (id=%d, time=%d, value=%d)\n", id, step_time, step_value);
+    ngf_audio_set_volume (self->context->audio, self->proto->volume_role, step_value);
+
+    return TRUE;
+}
+
 gboolean
 ngf_event_start (NgfEvent *self)
 {
@@ -198,11 +209,26 @@ ngf_event_start (NgfEvent *self)
 
     if (self->resources & NGF_RESOURCE_AUDIO) {
 
-        /* Get the volume for the audio resource and set the volume to the stream
-           restore database. */
+        /* If we have a volume controller, it overrides all other volume settings. Starting
+           the controller here probably is not very exact, but still quite close.
 
-        volume = _event_get_volume (self);
-        ngf_audio_set_volume (self->context->audio, self->proto->volume_role, volume);
+           TODO: initial step here, next step when the playback has actually started */
+
+        if (self->proto->volume_controller) {
+
+            self->controller_id = ngf_volume_controller_start (self->proto->volume_controller,
+                _volume_control_cb, self);
+
+        }
+        else {
+
+            /* Get the volume for the audio resource and set the volume to the stream
+               restore database. */
+
+            volume = _event_get_volume (self);
+            ngf_audio_set_volume (self->context->audio, self->proto->volume_role, volume);
+
+        }
 
         if ((tone = _event_get_tone (self)) != NULL)
             self->audio_id = ngf_audio_play_stream (self->context->audio, tone, self->proto->stream_properties, _stream_state_cb, self);
@@ -235,6 +261,11 @@ ngf_event_stop (NgfEvent *self)
     if (self->max_length_timeout_id > 0) {
         g_source_remove (self->max_length_timeout_id);
         self->max_length_timeout_id = 0;
+    }
+
+    if (self->controller_id > 0) {
+        ngf_volume_controller_stop (self->proto->volume_controller, self->controller_id);
+        self->controller_id = 0;
     }
 
     if (self->audio_id > 0) {

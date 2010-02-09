@@ -56,6 +56,7 @@ struct _NgfEvent
     guint               max_length_timeout_id;
     guint               audio_id;
     guint               vibra_id;
+    guint               controller_id;
 
     /* Startup timer for monitoring event length */
     GTimer              *start_timer;

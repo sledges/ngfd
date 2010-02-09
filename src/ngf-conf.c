@@ -242,3 +242,21 @@ ngf_conf_get_integer (NgfConf *conf, const gchar *group, const gchar *key, gint 
 
     *value = v;
 }
+
+void
+ngf_conf_get_integer_list (NgfConf *conf, const gchar *group, const gchar *key, gint **value, gint *num_values)
+{
+    GError *error = NULL;
+    gint *v = NULL, num_v;
+
+    if (!conf)
+        return;
+
+    v = g_key_file_get_integer_list (conf->f, group, key, &num_v, &error);
+    if (error)
+        g_error_free (error);
+
+    *value = v;
+    *num_values = num_v;
+}
+

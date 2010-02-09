@@ -44,5 +44,6 @@ char**      ngf_conf_get_keys (NgfConf *conf, const gchar *group);
 void        ngf_conf_get_boolean (NgfConf *conf, const gchar *group, const gchar *key, gboolean *value, gboolean def_value);
 void        ngf_conf_get_string (NgfConf *conf, const gchar *group, const gchar *key, gchar **value, const gchar *def_value);
 void        ngf_conf_get_integer (NgfConf *conf, const gchar *group, const gchar *key, gint *value, gint def_value);
+void        ngf_conf_get_integer_list (NgfConf *conf, const gchar *group, const gchar *key, gint **value, gint *num_values);
 
 #endif /* NGF_CONF_H */

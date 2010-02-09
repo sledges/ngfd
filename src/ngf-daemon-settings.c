@@ -85,6 +85,8 @@ _parse_stream_properties (NgfConf *c, const char *group, const char *prefix, pa_
         }
     }
 
+    g_strfreev (keys);
+
     if (has_props) {
         *proplist = p;
         return;
@@ -92,6 +94,47 @@ _parse_stream_properties (NgfConf *c, const char *group, const char *prefix, pa_
 
     pa_proplist_free (p);
     *proplist = NULL;
+}
+
+static void
+_parse_volume_pattern (NgfConf *c, const char *group, const char *name, NgfVolumeController **controller)
+{
+    gint *value_list = NULL;
+    gint num_values, i, step_time, step_value;
+
+    NgfVolumeController *vc = NULL;
+    gboolean has_steps = FALSE;
+
+    if (name == NULL)
+        return;
+
+    ngf_conf_get_integer_list (c, group, name, &value_list, &num_values);
+    if (value_list == NULL)
+        return;
+
+    vc = ngf_volume_controller_new ();
+
+    for (i = 0; i < num_values; ) {
+        if (i+1 >= num_values)
+	       break;
+
+        step_time = value_list[i];
+        step_value = value_list[i+1];
+        has_steps = TRUE;
+
+        ngf_volume_controller_add_step (vc, step_time, step_value);
+	    i += 2;
+    }
+
+    g_free (value_list);
+
+    if (has_steps) {
+        *controller = vc;
+        return;
+    }
+
+    ngf_volume_controller_free (vc);
+    *controller = NULL;
 }
 
 static void
@@ -109,13 +152,14 @@ _configuration_parse_event (NgfConf *c, const char *group, const char *name, gpo
     NgfEventPrototype *proto = NULL;
     proto = ngf_event_prototype_new ();
 
-    ngf_conf_get_integer (c, group, "max_length", &proto->max_length, 0);
-    ngf_conf_get_string  (c, group, "tone_filename", &proto->tone_filename, NULL);
-    _profile_key_get     (c, group, "tone_key", &proto->tone_key, &proto->tone_profile);
+    ngf_conf_get_integer  (c, group, "max_length", &proto->max_length, 0);
+    ngf_conf_get_string   (c, group, "tone_filename", &proto->tone_filename, NULL);
+    _profile_key_get      (c, group, "tone_key", &proto->tone_key, &proto->tone_profile);
 
-    ngf_conf_get_integer (c, group, "volume_set", &proto->volume_set, -1);
-    ngf_conf_get_string  (c, group, "volume_role", &proto->volume_role, NULL);
-    _profile_key_get     (c, group, "volume_key", &proto->volume_key, &proto->volume_profile);
+    ngf_conf_get_integer  (c, group, "volume_set", &proto->volume_set, -1);
+    ngf_conf_get_string   (c, group, "volume_role", &proto->volume_role, NULL);
+    _profile_key_get      (c, group, "volume_key", &proto->volume_key, &proto->volume_profile);
+    _parse_volume_pattern (c, group, "volume_pattern", &proto->volume_controller);
 
     _parse_stream_properties (c, group, "stream.", &proto->stream_properties);
 

@@ -42,6 +42,11 @@ ngf_event_prototype_free (NgfEventPrototype *proto)
 
     g_free (proto->volume_role);
 
+    if (proto->volume_controller) {
+        ngf_volume_controller_free (proto->volume_controller);
+        proto->volume_controller = NULL;
+    }
+
     if (proto->stream_properties) {
         pa_proplist_free (proto->stream_properties);
         proto->stream_properties = NULL;
