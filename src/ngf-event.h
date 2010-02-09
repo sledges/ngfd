@@ -55,6 +55,7 @@ struct _NgfEvent
     /* Internal event specific data */
     guint               max_length_timeout_id;
     guint               audio_id;
+    guint               vibra_id;
 
     /* Startup timer for monitoring event length */
     GTimer              *start_timer;

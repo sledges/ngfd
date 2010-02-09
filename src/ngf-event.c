@@ -17,9 +17,6 @@
 #include "ngf-value.h"
 #include "ngf-event.h"
 
-#define LONG_PREFIX     "long."
-#define SHORT_PREFIX    "short."
-
 static gboolean     _event_max_timeout_cb (gpointer userdata);
 static void         _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpointer userdata);
 static const char*  _event_get_tone (NgfEvent *self);
@@ -98,6 +95,12 @@ _event_get_tone (NgfEvent *self)
     if (ngf_profile_get_string (self->context->profile, proto->tone_profile, proto->tone_key, &tone))
         return (const char*) tone;
 
+    return NULL;
+}
+
+static const char*
+_event_get_vibra (NgfEvent *self)
+{
     return NULL;
 }
 
@@ -187,7 +190,7 @@ _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpoint
 gboolean
 ngf_event_start (NgfEvent *self)
 {
-    const char *tone = NULL;
+    const char *tone = NULL, *vibra = NULL;
     gint volume = 0;
 
     /* Check the resources and start the backends if we have the proper resources,
@@ -203,6 +206,13 @@ ngf_event_start (NgfEvent *self)
 
         if ((tone = _event_get_tone (self)) != NULL)
             self->audio_id = ngf_audio_play_stream (self->context->audio, tone, self->proto->stream_properties, _stream_state_cb, self);
+
+    }
+
+    if (self->resources & NGF_RESOURCE_VIBRATION) {
+
+        if ((vibra = _event_get_vibra (self)) != NULL)
+            self->vibra_id = ngf_vibrator_play_pattern (self->context->vibrator, vibra);
 
     }
 
@@ -230,5 +240,10 @@ ngf_event_stop (NgfEvent *self)
     if (self->audio_id > 0) {
         ngf_audio_stop_stream (self->context->audio, self->audio_id);
         self->audio_id = 0;
+    }
+
+    if (self->vibra_id > 0) {
+        ngf_vibrator_stop_pattern (self->context->vibrator, self->vibra_id);
+        self->vibra_id = 0;
     }
 }
