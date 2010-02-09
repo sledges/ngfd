@@ -1,6 +1,24 @@
+/*
+ * ngfd - Non-graphical feedback daemon
+ *
+ * Copyright (C) 2010 Nokia Corporation. All rights reserved.
+ *
+ * Contact: Xun Chen <xun.chen@nokia.com>
+ *
+ * This software, including documentation, is protected by copyright
+ * controlled by Nokia Corporation. All rights are reserved.
+ * Copying, including reproducing, storing, adapting or translating,
+ * any or all of this material requires the prior written consent of
+ * Nokia Corporation. This material also contains confidential
+ * information which may not be disclosed to others without the prior
+ * written consent of Nokia.
+ */
+
 #include "ngf-daemon.h"
 #include "ngf-conf.h"
 #include "ngf-event-prototype.h"
+
+#define STREAM_RESTORE_ID "module-stream-restore.id"
 
 static gboolean
 _profile_key_get (NgfConf *c, const char *group, const char *key, gchar **out_key, gchar **out_profile)
@@ -81,10 +99,12 @@ _configuration_parse_event (NgfConf *c, const char *group, const char *name, gpo
 {
     NgfDaemon *self = (NgfDaemon*) userdata;
     char **keys = NULL, **k = NULL;
-    gchar *stream_prop = NULL, *stream_value = NULL;
+    gchar *stream_prop = NULL, *stream_value = NULL, *default_role = NULL;
 
     if (name == NULL)
         return;
+
+    default_role = g_strdup_printf ("x-maemo-ngf-%s", name);
 
     NgfEventPrototype *proto = NULL;
     proto = ngf_event_prototype_new ();
@@ -92,9 +112,24 @@ _configuration_parse_event (NgfConf *c, const char *group, const char *name, gpo
     ngf_conf_get_integer (c, group, "max_length", &proto->max_length, 0);
     ngf_conf_get_string  (c, group, "tone_filename", &proto->tone_filename, NULL);
     _profile_key_get     (c, group, "tone_key", &proto->tone_key, &proto->tone_profile);
+
+    ngf_conf_get_integer (c, group, "volume_set", &proto->volume_set, -1);
+    ngf_conf_get_string  (c, group, "volume_role", &proto->volume_role, NULL);
     _profile_key_get     (c, group, "volume_key", &proto->volume_key, &proto->volume_profile);
 
     _parse_stream_properties (c, group, "stream.", &proto->stream_properties);
+
+    /* If no override volume role specified, let's use the default role. Also
+       set the role to the stream properties. */
+
+    if (proto->volume_role == NULL)
+        proto->volume_role = default_role;
+    else
+        g_free (default_role);
+
+    pa_proplist_sets (proto->stream_properties, STREAM_RESTORE_ID, proto->volume_role);
+
+    /* Register the prototype */
 
     ngf_event_manager_register_prototype (self->event_manager, name, proto);
 }

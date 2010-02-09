@@ -101,6 +101,26 @@ _event_get_tone (NgfEvent *self)
     return NULL;
 }
 
+static gint
+_event_get_volume (NgfEvent *self)
+{
+    NgfValue *value = NULL;
+    NgfEventPrototype *proto = self->proto;
+    gint volume;
+
+    value = g_hash_table_lookup (self->properties, "volume");
+    if (value && ngf_value_get_type (value) == NGF_VALUE_INT)
+        return ngf_value_get_int (value);
+
+    if (proto->volume_set >= 0)
+        return proto->volume_set;
+
+    if (ngf_profile_get_integer (self->context->profile, proto->volume_profile, proto->volume_key, &volume))
+        return volume;
+
+    return -1;
+}
+
 static void
 _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpointer userdata)
 {
@@ -168,11 +188,18 @@ gboolean
 ngf_event_start (NgfEvent *self)
 {
     const char *tone = NULL;
+    gint volume = 0;
 
     /* Check the resources and start the backends if we have the proper resources,
        profile allows us to and valid data is provided. */
 
     if (self->resources & NGF_RESOURCE_AUDIO) {
+
+        /* Get the volume for the audio resource and set the volume to the stream
+           restore database. */
+
+        volume = _event_get_volume (self);
+        ngf_audio_set_volume (self->context->audio, self->proto->volume_role, volume);
 
         if ((tone = _event_get_tone (self)) != NULL)
             self->audio_id = ngf_audio_play_stream (self->context->audio, tone, self->proto->stream_properties, _stream_state_cb, self);

@@ -515,8 +515,7 @@ ngf_audio_set_callback (NgfAudio *self, NgfAudioCallback callback, gpointer user
 void
 ngf_audio_set_volume (NgfAudio *self, const char *role, gint volume)
 {
-#if 0
-    pa_ext_stream_restore2_info stream_restore_info[1];
+    pa_ext_stream_restore2_info *stream_restore_info[1], info;
 
     pa_cvolume vol;
     gdouble v = 0.0;
@@ -536,19 +535,19 @@ ngf_audio_set_volume (NgfAudio *self, const char *role, gint volume)
 
     pa_cvolume_set (&vol, 1, v * PA_VOLUME_NORM);
 
-    stream_restore_info[0].name = role;
-    stream_restore_info[0].channel_map.channels = 1;
-    stream_restore_info[0].channel_map.map[0] = PA_CHANNEL_POSITION_MONO;
-    stream_restore_info[0].volume = vol;
-    stream_restore_info[0].device = NULL;
-    stream_restore_info[0].mute = FALSE;
-    stream_restore_info[0].volume_is_absolute = TRUE;
+    info.name = role;
+    info.channel_map.channels = 1;
+    info.channel_map.map[0] = PA_CHANNEL_POSITION_MONO;
+    info.volume = vol;
+    info.device = NULL;
+    info.mute = FALSE;
+    info.volume_is_absolute = TRUE;
+
+    stream_restore_info[0] = &info;
 
     o = pa_ext_stream_restore2_write (self->context, PA_UPDATE_REPLACE, stream_restore_info, 1, TRUE, NULL, NULL);
-
     if (o != NULL)
         pa_operation_unref (o);
-#endif
 }
 
 guint

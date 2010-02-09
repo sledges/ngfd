@@ -31,8 +31,11 @@ struct _NgfEventPrototype
     gchar       *tone_key;
     gchar       *tone_profile;
 
+    gint        volume_set;
     gchar       *volume_key;
     gchar       *volume_profile;
+
+    gchar       *volume_role;
 
     /* Stream properties */
     pa_proplist *stream_properties;
