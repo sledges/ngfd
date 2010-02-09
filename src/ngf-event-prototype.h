@@ -18,6 +18,7 @@
 #define NGF_EVENT_PROTOTYPE_H
 
 #include <glib.h>
+#include <pulse/proplist.h>
 #include "ngf-value.h"
 
 typedef struct _NgfEventPrototype NgfEventPrototype;
@@ -26,14 +27,15 @@ struct _NgfEventPrototype
 {
     gint        max_length;
 
-    /* tone */
     gchar       *tone_filename;
     gchar       *tone_key;
     gchar       *tone_profile;
 
-    /* volume.key */
     gchar       *volume_key;
     gchar       *volume_profile;
+
+    /* Stream properties */
+    pa_proplist *stream_properties;
 };
 
 NgfEventPrototype*  ngf_event_prototype_new ();

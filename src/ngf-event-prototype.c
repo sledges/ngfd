@@ -40,6 +40,11 @@ ngf_event_prototype_free (NgfEventPrototype *proto)
     g_free (proto->volume_key);
     g_free (proto->volume_profile);
 
+    if (proto->stream_properties) {
+        pa_proplist_free (proto->stream_properties);
+        proto->stream_properties = NULL;
+    }
+
     g_free (proto);
 }
 

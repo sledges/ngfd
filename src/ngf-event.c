@@ -84,7 +84,7 @@ _event_get_tone (NgfEvent *self)
 {
     NgfValue *value = NULL;
     NgfEventPrototype *proto = self->proto;
-    gchar *tone = NULL;
+    const gchar *tone = NULL;
 
     /* TODO returns only the long one, make one for short */
 
@@ -175,7 +175,7 @@ ngf_event_start (NgfEvent *self)
     if (self->resources & NGF_RESOURCE_AUDIO) {
 
         if ((tone = _event_get_tone (self)) != NULL)
-            self->audio_id = ngf_audio_play_stream (self->context->audio, tone, NULL, _stream_state_cb, self);
+            self->audio_id = ngf_audio_play_stream (self->context->audio, tone, self->proto->stream_properties, _stream_state_cb, self);
 
     }
 
