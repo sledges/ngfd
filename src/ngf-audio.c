@@ -391,13 +391,11 @@ pulseaudio_create_stream (NgfAudio *self, AudioStream *stream)
     if (pa_stream_connect_playback (stream->stream, NULL, NULL, 0, NULL, NULL) < 0)
         goto failed;
 
-
     self->active_streams = g_list_append (self->active_streams, stream);
     return TRUE;
 
 failed:
     pulseaudio_destroy_stream (self, stream);
-    audio_stream_free (stream);
     return FALSE;
 
 }
