@@ -19,7 +19,12 @@
 NgfEventPrototype*
 ngf_event_prototype_new ()
 {
-    return g_new0 (NgfEventPrototype, 1);
+    NgfEventPrototype *proto = NULL;
+
+    if ((proto = g_new0 (NgfEventPrototype, 1)) == NULL)
+        return NULL;
+
+    return proto;
 }
 
 void
@@ -28,19 +33,24 @@ ngf_event_prototype_free (NgfEventPrototype *proto)
     if (proto == NULL)
         return;
 
-    g_free (proto->long_filename);
-    g_free (proto->long_fallback);
-    g_free (proto->long_tone_key);
-    g_free (proto->long_fallback_key);
-    g_free (proto->long_volume_key);
+    g_free (proto->tone_filename);
+    g_free (proto->tone_key);
+    g_free (proto->tone_profile);
 
-    g_free (proto->short_filename);
-    g_free (proto->short_fallback);
-    g_free (proto->short_tone_key);
-    g_free (proto->short_fallback_key);
-    g_free (proto->short_volume_key);
-
-    g_free (proto->audio_stream_restore);
+    g_free (proto->volume_key);
+    g_free (proto->volume_profile);
 
     g_free (proto);
 }
+
+void
+ngf_event_prototype_dump (NgfEventPrototype *proto)
+{
+    g_print ("max_length = %d\n", proto->max_length);
+    g_print ("tone_filename = %s\n", proto->tone_filename);
+    g_print ("tone_key = %s\n", proto->tone_key);
+    g_print ("tone_profile = %s\n", proto->tone_profile);
+    g_print ("volume_key = %s\n", proto->volume_key);
+    g_print ("volume_profile = %s\n", proto->volume_profile);
+}
+

@@ -18,32 +18,26 @@
 #define NGF_EVENT_PROTOTYPE_H
 
 #include <glib.h>
+#include "ngf-value.h"
 
 typedef struct _NgfEventPrototype NgfEventPrototype;
 
 struct _NgfEventPrototype
 {
-    gboolean    event_repeat;
-    gint        event_max_length;
+    gint        max_length;
 
-    gchar       *long_filename;
-    gchar       *long_fallback;
-    gchar       *long_tone_key;
-    gchar       *long_fallback_key;
-    gint        long_volume;
-    gchar       *long_volume_key;
+    /* tone */
+    gchar       *tone_filename;
+    gchar       *tone_key;
+    gchar       *tone_profile;
 
-    gchar       *short_filename;
-    gchar       *short_fallback;
-    gchar       *short_tone_key;
-    gchar       *short_fallback_key;
-    gint        short_volume;
-    gchar       *short_volume_key;
-
-    gchar       *audio_stream_restore;
+    /* volume.key */
+    gchar       *volume_key;
+    gchar       *volume_profile;
 };
 
 NgfEventPrototype*  ngf_event_prototype_new ();
 void                ngf_event_prototype_free (NgfEventPrototype *proto);
+void                ngf_event_prototype_dump (NgfEventPrototype *proto);
 
 #endif /* NGF_EVENT_PROTOTYPE_H */

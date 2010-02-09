@@ -15,11 +15,9 @@
  */
 
 #include "ngf-value.h"
-#include "ngf-conf.h"
 #include "ngf-event.h"
 #include "ngf-daemon.h"
 
-static gboolean _configuration_load          (NgfDaemon *self);
 static void     _audio_state_cb              (NgfAudio *audio, NgfAudioState state, gpointer userdata);
 static void     _event_state_cb              (NgfEvent *event, NgfEventState state, gpointer userdata);
 static gboolean _properties_get_boolean      (GHashTable *properties, const char *key);
@@ -29,75 +27,6 @@ static gint     _properties_get_play_mode    (GHashTable *properties);
 static gint     _properties_get_resources    (GHashTable *properties);
 static guint    _handle_play_cb              (NgfDBus *dbus, const char *event, GHashTable *properties, gpointer userdata);
 static void     _handle_stop_cb              (NgfDBus *dbus, guint id, gpointer userdata);
-
-static void
-_configuration_parse_general (NgfConf *c, const char *group, const char *name, gpointer userdata)
-{
-    gboolean log_events;
-
-    ngf_conf_get_boolean (c, group, "log_events", &log_events, FALSE);
-}
-
-static void
-_configuration_parse_event (NgfConf *c, const char *group, const char *name, gpointer userdata)
-{
-    NgfDaemon *self = (NgfDaemon*) userdata;
-
-    if (name == NULL)
-        return;
-
-    NgfEventPrototype *proto = NULL;
-    proto = ngf_event_prototype_new ();
-
-    ngf_conf_get_boolean (c, group, "repeat", &proto->event_repeat, FALSE);
-    ngf_conf_get_integer (c, group, "max_length", &proto->event_max_length, 0);
-
-    ngf_conf_get_string  (c, group, "long.filename", &proto->long_filename, NULL);
-    ngf_conf_get_string  (c, group, "long.fallback", &proto->long_fallback, NULL);
-    ngf_conf_get_string  (c, group, "long.tone_key", &proto->long_tone_key, NULL);
-    ngf_conf_get_string  (c, group, "long.fallback_key", &proto->long_fallback_key, NULL);
-    ngf_conf_get_integer (c, group, "long.volume_key", &proto->long_volume, 0);
-    ngf_conf_get_string  (c, group, "long.volume_key", &proto->long_volume_key, NULL);
-
-    ngf_conf_get_string  (c, group, "short.filename", &proto->short_filename, NULL);
-    ngf_conf_get_string  (c, group, "short.fallback", &proto->short_fallback, NULL);
-    ngf_conf_get_string  (c, group, "short.tone_key", &proto->short_tone_key, NULL);
-    ngf_conf_get_string  (c, group, "short.fallback_key", &proto->short_fallback_key, NULL);
-    ngf_conf_get_integer (c, group, "short.volume_key", &proto->short_volume, 0);
-    ngf_conf_get_string  (c, group, "short.volume_key", &proto->short_volume_key, NULL);
-
-    ngf_conf_get_string  (c, group, "audio_stream_restore", &proto->audio_stream_restore, NULL);
-
-    g_print ("Registering event prototype: %s\n", name);
-    ngf_event_manager_register_prototype (self->event_manager, name, proto);
-}
-
-static gboolean
-_configuration_load (NgfDaemon *self)
-{
-    static const char *conf_files[] = { "/etc/ngf/ngf.ini", "./ngf.ini", NULL };
-
-    NgfConf *conf = NULL;
-    const char **file = NULL;
-    gboolean success = FALSE;
-
-    conf = ngf_conf_new ();
-    ngf_conf_add_group (conf, NGF_CONF_PARSE_EXACT, "general", _configuration_parse_general, self);
-    ngf_conf_add_group (conf, NGF_CONF_PARSE_PREFIX, "event", _configuration_parse_event, self);
-
-    for (file = conf_files; *file; file++) {
-        if (g_file_test (*file, G_FILE_TEST_EXISTS)) {
-            g_print ("trying to load = %s\n", *file);
-            if (ngf_conf_load (conf, *file))
-                success = TRUE;
-            break;
-        }
-    }
-
-    ngf_conf_free (conf);
-
-    return success;
-}
 
 NgfDaemon*
 ngf_daemon_create ()
@@ -122,7 +51,7 @@ ngf_daemon_create ()
     if ((self->context.vibrator = ngf_vibrator_create ()) == NULL)
         return NULL;
 
-    if (!_configuration_load (self))
+    if (!ngf_daemon_settings_load (self))
         return NULL;
 
     if ((self->dbus = ngf_dbus_create (_handle_play_cb, _handle_stop_cb, self)) == NULL)

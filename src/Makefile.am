@@ -7,6 +7,7 @@ ngfd_SOURCES = \
 	main.c \
 	ngf-daemon.h \
 	ngf-daemon.c \
+	ngf-daemon-settings.c \
 	ngf-profile.h \
 	ngf-profile.c \
 	ngf-dbus.h \

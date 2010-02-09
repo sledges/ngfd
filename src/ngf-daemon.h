@@ -47,4 +47,6 @@ void        ngf_daemon_run (NgfDaemon *self);
 guint       ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *properties);
 void        ngf_daemon_event_stop (NgfDaemon *self, guint id);
 
+gboolean    ngf_daemon_settings_load (NgfDaemon *self);
+
 #endif /* NGF_DAEMON_H */

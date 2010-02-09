@@ -17,6 +17,9 @@
 #include "ngf-value.h"
 #include "ngf-event.h"
 
+#define LONG_PREFIX     "long."
+#define SHORT_PREFIX    "short."
+
 static gboolean     _event_max_timeout_cb (gpointer userdata);
 static void         _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpointer userdata);
 static const char*  _event_get_tone (NgfEvent *self);
@@ -80,34 +83,20 @@ static const char*
 _event_get_tone (NgfEvent *self)
 {
     NgfValue *value = NULL;
+    NgfEventPrototype *proto = self->proto;
+    gchar *tone = NULL;
 
-    const char *prop_name = NULL;
-    const char *filename = NULL;
-    const char *tone_key = NULL;
-    const char *tone = NULL;
+    /* TODO returns only the long one, make one for short */
 
-    if (self->play_mode == NGF_PLAY_MODE_LONG) {
-        prop_name = "long.audio";
-        filename = self->proto->long_filename;
-        tone_key = self->proto->long_tone_key;
-    }
-    else if (self->play_mode == NGF_PLAY_MODE_SHORT) {
-        prop_name = "short.audio";
-        filename = self->proto->short_filename;
-        tone_key = self->proto->short_tone_key;
-    }
-    else
-        return NULL;
-
-    value = g_hash_table_lookup (self->properties, prop_name);
+    value = g_hash_table_lookup (self->properties, "tone");
     if (value && ngf_value_get_type (value) == NGF_VALUE_STRING)
         return (const char*) ngf_value_get_string (value);
 
-    if (filename)
-        return filename;
+    if (proto->tone_filename)
+        return (const char*) proto->tone_filename;
 
-    if (ngf_profile_get_string (self->context->profile, NGF_PROFILE_GENERAL, tone_key, &tone))
-        return tone;
+    if (ngf_profile_get_string (self->context->profile, proto->tone_profile, proto->tone_key, &tone))
+        return (const char*) tone;
 
     return NULL;
 }
@@ -193,8 +182,8 @@ ngf_event_start (NgfEvent *self)
     /* Timeout callback for maximum length of the event. Once triggered we will
        stop the event ourselves. */
 
-    if (self->proto->event_max_length > 0)
-        self->max_length_timeout_id = g_timeout_add (self->proto->event_max_length, _event_max_timeout_cb, self);
+    if (self->proto->max_length > 0)
+        self->max_length_timeout_id = g_timeout_add (self->proto->max_length, _event_max_timeout_cb, self);
 
     /* Trigger the start timer, which will be used to monitor the minimum timeout. */
 
