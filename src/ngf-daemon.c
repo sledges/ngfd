@@ -235,7 +235,7 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
        since it is unknown to us. */
 
     if ((proto = ngf_event_manager_get_prototype (self->event_manager, event_name)) == 0)
-        return 0;
+        goto failed;
 
     /* Get the policy identifier, allowed resources and play mode and timeout
        for our event. */
@@ -246,7 +246,7 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
     play_mode    = _properties_get_play_mode (properties);
 
     if (policy_id == 0 || resources == 0 || play_mode == 0)
-        return 0;
+        goto failed;
 
     g_print ("EVENT (event_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d)\n",
 		    event_name, policy_id, play_timeout, resources, play_mode);
@@ -255,9 +255,8 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
        to it. */
 
     if ((event = ngf_event_new (&self->context, proto)) == NULL)
-        return 0;
+        goto failed;
 
-    event->properties   = properties;
     event->policy_id    = policy_id;
     event->resources    = resources;
     event->play_mode    = play_mode;
@@ -270,13 +269,17 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
     /* Start the event immediately. */
 
     self->event_list = g_list_append (self->event_list, event);
-    if (!ngf_event_start (event)) {
+    if (!ngf_event_start (event, properties)) {
         self->event_list = g_list_remove (self->event_list, event);
         ngf_event_free (event);
         return 0;
     }
 
     return 1;
+
+failed:
+    g_hash_table_destroy (properties);
+    return 0;
 }
 
 void

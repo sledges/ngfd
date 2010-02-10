@@ -29,6 +29,8 @@ struct _NgfEventPrototype
 {
     gint                max_length;
 
+    gboolean            tone_repeat;
+    gint                tone_repeat_count;
     gchar               *tone_filename;
     gchar               *tone_key;
     gchar               *tone_profile;

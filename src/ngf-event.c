@@ -21,6 +21,7 @@ static gboolean     _event_max_timeout_cb (gpointer userdata);
 static void         _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpointer userdata);
 static const char*  _event_get_tone (NgfEvent *self);
 static const char*  _event_stop_audio (NgfEvent *self);
+static gboolean     _volume_control_cb (guint id, guint step_time, guint step_value, gpointer userdata);
 
 
 
@@ -51,6 +52,11 @@ ngf_event_free (NgfEvent *self)
     if (self->start_timer) {
         g_timer_destroy (self->start_timer);
         self->start_timer = NULL;
+    }
+
+    if (self->properties) {
+        g_hash_table_destroy (self->properties);
+        self->properties = NULL;
     }
 
     g_free (self);
@@ -125,6 +131,37 @@ _event_get_volume (NgfEvent *self)
 }
 
 static void
+_event_audio_start (NgfEvent *self)
+{
+    gint volume = 0;
+    const char *tone = NULL;
+
+    /* If we have a volume controller, it overrides all other volume settings. Starting
+       the controller here probably is not very exact, but still quite close.
+
+       TODO: initial step here, next step when the playback has actually started */
+
+    if (self->proto->volume_controller) {
+
+        self->controller_id = ngf_volume_controller_start (self->proto->volume_controller,
+            _volume_control_cb, self);
+
+    }
+    else {
+
+        /* Get the volume for the audio resource and set the volume to the stream
+           restore database. */
+
+        volume = _event_get_volume (self);
+        ngf_audio_set_volume (self->context->audio, self->proto->volume_role, volume);
+
+    }
+
+    if ((tone = _event_get_tone (self)) != NULL)
+        self->audio_id = ngf_audio_play_stream (self->context->audio, tone, self->proto->stream_properties, _stream_state_cb, self);
+}
+
+static void
 _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpointer userdata)
 {
     NgfEvent *self = (NgfEvent*) userdata;
@@ -170,14 +207,34 @@ _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpoint
 
         case NGF_STREAM_COMPLETED: {
 
-            g_print ("%s: STREAM COMPLETED\n", __FUNCTION__);
-
             /* Stream was played and completed successfully. If the repeat flag is
                set, then we will restart the stream again. Otherwise, let's notify
                the user of the completion of the event. */
 
-            if (self->callback)
-                self->callback (self, NGF_EVENT_COMPLETED, self->userdata);
+            const char *tone = NULL;
+
+            if (self->proto->tone_repeat) {
+
+                ++self->tone_repeat_count;
+
+                if (self->proto->tone_repeat_count <= 0) {
+                    g_print ("%s: STREAM REPEAT\n", __FUNCTION__);
+
+                    if ((tone = _event_get_tone (self)) != NULL)
+                        self->audio_id = ngf_audio_play_stream (self->context->audio, tone, self->proto->stream_properties, _stream_state_cb, self);
+                }
+
+                else if  (self->tone_repeat_count >= self->proto->tone_repeat_count) {
+                    g_print ("%s: STREAM REPEAT FINISHED\n", __FUNCTION__);
+                    if (self->callback)
+                        self->callback (self, NGF_EVENT_COMPLETED, self->userdata);
+                }
+            }
+            else {
+                g_print ("%s: STREAM COMPLETED\n", __FUNCTION__);
+                if (self->callback)
+                    self->callback (self, NGF_EVENT_COMPLETED, self->userdata);
+            }
 
             break;
         }
@@ -199,41 +256,19 @@ _volume_control_cb (guint id, guint step_time, guint step_value, gpointer userda
 }
 
 gboolean
-ngf_event_start (NgfEvent *self)
+ngf_event_start (NgfEvent *self, GHashTable *properties)
 {
     const char *tone = NULL, *vibra = NULL;
     gint volume = 0;
 
+    /* Take ownership of the properties */
+    self->properties = properties;
+
     /* Check the resources and start the backends if we have the proper resources,
        profile allows us to and valid data is provided. */
 
-    if (self->resources & NGF_RESOURCE_AUDIO) {
-
-        /* If we have a volume controller, it overrides all other volume settings. Starting
-           the controller here probably is not very exact, but still quite close.
-
-           TODO: initial step here, next step when the playback has actually started */
-
-        if (self->proto->volume_controller) {
-
-            self->controller_id = ngf_volume_controller_start (self->proto->volume_controller,
-                _volume_control_cb, self);
-
-        }
-        else {
-
-            /* Get the volume for the audio resource and set the volume to the stream
-               restore database. */
-
-            volume = _event_get_volume (self);
-            ngf_audio_set_volume (self->context->audio, self->proto->volume_role, volume);
-
-        }
-
-        if ((tone = _event_get_tone (self)) != NULL)
-            self->audio_id = ngf_audio_play_stream (self->context->audio, tone, self->proto->stream_properties, _stream_state_cb, self);
-
-    }
+    if (self->resources & NGF_RESOURCE_AUDIO)
+        _event_audio_start (self);
 
     if (self->resources & NGF_RESOURCE_VIBRATION) {
 

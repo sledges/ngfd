@@ -165,9 +165,6 @@ _handle_play (DBusConnection *connection,
     if (self->play_function)
         id = self->play_function (self, event, properties, self->userdata);
 
-    /* Free the property data */
-    g_hash_table_destroy (properties);
-
     reply = dbus_message_new_method_return (msg);
     if (reply) {
         dbus_message_append_args (reply, DBUS_TYPE_UINT32, &id, DBUS_TYPE_INVALID);

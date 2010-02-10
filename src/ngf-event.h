@@ -57,6 +57,7 @@ struct _NgfEvent
     guint               audio_id;
     guint               vibra_id;
     guint               controller_id;
+    gint                tone_repeat_count;
 
     /* Startup timer for monitoring event length */
     GTimer              *start_timer;
@@ -74,7 +75,7 @@ void        ngf_event_free (NgfEvent *self);
 
 void        ngf_event_set_callback (NgfEvent *self, NgfEventCallback callback, gpointer userdata);
 
-gboolean    ngf_event_start (NgfEvent *self);
+gboolean    ngf_event_start (NgfEvent *self, GHashTable *properties);
 void        ngf_event_stop (NgfEvent *self);
 
 #endif /* NGF_EVENT_H */
