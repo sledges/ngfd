@@ -27,7 +27,11 @@ ngfd_SOURCES = \
 	ngf-volume-controller.h \
 	ngf-volume-controller.c \
 	ngf-vibrator.h \
-	ngf-vibrator.c
+	ngf-vibrator.c \
+	ngf-tonegen.h \
+	ngf-tonegen.c \
+	ngf-backlight.h \
+	ngf-backlight.c
 
 ngfd_LDFLAGS = \
 	$(NGFD_LIBS)
