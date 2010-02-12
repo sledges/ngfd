@@ -267,8 +267,9 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
     /* Check the resources and start the backends if we have the proper resources,
        profile allows us to and valid data is provided. */
 
-    if (self->resources & NGF_RESOURCE_AUDIO)
+    if (self->resources & NGF_RESOURCE_AUDIO) {
         _event_audio_start (self);
+    }
 
     if (self->resources & NGF_RESOURCE_VIBRATION) {
 
@@ -296,6 +297,11 @@ ngf_event_stop (NgfEvent *self)
     if (self->max_length_timeout_id > 0) {
         g_source_remove (self->max_length_timeout_id);
         self->max_length_timeout_id = 0;
+    }
+
+    if (self->tonegen_id > 0) {
+        ngf_tonegen_stop (self->context->tonegen, self->tonegen_id);
+        self->tonegen_id = 0;
     }
 
     if (self->controller_id > 0) {

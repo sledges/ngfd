@@ -24,7 +24,7 @@ typedef struct _NgfTonegen NgfTonegen;
 NgfTonegen*     ngf_tonegen_create ();
 void            ngf_tonegen_destroy (NgfTonegen *self);
 
-void            ngf_tonegen_start (NgfTonegen *self, guint pattern);
-void            ngf_tonegen_stop (NgfTonegen *self, guint pattern);
+guint           ngf_tonegen_start (NgfTonegen *self, guint pattern);
+void            ngf_tonegen_stop (NgfTonegen *self, guint id);
 
 #endif /* NGF_TONEGEN_H */

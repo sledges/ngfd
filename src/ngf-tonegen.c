@@ -102,14 +102,16 @@ _tonegen_toggle (NgfTonegen *self, guint pattern, guint play)
     dbus_message_unref (msg);
 }
 
-void
+guint
 ngf_tonegen_start (NgfTonegen *self, guint pattern)
 {
     _tonegen_toggle (self, pattern, TRUE);
+    return 1;
 }
 
 void
-ngf_tonegen_stop (NgfTonegen *self, guint pattern)
+ngf_tonegen_stop (NgfTonegen *self, guint id)
 {
-    _tonegen_toggle (self, pattern, FALSE);
+    if (id > 0)
+        _tonegen_toggle (self, 0, FALSE);
 }

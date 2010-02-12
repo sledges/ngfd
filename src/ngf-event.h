@@ -57,6 +57,8 @@ struct _NgfEvent
     guint               audio_id;
     guint               vibra_id;
     guint               controller_id;
+    guint               tonegen_id;
+
     gint                tone_repeat_count;
 
     /* Startup timer for monitoring event length */

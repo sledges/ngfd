@@ -51,6 +51,9 @@ ngf_daemon_create ()
     if ((self->context.vibrator = ngf_vibrator_create ()) == NULL)
         return NULL;
 
+    if ((self->context.tonegen = ngf_tonegen_create ()) == NULL)
+        return NULL;
+
     if (!ngf_daemon_settings_load (self))
         return NULL;
 
@@ -66,6 +69,11 @@ ngf_daemon_destroy (NgfDaemon *self)
     if (self->dbus) {
         ngf_dbus_destroy (self->dbus);
         self->dbus = NULL;
+    }
+
+    if (self->context.tonegen) {
+        ngf_tonegen_destroy (self->context.tonegen);
+        self->context.tonegen = NULL;
     }
 
     if (self->context.vibrator) {
