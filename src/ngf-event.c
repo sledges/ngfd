@@ -153,7 +153,8 @@ _event_audio_start (NgfEvent *self)
            restore database. */
 
         volume = _event_get_volume (self);
-        ngf_audio_set_volume (self->context->audio, self->proto->volume_role, volume);
+        if (volume > -1)
+            ngf_audio_set_volume (self->context->audio, self->proto->volume_role, volume);
 
     }
 
@@ -266,6 +267,10 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
 
     /* Check the resources and start the backends if we have the proper resources,
        profile allows us to and valid data is provided. */
+
+    if (self->proto->tonegen_enabled && self->proto->tonegen_pattern > -1) {
+        self->tonegen_id = ngf_tonegen_start (self->context->tonegen, self->proto->tonegen_pattern);
+    }
 
     if (self->resources & NGF_RESOURCE_AUDIO) {
         _event_audio_start (self);

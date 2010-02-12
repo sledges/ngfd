@@ -156,6 +156,9 @@ _configuration_parse_proto (NgfConf *c, const char *group, const char *name, gpo
     _profile_key_get      (c, group, "volume_key", &proto->volume_key, &proto->volume_profile);
     _parse_volume_pattern (c, group, "volume_pattern", &proto->volume_controller);
 
+    ngf_conf_get_boolean  (c, group, "tonegen_enabled", &proto->tonegen_enabled, FALSE);
+    ngf_conf_get_integer  (c, group, "tonegen_pattern", &proto->tonegen_pattern, -1);
+
     _parse_stream_properties (c, group, "stream.", &proto->stream_properties);
 
     /* If no override volume role specified, let's use the default role. Also

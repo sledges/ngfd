@@ -40,6 +40,9 @@ struct _NgfEventPrototype
     gchar               *volume_profile;
     NgfVolumeController *volume_controller;
 
+    gboolean            tonegen_enabled;
+    guint               tonegen_pattern;
+
     gchar               *volume_role;
     pa_proplist         *stream_properties;
 };
