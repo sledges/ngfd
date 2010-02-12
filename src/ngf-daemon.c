@@ -232,17 +232,34 @@ _event_state_cb (NgfEvent *event, NgfEventState state, gpointer userdata)
 guint
 ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *properties)
 {
+    NgfEventDefinition *def = NULL;
     NgfEventPrototype *proto = NULL;
     NgfEvent *event = NULL;
 
     guint policy_id = 0, play_timeout = 0;
     gint resources = 0, play_mode = 0;
+    const char *proto_name = NULL;
 
-    /* First, we will try to lookup if we have an event prototype that matches
-       the event name. If not, then we will ignore this request straight on
-       since it is unknown to us. */
+    /* First, look for the event definition that defines the prototypes for long and
+       short events. If not found, then it is an unrecognized event. */
 
-    if ((proto = ngf_event_manager_get_prototype (self->event_manager, event_name)) == 0)
+    if ((def = ngf_event_manager_get_definition (self->event_manager, event_name)) == NULL)
+        goto failed;
+
+    /* Then, get the play mode from the passed properties. The play mode is either "long"
+       or "short" and we have a corresponding prototypes defined in the event definition.
+
+       If no play mode then this is an invalid event. */
+
+    if ((play_mode = _properties_get_play_mode (properties)) == 0)
+        goto failed;
+
+    /* Lookup the prototype based on the play mode. If not found, we have the definition,
+       but no actions specified for the play mode. */
+
+    proto_name = (play_mode == NGF_PLAY_MODE_LONG) ? def->long_proto : def->short_proto;
+
+    if ((proto = ngf_event_manager_get_prototype (self->event_manager, proto_name)) == 0)
         goto failed;
 
     /* Get the policy identifier, allowed resources and play mode and timeout
@@ -251,13 +268,12 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
     policy_id    = _properties_get_policy_id (properties);
     play_timeout = _properties_get_play_timeout (properties);
     resources    = _properties_get_resources (properties);
-    play_mode    = _properties_get_play_mode (properties);
 
-    if (policy_id == 0 || resources == 0 || play_mode == 0)
+    if (policy_id == 0 || resources == 0)
         goto failed;
 
-    g_print ("EVENT (event_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d)\n",
-		    event_name, policy_id, play_timeout, resources, play_mode);
+    g_print ("EVENT (event_name=%s, proto_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d (%s))\n",
+		    event_name, proto_name, policy_id, play_timeout, resources, play_mode, play_mode == NGF_PLAY_MODE_LONG ? "LONG" : "SHORT");
 
     /* Create a new event based on the prototype and feed the properties
        to it. */

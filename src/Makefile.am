@@ -18,6 +18,8 @@ ngfd_SOURCES = \
 	ngf-value.c \
 	ngf-event-manager.h \
 	ngf-event-manager.c \
+	ngf-event-definition.h \
+	ngf-event-definition.c \
 	ngf-event-prototype.h \
 	ngf-event-prototype.c \
 	ngf-event.h \

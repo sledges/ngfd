@@ -86,14 +86,7 @@ _parse_stream_properties (NgfConf *c, const char *group, const char *prefix, pa_
     }
 
     g_strfreev (keys);
-
-    if (has_props) {
-        *proplist = p;
-        return;
-    }
-
-    pa_proplist_free (p);
-    *proplist = NULL;
+    *proplist = p;
 }
 
 static void
@@ -138,7 +131,7 @@ _parse_volume_pattern (NgfConf *c, const char *group, const char *name, NgfVolum
 }
 
 static void
-_configuration_parse_event (NgfConf *c, const char *group, const char *name, gpointer userdata)
+_configuration_parse_proto (NgfConf *c, const char *group, const char *name, gpointer userdata)
 {
     NgfDaemon *self = (NgfDaemon*) userdata;
     char **keys = NULL, **k = NULL;
@@ -180,6 +173,23 @@ _configuration_parse_event (NgfConf *c, const char *group, const char *name, gpo
     ngf_event_manager_register_prototype (self->event_manager, name, proto);
 }
 
+static void
+_configuration_parse_event (NgfConf *c, const char *group, const char *name, gpointer userdata)
+{
+    NgfDaemon *self = (NgfDaemon*) userdata;
+
+    if (name == NULL)
+        return;
+
+    NgfEventDefinition *def = NULL;
+    def = ngf_event_definition_new ();
+
+    ngf_conf_get_string (c, group, "long", &def->long_proto, NULL);
+    ngf_conf_get_string (c, group, "short", &def->short_proto, NULL);
+
+    ngf_event_manager_register_definition (self->event_manager, name, def);
+}
+
 gboolean
 ngf_daemon_settings_load (NgfDaemon *self)
 {
@@ -191,10 +201,10 @@ ngf_daemon_settings_load (NgfDaemon *self)
 
     conf = ngf_conf_new ();
     ngf_conf_add_group (conf, NGF_CONF_PARSE_PREFIX, "event", _configuration_parse_event, self);
+    ngf_conf_add_group (conf, NGF_CONF_PARSE_PREFIX, "proto", _configuration_parse_proto, self);
 
     for (file = conf_files; *file; file++) {
         if (g_file_test (*file, G_FILE_TEST_EXISTS)) {
-            g_print ("trying to load = %s\n", *file);
             if (ngf_conf_load (conf, *file))
                 success = TRUE;
             break;

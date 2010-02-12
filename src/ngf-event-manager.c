@@ -25,6 +25,10 @@ ngf_event_manager_create ()
     if ((self = g_new0 (NgfEventManager, 1)) == NULL)
         goto failed;
 
+    self->definitions = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) ngf_event_definition_free);
+    if (self->definitions == NULL)
+        goto failed;
+
     self->prototypes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) ngf_event_prototype_free);
     if (self->prototypes == NULL)
         goto failed;
@@ -47,7 +51,30 @@ ngf_event_manager_destroy (NgfEventManager *self)
         self->prototypes = NULL;
     }
 
+    if (self->definitions) {
+        g_hash_table_destroy (self->definitions);
+        self->definitions = NULL;
+    }
+
     g_free (self);
+}
+
+void
+ngf_event_manager_register_definition (NgfEventManager *self, const char *name, NgfEventDefinition *def)
+{
+    if (self == NULL || name == NULL || def == NULL)
+        return;
+
+    g_hash_table_replace (self->definitions, g_strdup (name), def);
+}
+
+NgfEventDefinition*
+ngf_event_manager_get_definition (NgfEventManager *self, const char *name)
+{
+    if (self == NULL || name == NULL)
+        return NULL;
+
+    return (NgfEventDefinition*) g_hash_table_lookup (self->definitions, name);
 }
 
 void

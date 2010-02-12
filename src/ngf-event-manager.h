@@ -20,16 +20,21 @@
 
 #include <glib.h>
 
+#include "ngf-event-definition.h"
 #include "ngf-event-prototype.h"
 #include "ngf-event.h"
 
 typedef struct _NgfEventManager
 {
+    GHashTable  *definitions;
     GHashTable  *prototypes;
 } NgfEventManager;
 
 NgfEventManager*    ngf_event_manager_create ();
 void                ngf_event_manager_destroy (NgfEventManager *self);
+
+void                ngf_event_manager_register_definition (NgfEventManager *self, const char *name, NgfEventDefinition *def);
+NgfEventDefinition* ngf_event_manager_get_definition (NgfEventManager *self, const char *name);
 
 void                ngf_event_manager_register_prototype (NgfEventManager *self, const char *name, NgfEventPrototype *proto);
 NgfEventPrototype*  ngf_event_manager_get_prototype (NgfEventManager *self, const char *name);
