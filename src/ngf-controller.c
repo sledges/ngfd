@@ -14,10 +14,10 @@
  * written consent of Nokia.
  */
 
-#include "ngf-volume-controller.h"
+#include "ngf-controller.h"
 
 typedef struct _ControlStep ControlStep;
-typedef struct _Controller Controller;
+typedef struct _Controller  Controller;
 
 struct _ControlStep
 {
@@ -27,15 +27,15 @@ struct _ControlStep
 
 struct _Controller
 {
-    guint                       id;
-    guint                       source_id;
-    GList                       *current;
-    NgfVolumeController         *controller;
-    NgfVolumeControllerCallback callback;
-    gpointer                    userdata;
+    guint                   id;
+    guint                   source_id;
+    GList                   *current;
+    NgfController           *controller;
+    NgfControllerCallback   callback;
+    gpointer                userdata;
 };
 
-struct _NgfVolumeController
+struct _NgfController
 {
     GList   *steps;
     GList   *active_controllers;
@@ -52,7 +52,7 @@ static gboolean
 _process_next_step (gpointer userdata)
 {
     Controller *c = (Controller*) userdata;
-    NgfVolumeController *self = c->controller;
+    NgfController *self = c->controller;
 
     ControlStep *step = NULL, *next = NULL;
     gboolean do_continue = FALSE;
@@ -77,14 +77,14 @@ _process_next_step (gpointer userdata)
     return FALSE;
 }
 
-NgfVolumeController*
-ngf_volume_controller_new ()
+NgfController*
+ngf_controller_new ()
 {
-    return g_new0 (NgfVolumeController, 1);
+    return g_new0 (NgfController, 1);
 }
 
 void
-ngf_volume_controller_free (NgfVolumeController *self)
+ngf_controller_free (NgfController *self)
 {
     GList *iter = NULL;
 
@@ -114,7 +114,7 @@ ngf_volume_controller_free (NgfVolumeController *self)
 }
 
 void
-ngf_volume_controller_add_step (NgfVolumeController *self, guint step_time, guint step_value)
+ngf_controller_add_step (NgfController *self, guint step_time, guint step_value)
 {
     ControlStep *step = NULL;
 
@@ -129,7 +129,7 @@ ngf_volume_controller_add_step (NgfVolumeController *self, guint step_time, guin
 }
 
 guint
-ngf_volume_controller_start (NgfVolumeController *self, NgfVolumeControllerCallback callback, gpointer userdata)
+ngf_controller_start (NgfController *self, NgfControllerCallback callback, gpointer userdata)
 {
     Controller *c = NULL;
     ControlStep *step = NULL;
@@ -160,7 +160,7 @@ ngf_volume_controller_start (NgfVolumeController *self, NgfVolumeControllerCallb
 }
 
 void
-ngf_volume_controller_stop (NgfVolumeController *self, guint id)
+ngf_controller_stop (NgfController *self, guint id)
 {
     GList *iter = NULL;
     Controller *c = NULL;

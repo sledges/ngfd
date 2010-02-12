@@ -143,7 +143,7 @@ _event_audio_start (NgfEvent *self)
 
     if (self->proto->volume_controller) {
 
-        self->controller_id = ngf_volume_controller_start (self->proto->volume_controller,
+        self->controller_id = ngf_controller_start (self->proto->volume_controller,
             _volume_control_cb, self);
 
     }
@@ -310,7 +310,7 @@ ngf_event_stop (NgfEvent *self)
     }
 
     if (self->controller_id > 0) {
-        ngf_volume_controller_stop (self->proto->volume_controller, self->controller_id);
+        ngf_controller_stop (self->proto->volume_controller, self->controller_id);
         self->controller_id = 0;
     }
 

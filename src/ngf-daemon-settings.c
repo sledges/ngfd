@@ -90,12 +90,12 @@ _parse_stream_properties (NgfConf *c, const char *group, const char *prefix, pa_
 }
 
 static void
-_parse_volume_pattern (NgfConf *c, const char *group, const char *name, NgfVolumeController **controller)
+_parse_controller_pattern (NgfConf *c, const char *group, const char *name, NgfController **controller)
 {
     gint *value_list = NULL;
     gint num_values, i, step_time, step_value;
 
-    NgfVolumeController *vc = NULL;
+    NgfController *vc = NULL;
     gboolean has_steps = FALSE;
 
     if (name == NULL)
@@ -105,7 +105,7 @@ _parse_volume_pattern (NgfConf *c, const char *group, const char *name, NgfVolum
     if (value_list == NULL)
         return;
 
-    vc = ngf_volume_controller_new ();
+    vc = ngf_controller_new ();
 
     for (i = 0; i < num_values; ) {
         if (i+1 >= num_values)
@@ -115,7 +115,7 @@ _parse_volume_pattern (NgfConf *c, const char *group, const char *name, NgfVolum
         step_value = value_list[i+1];
         has_steps = TRUE;
 
-        ngf_volume_controller_add_step (vc, step_time, step_value);
+        ngf_controller_add_step (vc, step_time, step_value);
 	    i += 2;
     }
 
@@ -126,7 +126,7 @@ _parse_volume_pattern (NgfConf *c, const char *group, const char *name, NgfVolum
         return;
     }
 
-    ngf_volume_controller_free (vc);
+    ngf_controller_free (vc);
     *controller = NULL;
 }
 
@@ -145,21 +145,21 @@ _configuration_parse_proto (NgfConf *c, const char *group, const char *name, gpo
     NgfEventPrototype *proto = NULL;
     proto = ngf_event_prototype_new ();
 
-    ngf_conf_get_integer  (c, group, "max_length", &proto->max_length, 0);
-    ngf_conf_get_boolean  (c, group, "tone_repeat", &proto->tone_repeat, FALSE);
-    ngf_conf_get_integer  (c, group, "tone_repeat_count", &proto->tone_repeat_count, 0);
-    ngf_conf_get_string   (c, group, "tone_filename", &proto->tone_filename, NULL);
-    _profile_key_get      (c, group, "tone_key", &proto->tone_key, &proto->tone_profile);
+    ngf_conf_get_integer        (c, group, "max_length", &proto->max_length, 0);
+    ngf_conf_get_boolean        (c, group, "tone_repeat", &proto->tone_repeat, FALSE);
+    ngf_conf_get_integer        (c, group, "tone_repeat_count", &proto->tone_repeat_count, 0);
+    ngf_conf_get_string         (c, group, "tone_filename", &proto->tone_filename, NULL);
+    _profile_key_get            (c, group, "tone_key", &proto->tone_key, &proto->tone_profile);
 
-    ngf_conf_get_integer  (c, group, "volume_set", &proto->volume_set, -1);
-    ngf_conf_get_string   (c, group, "volume_role", &proto->volume_role, NULL);
-    _profile_key_get      (c, group, "volume_key", &proto->volume_key, &proto->volume_profile);
-    _parse_volume_pattern (c, group, "volume_pattern", &proto->volume_controller);
+    ngf_conf_get_integer        (c, group, "volume_set", &proto->volume_set, -1);
+    ngf_conf_get_string         (c, group, "volume_role", &proto->volume_role, NULL);
+    _profile_key_get            (c, group, "volume_key", &proto->volume_key, &proto->volume_profile);
+    _parse_controller_pattern   (c, group, "volume_pattern", &proto->volume_controller);
 
-    ngf_conf_get_boolean  (c, group, "tonegen_enabled", &proto->tonegen_enabled, FALSE);
-    ngf_conf_get_integer  (c, group, "tonegen_pattern", &proto->tonegen_pattern, -1);
+    ngf_conf_get_boolean        (c, group, "tonegen_enabled", &proto->tonegen_enabled, FALSE);
+    ngf_conf_get_integer        (c, group, "tonegen_pattern", &proto->tonegen_pattern, -1);
 
-    _parse_stream_properties (c, group, "stream.", &proto->stream_properties);
+    _parse_stream_properties    (c, group, "stream.", &proto->stream_properties);
 
     /* If no override volume role specified, let's use the default role. Also
        set the role to the stream properties. */

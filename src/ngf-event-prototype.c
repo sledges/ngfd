@@ -43,7 +43,7 @@ ngf_event_prototype_free (NgfEventPrototype *proto)
     g_free (proto->volume_role);
 
     if (proto->volume_controller) {
-        ngf_volume_controller_free (proto->volume_controller);
+        ngf_controller_free (proto->volume_controller);
         proto->volume_controller = NULL;
     }
 

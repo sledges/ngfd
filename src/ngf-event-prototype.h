@@ -21,30 +21,30 @@
 #include <pulse/proplist.h>
 
 #include "ngf-value.h"
-#include "ngf-volume-controller.h"
+#include "ngf-controller.h"
 
 typedef struct _NgfEventPrototype NgfEventPrototype;
 
 struct _NgfEventPrototype
 {
-    gint                max_length;
+    gint            max_length;
 
-    gboolean            tone_repeat;
-    gint                tone_repeat_count;
-    gchar               *tone_filename;
-    gchar               *tone_key;
-    gchar               *tone_profile;
+    gboolean        tone_repeat;
+    gint            tone_repeat_count;
+    gchar           *tone_filename;
+    gchar           *tone_key;
+    gchar           *tone_profile;
 
-    gint                volume_set;
-    gchar               *volume_key;
-    gchar               *volume_profile;
-    NgfVolumeController *volume_controller;
+    gint            volume_set;
+    gchar           *volume_key;
+    gchar           *volume_profile;
+    NgfController   *volume_controller;
 
-    gboolean            tonegen_enabled;
-    guint               tonegen_pattern;
+    gboolean        tonegen_enabled;
+    guint           tonegen_pattern;
 
-    gchar               *volume_role;
-    pa_proplist         *stream_properties;
+    gchar           *volume_role;
+    pa_proplist     *stream_properties;
 };
 
 NgfEventPrototype*  ngf_event_prototype_new ();

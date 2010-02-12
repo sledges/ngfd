@@ -26,8 +26,8 @@ ngfd_SOURCES = \
 	ngf-event.c \
 	ngf-audio.h \
 	ngf-audio.c \
-	ngf-volume-controller.h \
-	ngf-volume-controller.c \
+	ngf-controller.h \
+	ngf-controller.c \
 	ngf-vibrator.h \
 	ngf-vibrator.c \
 	ngf-tonegen.h \
