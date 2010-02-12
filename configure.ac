@@ -21,6 +21,16 @@ AC_SUBST(X_CFLAGS)
 ngfconfdir=${sysconfdir}/ngf
 AC_SUBST(ngfconfdir)
 
+AC_ARG_ENABLE([vibrator],
+	AS_HELP_STRING([--disable-vibrator],[Disable vibrator @<:@default=false@:>@]),
+	[case "${enableval}" in
+		yes) vibrator=false ;;
+		no)  vibrator=true ;;
+		*) AC_MSG_ERROR([bad value ${enableval} for --disable-vibrator]) ;;
+	esac],
+	[vibrator=true])
+AM_CONDITIONAL([VIBRATOR], [test x$vibrator = xtrue])
+
 PKG_CHECK_MODULES(NGFD,
 		  [glib-2.0
 		   dbus-1
@@ -32,5 +42,14 @@ PKG_CHECK_MODULES(NGFD,
 
 AC_SUBST(NGFD_LIBS)
 AC_SUBST(NGFD_CFLAGS)
+
+echo "
+ == $PACKAGE_NAME $VERSION ==
+
+    Compiler:               ${CC}
+    CFLAGS:                 ${CFLAGS}
+
+    Vibrator enabled:       ${vibrator}
+"
 
 AC_OUTPUT(Makefile src/Makefile tests/Makefile data/Makefile)

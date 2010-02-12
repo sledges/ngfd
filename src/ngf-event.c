@@ -85,8 +85,8 @@ _event_max_timeout_cb (gpointer userdata)
 static const char*
 _event_get_tone (NgfEvent *self)
 {
-    NgfValue *value = NULL;
     NgfEventPrototype *proto = self->proto;
+    NgfValue *value = NULL;
     const gchar *tone = NULL;
 
     /* TODO returns only the long one, make one for short */
@@ -107,6 +107,17 @@ _event_get_tone (NgfEvent *self)
 static const char*
 _event_get_vibra (NgfEvent *self)
 {
+    NgfEventPrototype *proto = self->proto;
+    NgfValue *value = NULL;
+    const gchar *vibra = NULL;
+
+    value = g_hash_table_lookup (self->properties, "vibra");
+    if (value && ngf_value_get_type (value) == NGF_VALUE_STRING)
+        return (const char*) ngf_value_get_string (value);
+
+    if (proto->vibrator_pattern)
+        return (const char*) proto->vibrator_pattern;
+
     return NULL;
 }
 
@@ -279,7 +290,7 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
     if (self->resources & NGF_RESOURCE_VIBRATION) {
 
         if ((vibra = _event_get_vibra (self)) != NULL)
-            self->vibra_id = ngf_vibrator_play_pattern (self->context->vibrator, vibra);
+            self->vibra_id = ngf_vibrator_start (self->context->vibrator, vibra);
 
     }
 
@@ -320,7 +331,7 @@ ngf_event_stop (NgfEvent *self)
     }
 
     if (self->vibra_id > 0) {
-        ngf_vibrator_stop_pattern (self->context->vibrator, self->vibra_id);
+        ngf_vibrator_stop (self->context->vibrator, self->vibra_id);
         self->vibra_id = 0;
     }
 }

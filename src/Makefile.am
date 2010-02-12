@@ -29,7 +29,6 @@ ngfd_SOURCES = \
 	ngf-controller.h \
 	ngf-controller.c \
 	ngf-vibrator.h \
-	ngf-vibrator.c \
 	ngf-tonegen.h \
 	ngf-tonegen.c \
 	ngf-backlight.h \
@@ -37,3 +36,10 @@ ngfd_SOURCES = \
 
 ngfd_LDFLAGS = \
 	$(NGFD_LIBS)
+
+if VIBRATOR
+ngfd_SOURCES += ngf-vibrator.c
+ngfd_LDFLAGS += -limmvibe
+else
+ngfd_SOURCES += ngf-vibrator-dummy.c
+endif

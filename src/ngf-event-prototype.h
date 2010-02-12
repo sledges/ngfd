@@ -43,6 +43,8 @@ struct _NgfEventPrototype
     gboolean        tonegen_enabled;
     guint           tonegen_pattern;
 
+    gchar           *vibrator_pattern;
+
     gchar           *volume_role;
     pa_proplist     *stream_properties;
 };

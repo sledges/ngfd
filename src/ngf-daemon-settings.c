@@ -161,6 +161,8 @@ _configuration_parse_proto (NgfConf *c, const char *group, const char *name, gpo
 
     _parse_stream_properties    (c, group, "stream.", &proto->stream_properties);
 
+    ngf_conf_get_string         (c, group, "vibrator_pattern", &proto->vibrator_pattern, NULL);
+
     /* If no override volume role specified, let's use the default role. Also
        set the role to the stream properties. */
 
@@ -193,6 +195,27 @@ _configuration_parse_event (NgfConf *c, const char *group, const char *name, gpo
     ngf_event_manager_register_definition (self->event_manager, name, def);
 }
 
+static void
+_configuration_parse_vibrator (NgfConf *c, const char *group, const char *name, gpointer userdata)
+{
+    NgfDaemon *self = (NgfDaemon*) userdata;
+
+    gchar *filename = NULL;
+    gint pattern_id = 0;
+
+    if (name == NULL)
+        return;
+
+    ngf_conf_get_string  (c, group, "filename", &filename, NULL);
+    ngf_conf_get_integer (c, group, "pattern_id", &pattern_id, -1);
+
+    /* Register the vibrator pattern */
+    if (self->context.vibrator)
+        ngf_vibrator_register (self->context.vibrator, name, filename, pattern_id);
+
+    g_free (filename);
+}
+    
 gboolean
 ngf_daemon_settings_load (NgfDaemon *self)
 {
@@ -205,6 +228,7 @@ ngf_daemon_settings_load (NgfDaemon *self)
     conf = ngf_conf_new ();
     ngf_conf_add_group (conf, NGF_CONF_PARSE_PREFIX, "event", _configuration_parse_event, self);
     ngf_conf_add_group (conf, NGF_CONF_PARSE_PREFIX, "proto", _configuration_parse_proto, self);
+    ngf_conf_add_group (conf, NGF_CONF_PARSE_PREFIX, "vibrator", _configuration_parse_vibrator, self);
 
     for (file = conf_files; *file; file++) {
         if (g_file_test (*file, G_FILE_TEST_EXISTS)) {

@@ -52,6 +52,8 @@ ngf_event_prototype_free (NgfEventPrototype *proto)
         proto->stream_properties = NULL;
     }
 
+    g_free (proto->vibrator_pattern);
+
     g_free (proto);
 }
 
