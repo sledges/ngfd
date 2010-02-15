@@ -279,12 +279,13 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
     /* Check the resources and start the backends if we have the proper resources,
        profile allows us to and valid data is provided. */
 
-    if (self->proto->tonegen_enabled && self->proto->tonegen_pattern > -1) {
+    if (self->proto->tonegen_enabled) {
         self->tonegen_id = ngf_tonegen_start (self->context->tonegen, self->proto->tonegen_pattern);
     }
-
-    if (self->resources & NGF_RESOURCE_AUDIO) {
-        _event_audio_start (self);
+    else {
+        if (self->resources & NGF_RESOURCE_AUDIO) {
+            _event_audio_start (self);
+        }
     }
 
     if (self->resources & NGF_RESOURCE_VIBRATION) {
