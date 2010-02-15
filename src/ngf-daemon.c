@@ -321,6 +321,7 @@ ngf_daemon_event_stop (NgfDaemon *self, guint id)
             g_print ("EVENT STOP (id=%d)\n", id);
             self->event_list = g_list_remove (self->event_list, event);
             ngf_event_stop (event);
+            ngf_dbus_send_status (self->dbus, event->policy_id, 0);
             ngf_event_free (event);
             break;
         }
