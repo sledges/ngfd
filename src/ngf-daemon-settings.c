@@ -162,6 +162,7 @@ _configuration_parse_proto (NgfConf *c, const char *group, const char *name, gpo
     _parse_stream_properties    (c, group, "stream.", &proto->stream_properties);
 
     ngf_conf_get_string         (c, group, "vibrator_pattern", &proto->vibrator_pattern, NULL);
+    ngf_conf_get_string         (c, group, "led_pattern", &proto->led_pattern, NULL);
 
     /* If no override volume role specified, let's use the default role. Also
        set the role to the stream properties. */

@@ -32,7 +32,9 @@ ngfd_SOURCES = \
 	ngf-tonegen.h \
 	ngf-tonegen.c \
 	ngf-backlight.h \
-	ngf-backlight.c
+	ngf-backlight.c \
+	ngf-led.h \
+	ngf-led.c
 
 ngfd_LDFLAGS = \
 	$(NGFD_LIBS)

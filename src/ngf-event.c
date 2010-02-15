@@ -20,6 +20,8 @@
 static gboolean     _event_max_timeout_cb (gpointer userdata);
 static void         _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpointer userdata);
 static const char*  _event_get_tone (NgfEvent *self);
+static const char*  _event_get_vibra (NgfEvent *self);
+static const char*  _event_get_led (NgfEvent *self);
 static const char*  _event_stop_audio (NgfEvent *self);
 static gboolean     _volume_control_cb (guint id, guint step_time, guint step_value, gpointer userdata);
 
@@ -117,6 +119,23 @@ _event_get_vibra (NgfEvent *self)
 
     if (proto->vibrator_pattern)
         return (const char*) proto->vibrator_pattern;
+
+    return NULL;
+}
+
+static const char*
+_event_get_led (NgfEvent *self)
+{
+    NgfEventPrototype *proto = self->proto;
+    NgfValue *value = NULL;
+    const gchar *vibra = NULL;
+
+    value = g_hash_table_lookup (self->properties, "led");
+    if (value && ngf_value_get_type (value) == NGF_VALUE_STRING)
+        return (const char*) ngf_value_get_string (value);
+
+    if (proto->led_pattern)
+        return (const char*) proto->led_pattern;
 
     return NULL;
 }
@@ -270,7 +289,7 @@ _volume_control_cb (guint id, guint step_time, guint step_value, gpointer userda
 gboolean
 ngf_event_start (NgfEvent *self, GHashTable *properties)
 {
-    const char *tone = NULL, *vibra = NULL;
+    const char *tone = NULL, *vibra = NULL, *led =  NULL;
     gint volume = 0;
 
     /* Take ownership of the properties */
@@ -292,6 +311,13 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
 
         if ((vibra = _event_get_vibra (self)) != NULL)
             self->vibra_id = ngf_vibrator_start (self->context->vibrator, vibra);
+
+    }
+
+    if (self->resources & NGF_RESOURCE_LED) {
+
+        if ((led = _event_get_led (self)) != NULL)
+            self->led_id = ngf_led_start (self->context->led, led);
 
     }
 
@@ -334,5 +360,10 @@ ngf_event_stop (NgfEvent *self)
     if (self->vibra_id > 0) {
         ngf_vibrator_stop (self->context->vibrator, self->vibra_id);
         self->vibra_id = 0;
+    }
+
+    if (self->led_id > 0) {
+        ngf_led_stop (self->context->led, self->led_id);
+        self->led_id = 0;
     }
 }

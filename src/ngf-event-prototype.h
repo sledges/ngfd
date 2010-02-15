@@ -44,6 +44,7 @@ struct _NgfEventPrototype
     guint           tonegen_pattern;
 
     gchar           *vibrator_pattern;
+    gchar           *led_pattern;
 
     gchar           *volume_role;
     pa_proplist     *stream_properties;
