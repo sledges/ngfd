@@ -233,8 +233,11 @@ _dbus_initialize (NgfDBus *self, const char *name, const char *path)
     dbus_error_init (&error);
     self->connection = dbus_bus_get (DBUS_BUS_SESSION, &error);
     if (self->connection == NULL) {
-        g_warning ("%s: Failed to get DBus: %s", __FUNCTION__, error.message);
-        dbus_error_free (&error);
+        g_warning ("%s: Failed to get session bus!");
+        if (dbus_error_is_set (&error)) {
+            g_warning ("%s: Failed to get DBus: %s", __FUNCTION__, error.message);
+            dbus_error_free (&error);
+        }
         return FALSE;
     }
 
