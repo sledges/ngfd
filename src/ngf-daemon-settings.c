@@ -154,6 +154,8 @@ _configuration_parse_proto (NgfConf *c, const char *group, const char *name, gpo
     ngf_conf_get_integer        (c, group, "volume_set", &proto->volume_set, -1);
     ngf_conf_get_string         (c, group, "volume_role", &proto->volume_role, NULL);
     _profile_key_get            (c, group, "volume_key", &proto->volume_key, &proto->volume_profile);
+
+    ngf_conf_get_boolean        (c, group, "volume_repeat", &proto->volume_controller_repeat, FALSE);
     _parse_controller_pattern   (c, group, "volume_pattern", &proto->volume_controller);
 
     ngf_conf_get_boolean        (c, group, "tonegen_enabled", &proto->tonegen_enabled, FALSE);

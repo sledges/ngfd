@@ -38,6 +38,8 @@ struct _NgfEventPrototype
     gint            volume_set;
     gchar           *volume_key;
     gchar           *volume_profile;
+
+    gboolean        volume_controller_repeat;
     NgfController   *volume_controller;
 
     gboolean        tonegen_enabled;

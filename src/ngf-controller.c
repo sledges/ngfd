@@ -29,6 +29,7 @@ struct _Controller
 {
     guint                   id;
     guint                   source_id;
+    gboolean                repeat;
     GList                   *current;
     NgfController           *controller;
     NgfControllerCallback   callback;
@@ -69,9 +70,21 @@ _process_next_step (gpointer userdata)
         c->source_id = g_timeout_add ((next->time - step->time), _process_next_step, c);
     }
     else {
-        g_print ("CONTROLLER COMPLETE (id=%d)\n", c->id);
-        self->active_controllers = g_list_remove (self->active_controllers, c);
-        _free_controller (c);
+        if (c->repeat) {
+            g_print ("CONTROLLER REPEAT (id=%d)\n", c->id);
+
+            c->current = g_list_first (self->steps);
+            step = (ControlStep*) c->current->data;
+            if (step->time == 0)
+                _process_next_step ((gpointer) c);
+            else
+                c->source_id = g_timeout_add (step->time, _process_next_step, c);
+        }
+        else {
+            g_print ("CONTROLLER COMPLETE (id=%d)\n", c->id);
+            self->active_controllers = g_list_remove (self->active_controllers, c);
+            _free_controller (c);
+        }
     }
 
     return FALSE;
@@ -129,7 +142,7 @@ ngf_controller_add_step (NgfController *self, guint step_time, guint step_value)
 }
 
 guint
-ngf_controller_start (NgfController *self, NgfControllerCallback callback, gpointer userdata)
+ngf_controller_start (NgfController *self, gboolean repeat, NgfControllerCallback callback, gpointer userdata)
 {
     Controller *c = NULL;
     ControlStep *step = NULL;
@@ -142,10 +155,14 @@ ngf_controller_start (NgfController *self, NgfControllerCallback callback, gpoin
 
     c = g_slice_new0 (Controller);
     c->current      = g_list_first (self->steps);
+    c->repeat       = repeat;
     c->controller   = self;
     c->callback     = callback;
     c->userdata     = userdata;
     c->id           = ++self->controller_count;
+
+    if (c->current == NULL)
+        return 0;
 
     /* If the first step's time is 0, then let's execute that immediately. */
     self->active_controllers = g_list_append (self->active_controllers, c);
