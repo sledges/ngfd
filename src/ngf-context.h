@@ -8,6 +8,7 @@
 #include "ngf-vibrator.h"
 #include "ngf-tonegen.h"
 #include "ngf-led.h"
+#include "ngf-backlight.h"
 
 typedef struct _NgfContext
 {
@@ -16,6 +17,7 @@ typedef struct _NgfContext
     NgfVibrator     *vibrator;
     NgfTonegen      *tonegen;
     NgfLed          *led;
+    NgfBacklight    *backlight;
 } NgfContext;
 
 #endif /* NGF_CONTEXT_H */

@@ -48,6 +48,9 @@ struct _NgfEventPrototype
     gchar           *vibrator_pattern;
     gchar           *led_pattern;
 
+    gboolean        backlight_controller_repeat;
+    NgfController   *backlight_controller;
+
     gchar           *volume_role;
     pa_proplist     *stream_properties;
 };

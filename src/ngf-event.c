@@ -280,8 +280,19 @@ _volume_control_cb (guint id, guint step_time, guint step_value, gpointer userda
 {
     NgfEvent *self = (NgfEvent*) userdata;
 
-    g_print ("CONTROL SET VOLUME (id=%d, time=%d, value=%d)\n", id, step_time, step_value);
+    g_print ("VOLUME CONTROL SET VOLUME (id=%d, time=%d, value=%d)\n", id, step_time, step_value);
     ngf_audio_set_volume (self->context->audio, self->proto->volume_role, step_value);
+
+    return TRUE;
+}
+
+static gboolean
+_backlight_control_cb (guint id, guint step_time, guint step_value, gpointer userdata)
+{
+    NgfEvent *self = (NgfEvent*) userdata;
+
+    g_print ("BACKLIGHT CONTROL SET (id=%d, time=%d, value=%d)\n", id, step_time, step_value);
+    ngf_backlight_toggle (self->context->backlight, step_value);
 
     return TRUE;
 }
@@ -321,6 +332,13 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
 
     }
 
+    if (self->resources & NGF_RESOURCE_BACKLIGHT) {
+        if (self->proto->backlight_controller) {
+            self->backlight_id = ngf_controller_start (self->proto->backlight_controller,
+                self->proto->backlight_controller_repeat, _backlight_control_cb, self);
+        }
+    }
+
     /* Timeout callback for maximum length of the event. Once triggered we will
        stop the event ourselves. */
 
@@ -350,6 +368,11 @@ ngf_event_stop (NgfEvent *self)
     if (self->controller_id > 0) {
         ngf_controller_stop (self->proto->volume_controller, self->controller_id);
         self->controller_id = 0;
+    }
+
+    if (self->backlight_id > 0) {
+        ngf_controller_stop (self->proto->backlight_controller, self->backlight_id);
+        self->backlight_id = 0;
     }
 
     if (self->audio_id > 0) {

@@ -57,6 +57,9 @@ ngf_daemon_create ()
     if ((self->context.led = ngf_led_create ()) == NULL)
         return NULL;
 
+    if ((self->context.backlight = ngf_backlight_create ()) == NULL)
+        return NULL;
+
     if (!ngf_daemon_settings_load (self))
         return NULL;
 
@@ -72,6 +75,11 @@ ngf_daemon_destroy (NgfDaemon *self)
     if (self->dbus) {
         ngf_dbus_destroy (self->dbus);
         self->dbus = NULL;
+    }
+
+    if (self->context.backlight) {
+        ngf_backlight_destroy (self->context.backlight);
+	    self->context.backlight = NULL;
     }
 
     if (self->context.led) {

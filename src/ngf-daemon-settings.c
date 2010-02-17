@@ -166,6 +166,9 @@ _configuration_parse_proto (NgfConf *c, const char *group, const char *name, gpo
     ngf_conf_get_string         (c, group, "vibrator_pattern", &proto->vibrator_pattern, NULL);
     ngf_conf_get_string         (c, group, "led_pattern", &proto->led_pattern, NULL);
 
+    ngf_conf_get_boolean        (c, group, "backlight_repeat", &proto->backlight_controller_repeat, FALSE);
+    _parse_controller_pattern   (c, group, "backlight_pattern", &proto->backlight_controller);
+
     /* If no override volume role specified, let's use the default role. Also
        set the role to the stream properties. */
 

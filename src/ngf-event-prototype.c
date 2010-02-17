@@ -47,6 +47,11 @@ ngf_event_prototype_free (NgfEventPrototype *proto)
         proto->volume_controller = NULL;
     }
 
+    if (proto->backlight_controller) {
+        ngf_controller_free (proto->backlight_controller);
+        proto->backlight_controller = NULL;
+    }
+
     if (proto->stream_properties) {
         pa_proplist_free (proto->stream_properties);
         proto->stream_properties = NULL;

@@ -59,6 +59,7 @@ struct _NgfEvent
     guint               controller_id;
     guint               tonegen_id;
     guint               led_id;
+    guint               backlight_id;
 
     gint                tone_repeat_count;
 

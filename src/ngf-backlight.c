@@ -21,6 +21,7 @@
 struct _NgfBacklight
 {
     DBusConnection *connection;
+    GHashTable     *patterns;
 };
 
 NgfBacklight*

@@ -24,7 +24,6 @@ typedef struct _NgfBacklight NgfBacklight;
 NgfBacklight*   ngf_backlight_create ();
 void            ngf_backlight_destroy (NgfBacklight *self);
 
-void            ngf_backlight_start (NgfBacklight *self, const gchar *pattern);
-void            ngf_backlight_stop (NgfBacklight *self, const gchar *pattern);
+void            ngf_backlight_toggle (NgfBacklight *self, gint state);
 
 #endif /* NGF_BACKLIGHT_H */
