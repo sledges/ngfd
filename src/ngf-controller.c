@@ -14,6 +14,7 @@
  * written consent of Nokia.
  */
 
+#include "ngf-log.h"
 #include "ngf-controller.h"
 
 typedef struct _ControlStep ControlStep;
@@ -59,7 +60,7 @@ _process_next_step (gpointer userdata)
     gboolean do_continue = FALSE;
 
     step = (ControlStep*) c->current->data;
-    g_print ("CONTROLLER STEP (id=%d, time=%d, value=%d)\n", c->id, step->time, step->value);
+    LOG_DEBUG ("CONTROLLER STEP (id=%d, time=%d, value=%d)", c->id, step->time, step->value);
 
     if (c->callback)
         do_continue = c->callback (c->id, step->time, step->value, c->userdata);
@@ -71,7 +72,7 @@ _process_next_step (gpointer userdata)
     }
     else {
         if (c->repeat) {
-            g_print ("CONTROLLER REPEAT (id=%d)\n", c->id);
+            LOG_DEBUG ("CONTROLLER REPEAT (id=%d)", c->id);
 
             c->current = g_list_first (self->steps);
             step = (ControlStep*) c->current->data;
@@ -81,7 +82,7 @@ _process_next_step (gpointer userdata)
                 c->source_id = g_timeout_add (step->time, _process_next_step, c);
         }
         else {
-            g_print ("CONTROLLER COMPLETE (id=%d)\n", c->id);
+            LOG_DEBUG ("CONTROLLER COMPLETE (id=%d)", c->id);
             self->active_controllers = g_list_remove (self->active_controllers, c);
             _free_controller (c);
         }
@@ -172,6 +173,8 @@ ngf_controller_start (NgfController *self, gboolean repeat, NgfControllerCallbac
         _process_next_step ((gpointer) c);
     else
         c->source_id = g_timeout_add (step->time, _process_next_step, c);
+
+    LOG_DEBUG ("CONTROLLER START (id=%d)", c->id);
 
     return c->id;
 }

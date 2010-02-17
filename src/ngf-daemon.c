@@ -14,6 +14,7 @@
  * written consent of Nokia.
  */
 
+#include "ngf-log.h"
 #include "ngf-value.h"
 #include "ngf-event.h"
 #include "ngf-daemon.h"
@@ -33,38 +34,60 @@ ngf_daemon_create ()
 {
     NgfDaemon *self = NULL;
 
-    if ((self = g_new0 (NgfDaemon, 1)) == NULL)
+    if ((self = g_new0 (NgfDaemon, 1)) == NULL) {
+        LOG_ERROR ("Failed to allocate memory for NgfDaemon instance!");
         return NULL;
+    }
 
-    if ((self->loop = g_main_loop_new (NULL, 0)) == NULL)
+    if ((self->loop = g_main_loop_new (NULL, 0)) == NULL) {
+        LOG_ERROR ("Failed to create the GLib mainloop!");
         return NULL;
+    }
 
-    if ((self->event_manager = ngf_event_manager_create ()) == NULL)
+    if ((self->event_manager = ngf_event_manager_create ()) == NULL) {
+        LOG_ERROR ("Failed to create event manager instance!");
         return NULL;
+    }
 
-    if ((self->context.profile = ngf_profile_create ()) == NULL)
+    if ((self->dbus = ngf_dbus_create (_handle_play_cb, _handle_stop_cb, self)) == NULL) {
+        LOG_ERROR ("Failed to create D-Bus interface!");
         return NULL;
+    }
 
-    if ((self->context.audio = ngf_audio_create ()) == NULL)
+    if ((self->context.profile = ngf_profile_create ()) == NULL) {
+        LOG_ERROR ("Failed to create profile tracking!");
         return NULL;
+    }
 
-    if ((self->context.vibrator = ngf_vibrator_create ()) == NULL)
+    if ((self->context.audio = ngf_audio_create ()) == NULL) {
+        LOG_ERROR ("Failed to create Pulseaudio backend!");
         return NULL;
+    }
 
-    if ((self->context.tonegen = ngf_tonegen_create ()) == NULL)
+    if ((self->context.vibrator = ngf_vibrator_create ()) == NULL) {
+        LOG_ERROR ("Failed to create Immersion backend!");
         return NULL;
+    }
 
-    if ((self->context.led = ngf_led_create ()) == NULL)
+    if ((self->context.tonegen = ngf_tonegen_create ()) == NULL) {
+        LOG_ERROR ("Failed to create tone generator backend!");
         return NULL;
+    }
 
-    if ((self->context.backlight = ngf_backlight_create ()) == NULL)
+    if ((self->context.led = ngf_led_create ()) == NULL) {
+        LOG_ERROR ("Failed to create LED backend!");
         return NULL;
+    }
 
-    if (!ngf_daemon_settings_load (self))
+    if ((self->context.backlight = ngf_backlight_create ()) == NULL) {
+        LOG_ERROR ("Failed to create backlight backend!");
         return NULL;
+    }
 
-    if ((self->dbus = ngf_dbus_create (_handle_play_cb, _handle_stop_cb, self)) == NULL)
+    if (!ngf_daemon_settings_load (self)) {
+        LOG_ERROR ("Failed to load settings!");
         return NULL;
+    }
 
     return self;
 }
@@ -218,17 +241,17 @@ _event_state_cb (NgfEvent *event, NgfEventState state, gpointer userdata)
 
     switch (state) {
         case NGF_EVENT_STARTED:
-            g_print ("EVENT STARTED (id=%d)\n", event->policy_id);
+            LOG_DEBUG ("EVENT STARTED (id=%d)", event->policy_id);
             break;
 
         case NGF_EVENT_FAILED:
-            g_print ("EVENT FAILED (id=%d)\n", event->policy_id);
+            LOG_DEBUG ("EVENT FAILED (id=%d)", event->policy_id);
             ngf_dbus_send_status (self->dbus, event->policy_id, 0);
             remove_event = TRUE;
             break;
 
         case NGF_EVENT_COMPLETED:
-            g_print ("EVENT COMPLETED (id=%d)\n", event->policy_id);
+            LOG_DEBUG ("EVENT COMPLETED (id=%d)", event->policy_id);
             ngf_dbus_send_status (self->dbus, event->policy_id, 0);
             remove_event = TRUE;
             break;
@@ -238,7 +261,7 @@ _event_state_cb (NgfEvent *event, NgfEventState state, gpointer userdata)
     }
 
     if (remove_event) {
-        g_print ("EVENT REMOVED (id=%d)\n", event->policy_id);
+        LOG_DEBUG ("EVENT REMOVED (id=%d)", event->policy_id);
         self->event_list = g_list_remove (self->event_list, event);
         ngf_event_stop (event);
         ngf_event_free (event);
@@ -259,24 +282,30 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
     /* First, look for the event definition that defines the prototypes for long and
        short events. If not found, then it is an unrecognized event. */
 
-    if ((def = ngf_event_manager_get_definition (self->event_manager, event_name)) == NULL)
+    if ((def = ngf_event_manager_get_definition (self->event_manager, event_name)) == NULL) {
+        LOG_ERROR ("No event definition for event %s", event_name);
         goto failed;
+    }
 
     /* Then, get the play mode from the passed properties. The play mode is either "long"
        or "short" and we have a corresponding prototypes defined in the event definition.
 
        If no play mode then this is an invalid event. */
 
-    if ((play_mode = _properties_get_play_mode (properties)) == 0)
+    if ((play_mode = _properties_get_play_mode (properties)) == 0) {
+        LOG_ERROR ("No play.mode property for event %s", event_name);
         goto failed;
+    }
 
     /* Lookup the prototype based on the play mode. If not found, we have the definition,
        but no actions specified for the play mode. */
 
     proto_name = (play_mode == NGF_PLAY_MODE_LONG) ? def->long_proto : def->short_proto;
 
-    if ((proto = ngf_event_manager_get_prototype (self->event_manager, proto_name)) == 0)
+    if ((proto = ngf_event_manager_get_prototype (self->event_manager, proto_name)) == 0) {
+        LOG_ERROR ("Failed to get event prototype %s for event %s", proto_name, event_name);
         goto failed;
+    }
 
     /* Get the policy identifier, allowed resources and play mode and timeout
        for our event. */
@@ -285,17 +314,21 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
     play_timeout = _properties_get_play_timeout (properties);
     resources    = _properties_get_resources (properties);
 
-    if (policy_id == 0 || resources == 0)
+    if (policy_id == 0 || resources == 0) {
+        LOG_ERROR ("No policy.id or resources defined for event %s", event_name);
         goto failed;
+    }
 
-    g_print ("EVENT (event_name=%s, proto_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d (%s))\n",
-		    event_name, proto_name, policy_id, play_timeout, resources, play_mode, play_mode == NGF_PLAY_MODE_LONG ? "LONG" : "SHORT");
+    LOG_EVENT ("event_name=%s, proto_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d (%s))",
+        event_name, proto_name, policy_id, play_timeout, resources, play_mode, play_mode == NGF_PLAY_MODE_LONG ? "LONG" : "SHORT");
 
     /* Create a new event based on the prototype and feed the properties
        to it. */
 
-    if ((event = ngf_event_new (&self->context, proto)) == NULL)
+    if ((event = ngf_event_new (&self->context, proto)) == NULL) {
+        LOG_ERROR ("Failed to create event %s", event_name);
         goto failed;
+    }
 
     event->policy_id    = policy_id;
     event->resources    = resources;
@@ -310,6 +343,7 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
 
     self->event_list = g_list_append (self->event_list, event);
     if (!ngf_event_start (event, properties)) {
+        LOG_ERROR ("Failed to start event %s", event_name);
         self->event_list = g_list_remove (self->event_list, event);
         ngf_event_free (event);
         return 0;
@@ -334,7 +368,7 @@ ngf_daemon_event_stop (NgfDaemon *self, guint id)
     for (iter = g_list_first (self->event_list); iter; iter = g_list_next (self->event_list)) {
         event = (NgfEvent*) iter->data;
         if (event->policy_id == id) {
-            g_print ("EVENT STOP (id=%d)\n", id);
+            LOG_DEBUG ("EVENT STOP (id=%d)\n", id);
             self->event_list = g_list_remove (self->event_list, event);
             ngf_event_stop (event);
             ngf_dbus_send_status (self->dbus, event->policy_id, 0);

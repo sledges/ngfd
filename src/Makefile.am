@@ -34,7 +34,9 @@ ngfd_SOURCES = \
 	ngf-backlight.h \
 	ngf-backlight.c \
 	ngf-led.h \
-	ngf-led.c
+	ngf-led.c \
+	ngf-log.h \
+	ngf-log.c
 
 ngfd_LDFLAGS = \
 	$(NGFD_LIBS)

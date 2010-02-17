@@ -14,6 +14,7 @@
  * written consent of Nokia.
  */
 
+#include "ngf-log.h"
 #include "ngf-value.h"
 #include "ngf-event.h"
 
@@ -210,7 +211,7 @@ _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpoint
 
         case NGF_STREAM_FAILED: {
 
-            g_print ("%s: STREAM FAILED\n", __FUNCTION__);
+            LOG_DEBUG ("%s: STREAM FAILED\n", __FUNCTION__);
 
             /* Stream failed to start, most probably reason is that the file
                does not exist. In this case, if the fallback is specified we will
@@ -224,7 +225,7 @@ _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpoint
 
         case NGF_STREAM_TERMINATED: {
 
-            g_print ("%s: STREAM TERMINATED\n", __FUNCTION__);
+            LOG_DEBUG ("%s: STREAM TERMINATED\n", __FUNCTION__);
 
             /* Audio stream terminated. This means that the underlying audio context
                was lost (probably Pulseaudio went down). We will stop the event at
@@ -249,20 +250,20 @@ _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpoint
                 ++self->tone_repeat_count;
 
                 if (self->proto->tone_repeat_count <= 0) {
-                    g_print ("%s: STREAM REPEAT\n", __FUNCTION__);
+                    LOG_DEBUG ("%s: STREAM REPEAT", __FUNCTION__);
 
                     if ((tone = _event_get_tone (self)) != NULL)
                         self->audio_id = ngf_audio_play_stream (self->context->audio, tone, self->proto->stream_properties, _stream_state_cb, self);
                 }
 
                 else if  (self->tone_repeat_count >= self->proto->tone_repeat_count) {
-                    g_print ("%s: STREAM REPEAT FINISHED\n", __FUNCTION__);
+                    LOG_DEBUG ("%s: STREAM REPEAT FINISHED", __FUNCTION__);
                     if (self->callback)
                         self->callback (self, NGF_EVENT_COMPLETED, self->userdata);
                 }
             }
             else {
-                g_print ("%s: STREAM COMPLETED\n", __FUNCTION__);
+                LOG_DEBUG ("%s: STREAM COMPLETED", __FUNCTION__);
                 if (self->callback)
                     self->callback (self, NGF_EVENT_COMPLETED, self->userdata);
             }
@@ -280,7 +281,7 @@ _volume_control_cb (guint id, guint step_time, guint step_value, gpointer userda
 {
     NgfEvent *self = (NgfEvent*) userdata;
 
-    g_print ("VOLUME CONTROL SET VOLUME (id=%d, time=%d, value=%d)\n", id, step_time, step_value);
+    LOG_DEBUG ("VOLUME CONTROL SET VOLUME (id=%d, time=%d, value=%d)", id, step_time, step_value);
     ngf_audio_set_volume (self->context->audio, self->proto->volume_role, step_value);
 
     return TRUE;
@@ -291,7 +292,7 @@ _backlight_control_cb (guint id, guint step_time, guint step_value, gpointer use
 {
     NgfEvent *self = (NgfEvent*) userdata;
 
-    g_print ("BACKLIGHT CONTROL SET (id=%d, time=%d, value=%d)\n", id, step_time, step_value);
+    LOG_DEBUG ("BACKLIGHT CONTROL SET (id=%d, time=%d, value=%d)", id, step_time, step_value);
     ngf_backlight_toggle (self->context->backlight, step_value);
 
     return TRUE;

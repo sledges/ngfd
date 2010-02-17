@@ -62,15 +62,3 @@ ngf_event_prototype_free (NgfEventPrototype *proto)
 
     g_free (proto);
 }
-
-void
-ngf_event_prototype_dump (NgfEventPrototype *proto)
-{
-    g_print ("max_length = %d\n", proto->max_length);
-    g_print ("tone_filename = %s\n", proto->tone_filename);
-    g_print ("tone_key = %s\n", proto->tone_key);
-    g_print ("tone_profile = %s\n", proto->tone_profile);
-    g_print ("volume_key = %s\n", proto->volume_key);
-    g_print ("volume_profile = %s\n", proto->volume_profile);
-}
-

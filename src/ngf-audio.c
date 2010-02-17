@@ -14,6 +14,7 @@
  * written consent of Nokia.
  */
 
+#include "ngf-log.h"
 #include "ngf-audio.h"
 
 #include <errno.h>
@@ -600,7 +601,7 @@ ngf_audio_stop_stream (NgfAudio *self, guint stream_id)
         stream = (AudioStream*) iter->data;
         if (stream->stream_id == stream_id) {
             if (stream->drain_op) {
-                g_print ("DRAIN OP (stream_id=%d)\n", stream_id);
+                LOG_DEBUG ("DRAIN OP (stream_id=%d)", stream_id);
                 pa_operation_cancel (stream->drain_op);
                 pa_operation_unref (stream->drain_op);
             }

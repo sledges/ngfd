@@ -21,6 +21,16 @@ AC_SUBST(X_CFLAGS)
 ngfconfdir=${sysconfdir}/ngf
 AC_SUBST(ngfconfdir)
 
+AC_ARG_ENABLE([debug],
+	AS_HELP_STRING([--enable-debug],[Enable debug @<:@default=false@:>@]),
+	[case "${enableval}" in
+		yes) debug=true ; CFLAGS="-DENABLE_DEBUG" ;;
+		no)  debug=false ;;
+		*) AC_MSG_ERROR([bad value ${enableval} for --enable-debug]) ;;
+	esac],
+	[debug=false])
+AM_CONDITIONAL([DEBUG], [test x$debug = xtrue])
+
 AC_ARG_ENABLE([vibrator],
 	AS_HELP_STRING([--disable-vibrator],[Disable vibrator @<:@default=false@:>@]),
 	[case "${enableval}" in
@@ -49,6 +59,7 @@ echo "
     Compiler:               ${CC}
     CFLAGS:                 ${CFLAGS}
 
+    Debug enabled:          ${debug}
     Vibrator enabled:       ${vibrator}
 "
 
