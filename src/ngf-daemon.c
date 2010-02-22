@@ -60,8 +60,7 @@ ngf_daemon_create ()
     }
 
     if ((self->context.tone_mapper = ngf_tone_mapper_create ()) == NULL) {
-        LOG_ERROR ("Failed to create tone mapper!");
-        return NULL;
+        LOG_WARNING ("Failed to create tone mapper!");
     }
 
     if ((self->context.audio = ngf_audio_create ()) == NULL) {
