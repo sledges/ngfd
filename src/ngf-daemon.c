@@ -59,6 +59,11 @@ ngf_daemon_create ()
         return NULL;
     }
 
+    if ((self->context.tone_mapper = ngf_tone_mapper_create ()) == NULL) {
+        LOG_ERROR ("Failed to create tone mapper!");
+        return NULL;
+    }
+
     if ((self->context.audio = ngf_audio_create ()) == NULL) {
         LOG_ERROR ("Failed to create Pulseaudio backend!");
         return NULL;
@@ -123,6 +128,11 @@ ngf_daemon_destroy (NgfDaemon *self)
     if (self->context.audio) {
         ngf_audio_destroy (self->context.audio);
         self->context.audio = NULL;
+    }
+
+    if (self->context.tone_mapper) {
+        ngf_tone_mapper_destroy (self->context.tone_mapper);
+        self->context.tone_mapper = NULL;
     }
 
     if (self->context.profile) {

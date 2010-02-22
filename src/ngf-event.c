@@ -17,6 +17,7 @@
 #include "ngf-log.h"
 #include "ngf-value.h"
 #include "ngf-event.h"
+#include "ngf-tone-mapper.h"
 
 static gboolean     _event_max_timeout_cb (gpointer userdata);
 static void         _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpointer userdata);
@@ -90,19 +91,35 @@ _event_get_tone (NgfEvent *self)
 {
     NgfEventPrototype *proto = self->proto;
     NgfValue *value = NULL;
-    const gchar *tone = NULL;
-
-    /* TODO returns only the long one, make one for short */
+    const gchar *tone = NULL, *mapped_tone = NULL;
 
     value = g_hash_table_lookup (self->properties, "tone");
     if (value && ngf_value_get_type (value) == NGF_VALUE_STRING)
-        return (const char*) ngf_value_get_string (value);
+        tone = (const char*) ngf_value_get_string (value);
 
-    if (proto->tone_filename)
-        return (const char*) proto->tone_filename;
+    if (tone == NULL && proto->tone_filename)
+        tone = proto->tone_filename;
 
-    if (ngf_profile_get_string (self->context->profile, proto->tone_profile, proto->tone_key, &tone))
-        return (const char*) tone;
+    if (tone == NULL)
+        ngf_profile_get_string (self->context->profile, proto->tone_profile, proto->tone_key, &tone);
+
+    if (tone) {
+
+        /* Let's check from the tone mapper if we have an uncompressed tone available
+           for the provided tone. If not, then let's try playing the original one and
+           rely on the fallback if that fails. */
+        
+        mapped_tone = ngf_tone_mapper_get_tone (self->context->tone_mapper, tone);
+        if (mapped_tone) {
+            LOG_DEBUG ("Mapped tone: %s", mapped_tone);
+            return mapped_tone;
+        }
+        else {
+            LOG_DEBUG ("Using original: %s", tone);
+        }
+
+        return tone;
+    }
 
     return NULL;
 }
