@@ -1,7 +1,0 @@
-#!/bin/sh
-
-# Source the session bus address
-. /tmp/session_bus_address.user
-
-# Run the NGF daemon as user
-/usr/sbin/dsmetool -U user -f /usr/bin/ngfd
