@@ -90,7 +90,7 @@ static void     pulseaudio_shutdown (NgfAudio *self);
 static gboolean pulseaudio_create_stream (NgfAudio *self, AudioStream *stream);
 static void     pulseaudio_destroy_stream (NgfAudio *self, AudioStream *stream);
 static void     pulseaudio_get_cached_samples (NgfAudio *self);
- 
+
 
 
 static void
@@ -150,8 +150,8 @@ stream_write_cb (pa_stream *s, size_t bytes, void *userdata)
 	    if (bytes_read == 0)
 	        goto stream_drain;
 
-    	if (pa_stream_write (s, &stream->buffer[0], bytes_read, NULL, 0, PA_SEEK_RELATIVE) < 0)
-    	    goto stream_drain;
+    if (pa_stream_write (s, &stream->buffer[0], bytes_read, NULL, 0, PA_SEEK_RELATIVE) < 0)
+        goto stream_drain;
 
 	    bytes_left -= bytes_read;
     }
@@ -181,7 +181,7 @@ stream_state_cb (pa_stream *s, void *userdata)
             if (stream->callback)
                 stream->callback (stream->audio, stream->stream_id, NGF_STREAM_STARTED, stream->userdata);
 
-        	break;
+            break;
 
         case PA_STREAM_FAILED:
 	        pulseaudio_destroy_stream (stream->audio, stream);
@@ -235,12 +235,12 @@ context_state_cb (pa_context *c, void *userdata)
 
     switch (pa_context_get_state (c)) {
         case PA_CONTEXT_CONNECTING:
-    	    break;
+            break;
 
         case PA_CONTEXT_UNCONNECTED:
         case PA_CONTEXT_AUTHORIZING:
         case PA_CONTEXT_SETTING_NAME:
-        	break;
+            break;
 
         case PA_CONTEXT_READY:
             /* Query a list of samples */
@@ -260,16 +260,16 @@ context_state_cb (pa_context *c, void *userdata)
             if (self->callback)
                 self->callback (self, NGF_AUDIO_FAILED, self->userdata);
 
-        	break;
+            break;
 
         case PA_CONTEXT_TERMINATED:
             if (self->callback)
                 self->callback (self, NGF_AUDIO_TERMINATED, self->userdata);
 
-        	break;
+            break;
 
         default:
-        	break;
+            break;
     }
 }
 
@@ -280,7 +280,7 @@ pulseaudio_initialize (NgfAudio *self)
     pa_mainloop_api *api = NULL;
 
     if ((self->mainloop = pa_glib_mainloop_new (g_main_context_default ())) == NULL)
-    	return FALSE;
+        return FALSE;
 
     if ((api = pa_glib_mainloop_get_api (self->mainloop)) == NULL)
         return FALSE;
@@ -292,7 +292,7 @@ pulseaudio_initialize (NgfAudio *self)
 
     self->context = pa_context_new_with_proplist (api, APPLICATION_NAME, proplist);
     if (self->context == NULL) {
-    	pa_proplist_free (proplist);
+        pa_proplist_free (proplist);
 	    return FALSE;
     }
 
@@ -300,7 +300,7 @@ pulseaudio_initialize (NgfAudio *self)
     pa_context_set_state_callback (self->context, context_state_cb, self);
 
     if (pa_context_connect (self->context, NULL, /* PA_CONTEXT_NOFAIL | */ PA_CONTEXT_NOAUTOSPAWN, NULL) < 0) {
-    	return FALSE;
+        return FALSE;
     }
 
     return TRUE;
@@ -310,15 +310,15 @@ static void
 pulseaudio_shutdown (NgfAudio *self)
 {
     if (self->context) {
-    	pa_context_set_state_callback (self->context, NULL, NULL);
-    	pa_context_disconnect (self->context);
-    	pa_context_unref (self->context);
-    	self->context = NULL;
+        pa_context_set_state_callback (self->context, NULL, NULL);
+        pa_context_disconnect (self->context);
+        pa_context_unref (self->context);
+        self->context = NULL;
     }
 
     if (self->mainloop) {
-    	pa_glib_mainloop_free (self->mainloop);
-    	self->mainloop = NULL;
+        pa_glib_mainloop_free (self->mainloop);
+        self->mainloop = NULL;
     }
 }
 
@@ -339,15 +339,15 @@ sf_to_pa_sample_format (int format)
 
         case SF_FORMAT_PCM_16:
 	        return PA_SAMPLE_S16LE;
-        	/* return PA_SAMPLE_S16BE; */
+            /* return PA_SAMPLE_S16BE; */
 
         case SF_FORMAT_FLOAT:
 	        return PA_SAMPLE_FLOAT32LE;
-        	/* return PA_SAMPLE_FLOAT32BE; */
+            /* return PA_SAMPLE_FLOAT32BE; */
 
         case SF_FORMAT_PCM_32:
 	        return PA_SAMPLE_S32LE;
-        	/* return PA_SAMPLE_S32BE; */
+            /* return PA_SAMPLE_S32BE; */
 
         default:
             break;
@@ -405,21 +405,21 @@ static void
 pulseaudio_destroy_stream (NgfAudio *self, AudioStream *stream)
 {
     if (stream->stream) {
-    	pa_stream_set_state_callback (stream->stream, NULL, NULL);
-    	pa_stream_set_write_callback (stream->stream, NULL, NULL);
-    	pa_stream_disconnect (stream->stream);
-    	pa_stream_unref (stream->stream);
-    	stream->stream = NULL;
+        pa_stream_set_state_callback (stream->stream, NULL, NULL);
+        pa_stream_set_write_callback (stream->stream, NULL, NULL);
+        pa_stream_disconnect (stream->stream);
+        pa_stream_unref (stream->stream);
+        stream->stream = NULL;
     }
 
     if (stream->sf) {
-    	sf_close (stream->sf);
-    	stream->sf = NULL;
+        sf_close (stream->sf);
+        stream->sf = NULL;
     }
 
     if (stream->fd > -1) {
-    	close (stream->fd);
-    	stream->fd = -1;
+        close (stream->fd);
+        stream->fd = -1;
     }
 
     self->active_streams = g_list_remove (self->active_streams, stream);
@@ -460,7 +460,7 @@ pulseaudio_get_cached_samples (NgfAudio *self)
 
     if (self->sample_cache_loaded)
         return;
-    
+
     o = pa_context_get_sample_info_list (self->context, sample_info_cb, self);
     if (o)
         pa_operation_unref (o);
@@ -470,7 +470,7 @@ NgfAudio*
 ngf_audio_create ()
 {
     NgfAudio *self = NULL;
-    
+
     if ((self = g_new0 (NgfAudio, 1)) == NULL)
         goto failed;
 

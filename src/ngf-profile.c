@@ -81,7 +81,7 @@ _profile_query_values (NgfProfile *self, char **keys, const char *profile)
 {
     char **k = NULL, *value = NULL;
     ProfileEntry *entry = NULL;
-    
+
     entry = _profile_entry_new (profile);
     self->profiles = g_list_append (self->profiles, entry);
 

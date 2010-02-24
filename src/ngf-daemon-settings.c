@@ -221,7 +221,7 @@ _configuration_parse_vibrator (NgfConf *c, const char *group, const char *name, 
 
     g_free (filename);
 }
-    
+
 gboolean
 ngf_daemon_settings_load (NgfDaemon *self)
 {
