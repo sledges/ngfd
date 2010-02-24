@@ -146,10 +146,14 @@ _configuration_parse_proto (NgfConf *c, const char *group, const char *name, gpo
     proto = ngf_event_prototype_new ();
 
     ngf_conf_get_integer        (c, group, "max_length", &proto->max_length, 0);
+
     ngf_conf_get_boolean        (c, group, "tone_repeat", &proto->tone_repeat, FALSE);
     ngf_conf_get_integer        (c, group, "tone_repeat_count", &proto->tone_repeat_count, 0);
     ngf_conf_get_string         (c, group, "tone_filename", &proto->tone_filename, NULL);
     _profile_key_get            (c, group, "tone_key", &proto->tone_key, &proto->tone_profile);
+
+    ngf_conf_get_string         (c, group, "fallback_filename", &proto->fallback_filename, NULL);
+    _profile_key_get            (c, group, "fallback_key", &proto->fallback_key, &proto->fallback_profile);
 
     ngf_conf_get_integer        (c, group, "volume_set", &proto->volume_set, -1);
     ngf_conf_get_string         (c, group, "volume_role", &proto->volume_role, NULL);

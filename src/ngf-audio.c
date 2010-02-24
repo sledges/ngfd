@@ -546,7 +546,9 @@ ngf_audio_set_volume (NgfAudio *self, const char *role, gint volume)
 
     stream_restore_info[0] = &info;
 
-    o = pa_ext_stream_restore2_write (self->context, PA_UPDATE_REPLACE, stream_restore_info, 1, TRUE, NULL, NULL);
+    o = pa_ext_stream_restore2_write (self->context, PA_UPDATE_REPLACE,
+        (const pa_ext_stream_restore2_info *const *) stream_restore_info, 1, TRUE, NULL, NULL);
+
     if (o != NULL)
         pa_operation_unref (o);
 }

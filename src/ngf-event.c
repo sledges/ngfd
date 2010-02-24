@@ -21,11 +21,21 @@
 
 static gboolean     _event_max_timeout_cb (gpointer userdata);
 static void         _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpointer userdata);
+static const char*  _get_mapped_tone (NgfToneMapper *mapper, const char *tone);
 static const char*  _event_get_tone (NgfEvent *self);
+static const char*  _event_get_fallback (NgfEvent *self);
 static const char*  _event_get_vibra (NgfEvent *self);
 static const char*  _event_get_led (NgfEvent *self);
 static gboolean     _event_is_vibra_enabled (NgfEvent *self);
 static gboolean     _volume_control_cb (guint id, guint step_time, guint step_value, gpointer userdata);
+static gboolean     _setup_audio (NgfEvent *self);
+static gboolean     _setup_vibrator (NgfEvent *self);
+static gboolean     _setup_led (NgfEvent *self);
+static gboolean     _setup_backlight (NgfEvent *self);
+static void         _shutdown_audio (NgfEvent *self);
+static void         _shutdown_vibrator (NgfEvent *self);
+static void         _shutdown_led (NgfEvent *self);
+static void         _shutdown_backlight (NgfEvent *self);
 
 
 
@@ -86,6 +96,32 @@ _event_max_timeout_cb (gpointer userdata)
     return FALSE;
 }
 
+/**
+ * Get the uncompressed tone if there is one for the tone we wish
+ * to play.
+ *
+ * @param mapper Instance of NgfToneMapper
+ * @param tone Original tone
+ * @return Full path to uncompressed tone
+ */
+static const char*
+_get_mapped_tone (NgfToneMapper *mapper, const char *tone)
+{
+    const char *mapped_tone = NULL;
+
+    if (mapper == NULL || tone == NULL)
+        return NULL;
+
+    mapped_tone = ngf_tone_mapper_get_tone (mapper, tone);
+    if (mapped_tone) {
+        LOG_DEBUG ("Tone (mapped): %s", mapped_tone);
+        return mapped_tone;
+    }
+
+    LOG_DEBUG ("Tone (original): %s", tone);
+    return tone;
+}
+
 static const char*
 _event_get_tone (NgfEvent *self)
 {
@@ -103,25 +139,22 @@ _event_get_tone (NgfEvent *self)
     if (tone == NULL)
         ngf_profile_get_string (self->context->profile, proto->tone_profile, proto->tone_key, &tone);
 
-    if (tone) {
+    return _get_mapped_tone (self->context->tone_mapper, tone);
+}
 
-        /* Let's check from the tone mapper if we have an uncompressed tone available
-           for the provided tone. If not, then let's try playing the original one and
-           rely on the fallback if that fails. */
-        
-        mapped_tone = ngf_tone_mapper_get_tone (self->context->tone_mapper, tone);
-        if (mapped_tone) {
-            LOG_DEBUG ("Mapped tone: %s", mapped_tone);
-            return mapped_tone;
-        }
-        else {
-            LOG_DEBUG ("Using original: %s", tone);
-        }
+static const char*
+_event_get_fallback (NgfEvent *self)
+{
+    NgfEventPrototype *proto = self->proto;
+    const gchar *tone = NULL, *mapped_tone = NULL;
 
-        return tone;
-    }
+    if (proto->fallback_filename)
+        tone = proto->fallback_filename;
 
-    return NULL;
+    if (tone == NULL)
+        ngf_profile_get_string (self->context->profile, proto->fallback_profile, proto->fallback_key, &tone);
+
+    return _get_mapped_tone (self->context->tone_mapper, tone);
 }
 
 static const char*
@@ -190,38 +223,6 @@ _event_get_volume (NgfEvent *self)
 }
 
 static void
-_event_audio_start (NgfEvent *self)
-{
-    gint volume = 0;
-    const char *tone = NULL;
-
-    /* If we have a volume controller, it overrides all other volume settings. Starting
-       the controller here probably is not very exact, but still quite close.
-
-       TODO: initial step here, next step when the playback has actually started */
-
-    if (self->proto->volume_controller) {
-
-        self->controller_id = ngf_controller_start (self->proto->volume_controller,
-            self->proto->volume_controller_repeat, _volume_control_cb, self);
-
-    }
-    else {
-
-        /* Get the volume for the audio resource and set the volume to the stream
-           restore database. */
-
-        volume = _event_get_volume (self);
-        if (volume > -1)
-            ngf_audio_set_volume (self->context->audio, self->proto->volume_role, volume);
-
-    }
-
-    if ((tone = _event_get_tone (self)) != NULL)
-        self->audio_id = ngf_audio_play_stream (self->context->audio, tone, self->proto->stream_properties, _stream_state_cb, self);
-}
-
-static void
 _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpointer userdata)
 {
     NgfEvent *self = (NgfEvent*) userdata;
@@ -280,7 +281,8 @@ _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpoint
                 if (self->proto->tone_repeat_count <= 0) {
                     LOG_DEBUG ("%s: STREAM REPEAT", __FUNCTION__);
 
-                    if ((tone = _event_get_tone (self)) != NULL)
+                    tone = self->use_fallback ? _event_get_fallback (self) : _event_get_tone (self);
+                    if (tone != NULL)
                         self->audio_id = ngf_audio_play_stream (self->context->audio, tone, self->proto->stream_properties, _stream_state_cb, self);
                 }
 
@@ -326,6 +328,137 @@ _backlight_control_cb (guint id, guint step_time, guint step_value, gpointer use
     return TRUE;
 }
 
+static gboolean
+_setup_audio (NgfEvent *self)
+{
+    gint volume = 0;
+    const char *tone = NULL;
+
+    if (self->proto->tonegen_enabled) {
+        self->tonegen_id = ngf_tonegen_start (self->context->tonegen, self->proto->tonegen_pattern);
+        return TRUE;
+    }
+
+    if ((self->resources & NGF_RESOURCE_AUDIO) == 0)
+        return FALSE;
+
+    /* If we have a volume controller, it overrides all other volume settings. */
+    if (self->proto->volume_controller) {
+        self->controller_id = ngf_controller_start (self->proto->volume_controller,
+            self->proto->volume_controller_repeat, _volume_control_cb, self);
+    }
+    else if ((volume = _event_get_volume (self)) > -1) {
+        ngf_audio_set_volume (self->context->audio, self->proto->volume_role, volume);
+    }
+
+    if ((tone = _event_get_tone (self)) != NULL) {
+        self->audio_id = ngf_audio_play_stream (self->context->audio,
+            tone, self->proto->stream_properties, _stream_state_cb, self);
+
+        if (self->audio_id == 0) {
+            /* We couldn't start the provided tone. Let's try fallback if there is one. */
+            if ((tone = _event_get_fallback (self)) != NULL) {
+                self->audio_id = ngf_audio_play_stream (self->context->audio,
+                    tone, self->proto->stream_properties, _stream_state_cb, self);
+
+                self->use_fallback = TRUE;
+            }
+        }
+    }
+
+    return TRUE;
+}
+
+static void
+_shutdown_audio (NgfEvent *self)
+{
+    if (self->tonegen_id > 0) {
+        ngf_tonegen_stop (self->context->tonegen, self->tonegen_id);
+        self->tonegen_id = 0;
+    }
+
+    if (self->controller_id > 0) {
+        ngf_controller_stop (self->proto->volume_controller, self->controller_id);
+        self->controller_id = 0;
+    }
+
+    if (self->audio_id > 0) {
+        ngf_audio_stop_stream (self->context->audio, self->audio_id);
+        self->audio_id = 0;
+    }
+}
+
+static gboolean
+_setup_vibrator (NgfEvent *self)
+{
+    const char *vibra = NULL;
+
+    if (self->resources & NGF_RESOURCE_VIBRATION && _event_is_vibra_enabled (self)) {
+
+        if ((vibra = _event_get_vibra (self)) != NULL)
+            self->vibra_id = ngf_vibrator_start (self->context->vibrator, vibra);
+
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+static void
+_shutdown_vibrator (NgfEvent *self)
+{
+    if (self->vibra_id > 0) {
+        ngf_vibrator_stop (self->context->vibrator, self->vibra_id);
+        self->vibra_id = 0;
+    }
+}
+
+static gboolean
+_setup_led (NgfEvent *self)
+{
+    const char *led = NULL;
+
+    if ((self->resources & NGF_RESOURCE_LED) == 0)
+        return FALSE;
+
+    if ((led = _event_get_led (self)) != NULL)
+        self->led_id = ngf_led_start (self->context->led, led);
+
+    return TRUE;
+}
+
+static void
+_shutdown_led (NgfEvent *self)
+{
+    if (self->led_id > 0) {
+        ngf_led_stop (self->context->led, self->led_id);
+        self->led_id = 0;
+    }
+}
+
+static gboolean
+_setup_backlight (NgfEvent *self)
+{
+    if ((self->resources & NGF_RESOURCE_BACKLIGHT) == 0)
+        return FALSE;
+
+    if (self->proto->backlight_controller) {
+        self->backlight_id = ngf_controller_start (self->proto->backlight_controller,
+            self->proto->backlight_controller_repeat, _backlight_control_cb, self);
+    }
+
+    return TRUE;
+}
+
+static void
+_shutdown_backlight (NgfEvent *self)
+{
+    if (self->backlight_id > 0) {
+        ngf_controller_stop (self->proto->backlight_controller, self->backlight_id);
+        self->backlight_id = 0;
+    }
+}
+
 gboolean
 ngf_event_start (NgfEvent *self, GHashTable *properties)
 {
@@ -338,35 +471,10 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
     /* Check the resources and start the backends if we have the proper resources,
        profile allows us to and valid data is provided. */
 
-    if (self->proto->tonegen_enabled) {
-        self->tonegen_id = ngf_tonegen_start (self->context->tonegen, self->proto->tonegen_pattern);
-    }
-    else {
-        if (self->resources & NGF_RESOURCE_AUDIO) {
-            _event_audio_start (self);
-        }
-    }
-
-    if (self->resources & NGF_RESOURCE_VIBRATION && _event_is_vibra_enabled (self)) {
-
-        if ((vibra = _event_get_vibra (self)) != NULL)
-            self->vibra_id = ngf_vibrator_start (self->context->vibrator, vibra);
-
-    }
-
-    if (self->resources & NGF_RESOURCE_LED) {
-
-        if ((led = _event_get_led (self)) != NULL)
-            self->led_id = ngf_led_start (self->context->led, led);
-
-    }
-
-    if (self->resources & NGF_RESOURCE_BACKLIGHT) {
-        if (self->proto->backlight_controller) {
-            self->backlight_id = ngf_controller_start (self->proto->backlight_controller,
-                self->proto->backlight_controller_repeat, _backlight_control_cb, self);
-        }
-    }
+    _setup_audio (self);
+    _setup_vibrator (self);
+    _setup_led (self);
+    _setup_backlight (self);
 
     /* Timeout callback for maximum length of the event. Once triggered we will
        stop the event ourselves. */
@@ -389,33 +497,8 @@ ngf_event_stop (NgfEvent *self)
         self->max_length_timeout_id = 0;
     }
 
-    if (self->tonegen_id > 0) {
-        ngf_tonegen_stop (self->context->tonegen, self->tonegen_id);
-        self->tonegen_id = 0;
-    }
-
-    if (self->controller_id > 0) {
-        ngf_controller_stop (self->proto->volume_controller, self->controller_id);
-        self->controller_id = 0;
-    }
-
-    if (self->backlight_id > 0) {
-        ngf_controller_stop (self->proto->backlight_controller, self->backlight_id);
-        self->backlight_id = 0;
-    }
-
-    if (self->audio_id > 0) {
-        ngf_audio_stop_stream (self->context->audio, self->audio_id);
-        self->audio_id = 0;
-    }
-
-    if (self->vibra_id > 0) {
-        ngf_vibrator_stop (self->context->vibrator, self->vibra_id);
-        self->vibra_id = 0;
-    }
-
-    if (self->led_id > 0) {
-        ngf_led_stop (self->context->led, self->led_id);
-        self->led_id = 0;
-    }
+    _shutdown_audio (self);
+    _shutdown_vibrator (self);
+    _shutdown_led (self);
+    _shutdown_backlight (self);
 }

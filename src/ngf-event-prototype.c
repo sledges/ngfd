@@ -37,6 +37,10 @@ ngf_event_prototype_free (NgfEventPrototype *proto)
     g_free (proto->tone_key);
     g_free (proto->tone_profile);
 
+    g_free (proto->fallback_filename);
+    g_free (proto->fallback_key);
+    g_free (proto->fallback_profile);
+
     g_free (proto->volume_key);
     g_free (proto->volume_profile);
 

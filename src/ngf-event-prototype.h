@@ -35,6 +35,10 @@ struct _NgfEventPrototype
     gchar           *tone_key;
     gchar           *tone_profile;
 
+    gchar           *fallback_filename;
+    gchar           *fallback_key;
+    gchar           *fallback_profile;
+
     gint            volume_set;
     gchar           *volume_key;
     gchar           *volume_profile;

@@ -61,6 +61,7 @@ struct _NgfEvent
     guint               led_id;
     guint               backlight_id;
 
+    gboolean            use_fallback;
     gint                tone_repeat_count;
 
     /* Startup timer for monitoring event length */
