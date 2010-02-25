@@ -185,7 +185,7 @@ _configuration_parse_proto (NgfConf *c, const char *group, const char *name, gpo
 
     /* Register the prototype */
 
-    ngf_event_manager_register_prototype (self->event_manager, name, proto);
+    ngf_daemon_register_prototype (self, name, proto);
 }
 
 static void
@@ -202,7 +202,7 @@ _configuration_parse_event (NgfConf *c, const char *group, const char *name, gpo
     ngf_conf_get_string (c, group, "long", &def->long_proto, NULL);
     ngf_conf_get_string (c, group, "short", &def->short_proto, NULL);
 
-    ngf_event_manager_register_definition (self->event_manager, name, def);
+    ngf_daemon_register_definition (self, name, def);
 }
 
 static void

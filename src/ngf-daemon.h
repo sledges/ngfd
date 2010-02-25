@@ -19,7 +19,10 @@
 
 #include <glib.h>
 
-#include "ngf-event-manager.h"
+#include "ngf-event-definition.h"
+#include "ngf-event-prototype.h"
+#include "ngf-event.h"
+
 #include "ngf-context.h"
 #include "ngf-dbus.h"
 
@@ -30,7 +33,8 @@ struct _NgfDaemon
     GMainLoop       *loop;
 
     /* Event handling */
-    NgfEventManager *event_manager;
+    GHashTable      *definitions;
+    GHashTable      *prototypes;
     GList           *event_list;
 
     /* D-Bus interface */
@@ -46,6 +50,9 @@ void        ngf_daemon_run (NgfDaemon *self);
 
 guint       ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *properties);
 void        ngf_daemon_event_stop (NgfDaemon *self, guint id);
+
+void        ngf_daemon_register_definition (NgfEventManager *self, const char *name, NgfEventDefinition *def);
+void        ngf_daemon_register_prototype (NgfEventManager *self, const char *name, NgfEventPrototype *proto);
 
 gboolean    ngf_daemon_settings_load (NgfDaemon *self);
 

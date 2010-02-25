@@ -16,18 +16,21 @@
 
 #include "ngf-log.h"
 #include "ngf-value.h"
-#include "ngf-event.h"
 #include "ngf-daemon.h"
 
-static void     _audio_state_cb              (NgfAudio *audio, NgfAudioState state, gpointer userdata);
-static void     _event_state_cb              (NgfEvent *event, NgfEventState state, gpointer userdata);
-static gboolean _properties_get_boolean      (GHashTable *properties, const char *key);
-static guint    _properties_get_policy_id    (GHashTable *properties);
-static guint    _properties_get_play_timeout (GHashTable *properties);
-static gint     _properties_get_play_mode    (GHashTable *properties);
-static gint     _properties_get_resources    (GHashTable *properties);
-static guint    _handle_play_cb              (NgfDBus *dbus, const char *event, GHashTable *properties, gpointer userdata);
-static void     _handle_stop_cb              (NgfDBus *dbus, guint id, gpointer userdata);
+static gboolean     _event_manager_create         (NgfDaemon *self);
+static void         _event_manager_destroy        (NgfDaemon *self);
+NgfEventDefinition* _event_manager_get_definition (NgfDaemon *self, const char *name);
+NgfEventPrototype*  _event_manager_get_prototype  (NgfDaemon *self, const char *name);
+static void         _audio_state_cb               (NgfAudio *audio, NgfAudioState state, gpointer userdata);
+static void         _event_state_cb               (NgfEvent *event, NgfEventState state, gpointer userdata);
+static gboolean     _properties_get_boolean       (GHashTable *properties, const char *key);
+static guint        _properties_get_policy_id     (GHashTable *properties);
+static guint        _properties_get_play_timeout  (GHashTable *properties);
+static gint         _properties_get_play_mode     (GHashTable *properties);
+static gint         _properties_get_resources     (GHashTable *properties);
+static guint        _handle_play_cb               (NgfDBus *dbus, const char *event, GHashTable *properties, gpointer userdata);
+static void         _handle_stop_cb               (NgfDBus *dbus, guint id, gpointer userdata);
 
 NgfDaemon*
 ngf_daemon_create ()
@@ -88,6 +91,11 @@ ngf_daemon_create ()
         return NULL;
     }
 
+    if (!_event_manager_create (self)) {
+        LOG_ERROR ("Failed to create event manager!");
+        return NULL;
+    }
+
     if (!ngf_daemon_settings_load (self)) {
         LOG_ERROR ("Failed to load settings!");
         return NULL;
@@ -139,10 +147,7 @@ ngf_daemon_destroy (NgfDaemon *self)
         self->context.profile = NULL;
     }
 
-    if (self->event_manager) {
-        ngf_event_manager_destroy (self->event_manager);
-        self->event_manager = NULL;
-    }
+    _event_manager_destroy (self);
 
     if (self->loop) {
         g_main_loop_unref (self->loop);
@@ -156,6 +161,70 @@ void
 ngf_daemon_run (NgfDaemon *self)
 {
     g_main_loop_run (self->loop);
+}
+
+static gboolean
+_event_manager_create (NgfDaemon *self)
+{
+    self->definitions = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) ngf_event_definition_free);
+    if (self->definitions == NULL)
+        return FALSE;
+
+    self->prototypes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) ngf_event_prototype_free);
+    if (self->prototypes == NULL)
+        return FALSE;
+
+    return TRUE;
+}
+
+static void
+_event_manager_destroy (NgfDaemon *self)
+{
+    if (self->prototypes) {
+        g_hash_table_destroy (self->prototypes);
+        self->prototypes = NULL;
+    }
+
+    if (self->definitions) {
+        g_hash_table_destroy (self->definitions);
+        self->definitions = NULL;
+    }
+}
+
+void
+ngf_daemon_register_definition (NgfDaemon *self, const char *name, NgfEventDefinition *def)
+{
+    if (self == NULL || name == NULL || def == NULL)
+        return;
+
+    g_hash_table_replace (self->definitions, g_strdup (name), def);
+}
+
+NgfEventDefinition*
+_event_manager_get_definition (NgfDaemon *self, const char *name)
+{
+    if (self == NULL || name == NULL)
+        return NULL;
+
+    return (NgfEventDefinition*) g_hash_table_lookup (self->definitions, name);
+}
+
+void
+ngf_daemon_register_prototype (NgfDaemon *self, const char *name, NgfEventPrototype *proto)
+{
+    if (self == NULL || name == NULL || proto == NULL)
+        return;
+
+    g_hash_table_replace (self->prototypes, g_strdup (name), proto);
+}
+
+NgfEventPrototype*
+_event_manager_get_prototype (NgfDaemon *self, const char *name)
+{
+    if (self == NULL || name == NULL)
+        return NULL;
+
+    return (NgfEventPrototype*) g_hash_table_lookup (self->prototypes, name);
 }
 
 static gboolean
@@ -291,7 +360,7 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
     /* First, look for the event definition that defines the prototypes for long and
        short events. If not found, then it is an unrecognized event. */
 
-    if ((def = ngf_event_manager_get_definition (self->event_manager, event_name)) == NULL) {
+    if ((def = _event_manager_get_definition (self, event_name)) == NULL) {
         LOG_ERROR ("No event definition for event %s", event_name);
         goto failed;
     }
@@ -311,7 +380,7 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
 
     proto_name = (play_mode == NGF_PLAY_MODE_LONG) ? def->long_proto : def->short_proto;
 
-    if ((proto = ngf_event_manager_get_prototype (self->event_manager, proto_name)) == 0) {
+    if ((proto = _event_manager_get_prototype (self, proto_name)) == 0) {
         LOG_ERROR ("Failed to get event prototype %s for event %s", proto_name, event_name);
         goto failed;
     }
