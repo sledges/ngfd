@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<testdefinition version="0.1">
+
+  <suite name="ngfd-tests" domain="Multimedia Middleware">
+    <set name="ngfd-tests" feature="NGF">
+
+      <case name="dummy-test" type="Functional" level="Component" subfeature="dummy-test" description="Unit tests for ngfd" timeout="15">
+        <step expected_result="0">echo "dummy"</step>
+      </case>
+
+      <environments>
+        <scratchbox>false</scratchbox>
+        <hardware>true</hardware>
+      </environments>
+
+    </set>
+  </suite>
+
+</testdefinition>
