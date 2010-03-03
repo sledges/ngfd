@@ -25,7 +25,6 @@ ngfd_SOURCES = \
 	ngf-event.h \
 	ngf-event.c \
 	ngf-audio.h \
-	ngf-audio.c \
 	ngf-controller.h \
 	ngf-controller.c \
 	ngf-vibrator.h \
@@ -42,6 +41,14 @@ ngfd_SOURCES = \
 
 ngfd_LDFLAGS = \
 	$(NGFD_LIBS)
+
+if GSTREAMER
+ngfd_SOURCES += ngf-audio-gstreamer.c
+ngfd_CFLAGS  += $(GST_CFLAGS)
+ngfd_LDFLAGS += $(GST_LIBS)
+else
+ngfd_SOURCES += ngf-audio.c
+endif
 
 if VIBRATOR
 ngfd_SOURCES += ngf-vibrator.c
