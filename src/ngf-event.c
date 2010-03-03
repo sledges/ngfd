@@ -24,7 +24,7 @@ static void         _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStrea
 static const char*  _event_get_tone (NgfEvent *self);
 static const char*  _event_get_vibra (NgfEvent *self);
 static const char*  _event_get_led (NgfEvent *self);
-static const char*  _event_stop_audio (NgfEvent *self);
+static gboolean     _event_is_vibra_enabled (NgfEvent *self);
 static gboolean     _volume_control_cb (guint id, guint step_time, guint step_value, gpointer userdata);
 
 
@@ -156,6 +156,17 @@ _event_get_led (NgfEvent *self)
         return (const char*) proto->led_pattern;
 
     return NULL;
+}
+
+static gboolean
+_event_is_vibra_enabled (NgfEvent *self)
+{
+    gboolean enabled = FALSE;
+
+    if (ngf_profile_get_boolean (self->context->profile, NULL, "vibrating.alert.enabled", &enabled))
+        return enabled;
+
+    return FALSE;
 }
 
 static gint
@@ -336,7 +347,7 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
         }
     }
 
-    if (self->resources & NGF_RESOURCE_VIBRATION) {
+    if (self->resources & NGF_RESOURCE_VIBRATION && _event_is_vibra_enabled (self)) {
 
         if ((vibra = _event_get_vibra (self)) != NULL)
             self->vibra_id = ngf_vibrator_start (self->context->vibrator, vibra);
