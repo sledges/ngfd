@@ -387,6 +387,30 @@ _bus_cb (GstBus *bus, GstMessage *msg, gpointer userdata)
     return TRUE;
 }
 
+static void
+_new_decoded_pad_cb (GstElement *element, GstPad *pad, gboolean is_last, gpointer user_data)
+{
+    GstElement   *sink_element = (GstElement*) user_data;
+    GstStructure *structure    = NULL;
+    GstCaps      *caps         = NULL;
+    GstPad       *sink_pad     = NULL;
+
+    /* TODO: if the pad has already been linked, ignore this */
+
+    caps = gst_pad_get_caps (pad);
+    if (gst_caps_is_empty (caps) || gst_caps_is_any (caps))
+        return;
+
+    structure = gst_caps_get_structure (caps, 0);
+    if (g_str_has_prefix (gst_structure_get_name (structure), "audio")) {
+        sink_pad = gst_element_get_pad (sink_element, "sink");
+        gst_pad_link (pad, sink_pad);
+        gst_object_unref (sink_pad);
+    }
+
+    gst_caps_unref (caps);
+}
+
 guint
 ngf_audio_play_stream (NgfAudio *self, const char *filename, pa_proplist *p, NgfStreamCallback callback, gpointer userdata)
 {
@@ -408,16 +432,27 @@ ngf_audio_play_stream (NgfAudio *self, const char *filename, pa_proplist *p, Ngf
     stream->userdata = userdata;
     stream->audio = self;
 
-    stream->element = gst_element_factory_make ("playbin2", NULL);
-    GstElement *sink = gst_element_factory_make ("pulsesink", NULL);
+    stream->element = gst_pipeline_new (NULL);
+    
+    GstElement *source, *decodebin, *sink;
+    GstBus *bus;
 
+    source    = gst_element_factory_make ("filesrc", NULL);
+    decodebin = gst_element_factory_make ("decodebin2", NULL);
+    sink      = gst_element_factory_make ("pulsesink", NULL);
+
+    if (source == NULL || decodebin == NULL || sink == NULL)
+        return 0;
+
+    gst_bin_add (GST_BIN (stream->element), source, decodebin, sink);
+    gst_element_link (source, decodebin);
+
+    g_object_set (G_OBJECT (source), "use-mmap", TRUE, "location", stream->filename, NULL);
     g_object_set (G_OBJECT (sink), "proplist", pa_proplist_copy (stream->proplist), NULL);
 
-    gchar *uri = _get_uri (stream->filename);
-    g_object_set (G_OBJECT (stream->element), "uri", uri, "flags", 0x22, "audio-sink", sink, NULL);
-    g_free (uri);
+    g_signal_connect (G_OBJECT (decodebin), "new-decoded-pad", G_CALLBACK (_new_decoded_pad_cb), sink);
 
-    GstBus *bus = gst_element_get_bus (stream->element);
+    bus = gst_element_get_bus (stream->element);
     gst_bus_add_watch (bus, _bus_cb, stream);
     gst_object_unref (bus);
 
