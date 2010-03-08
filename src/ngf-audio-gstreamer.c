@@ -395,8 +395,6 @@ _new_decoded_pad_cb (GstElement *element, GstPad *pad, gboolean is_last, gpointe
     GstCaps      *caps         = NULL;
     GstPad       *sink_pad     = NULL;
 
-    /* TODO: if the pad has already been linked, ignore this */
-
     caps = gst_pad_get_caps (pad);
     if (gst_caps_is_empty (caps) || gst_caps_is_any (caps))
         return;
@@ -404,7 +402,8 @@ _new_decoded_pad_cb (GstElement *element, GstPad *pad, gboolean is_last, gpointe
     structure = gst_caps_get_structure (caps, 0);
     if (g_str_has_prefix (gst_structure_get_name (structure), "audio")) {
         sink_pad = gst_element_get_pad (sink_element, "sink");
-        gst_pad_link (pad, sink_pad);
+        if (!gst_pad_is_linked (sink_pad))
+            gst_pad_link (pad, sink_pad);
         gst_object_unref (sink_pad);
     }
 
