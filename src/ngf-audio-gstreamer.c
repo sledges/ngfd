@@ -425,14 +425,14 @@ ngf_audio_play_stream (NgfAudio *self, const char *filename, pa_proplist *p, Ngf
         return 0;
 
     stream->stream_id = ++self->stream_count;
-    stream->filename = g_strdup (filename);
-    stream->proplist = p != NULL ? pa_proplist_copy (p) : NULL;
-    stream->callback = callback;
-    stream->userdata = userdata;
-    stream->audio = self;
+    stream->filename  = g_strdup (filename);
+    stream->proplist  = p != NULL ? pa_proplist_copy (p) : NULL;
+    stream->callback  = callback;
+    stream->userdata  = userdata;
+    stream->audio     = self;
 
     stream->element = gst_pipeline_new (NULL);
-    
+
     GstElement *source, *decodebin, *sink;
     GstBus *bus;
 
@@ -446,7 +446,7 @@ ngf_audio_play_stream (NgfAudio *self, const char *filename, pa_proplist *p, Ngf
     gst_bin_add (GST_BIN (stream->element), source, decodebin, sink);
     gst_element_link (source, decodebin);
 
-    g_object_set (G_OBJECT (source), "use-mmap", TRUE, "location", stream->filename, NULL);
+    g_object_set (G_OBJECT (source), "location", stream->filename, NULL);
     g_object_set (G_OBJECT (sink), "proplist", pa_proplist_copy (stream->proplist), NULL);
 
     g_signal_connect (G_OBJECT (decodebin), "new-decoded-pad", G_CALLBACK (_new_decoded_pad_cb), sink);
