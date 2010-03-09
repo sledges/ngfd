@@ -315,7 +315,8 @@ ngf_audio_set_volume (NgfAudio *self, const char *role, gint volume)
 
     stream_restore_info[0] = &info;
 
-    o = pa_ext_stream_restore2_write (self->context, PA_UPDATE_REPLACE, stream_restore_info, 1, TRUE, NULL, NULL);
+    o = pa_ext_stream_restore2_write (self->context, PA_UPDATE_REPLACE,
+        (const pa_ext_stream_restore2_info *const *) stream_restore_info, 1, TRUE, NULL, NULL);
     if (o != NULL)
         pa_operation_unref (o);
 }
@@ -353,7 +354,7 @@ _bus_cb (GstBus *bus, GstMessage *msg, gpointer userdata)
         }
 
         case GST_MESSAGE_STATE_CHANGED: {
-            
+
             if (GST_ELEMENT (GST_MESSAGE_SRC (msg)) != stream->element)
                 break;
 
@@ -422,7 +423,7 @@ ngf_audio_play_stream (NgfAudio *self, const char *filename, pa_proplist *p, Ngf
         return 0;
 
     if ((stream = g_new0 (AudioStream, 1)) == NULL)
-        return 0;
+        goto failed;
 
     stream->stream_id = ++self->stream_count;
     stream->filename  = g_strdup (filename);
@@ -440,11 +441,13 @@ ngf_audio_play_stream (NgfAudio *self, const char *filename, pa_proplist *p, Ngf
     decodebin = gst_element_factory_make ("decodebin2", NULL);
     sink      = gst_element_factory_make ("pulsesink", NULL);
 
-    if (source == NULL || decodebin == NULL || sink == NULL)
-        return 0;
+    if (stream->element == NULL || source == NULL || decodebin == NULL || sink == NULL)
+        goto failed;
 
-    gst_bin_add (GST_BIN (stream->element), source, decodebin, sink);
-    gst_element_link (source, decodebin);
+    gst_bin_add_many (GST_BIN (stream->element), source, decodebin, sink, NULL);
+
+    if (!gst_element_link (source, decodebin))
+        goto failed_link;
 
     g_object_set (G_OBJECT (source), "location", stream->filename, NULL);
     g_object_set (G_OBJECT (sink), "proplist", pa_proplist_copy (stream->proplist), NULL);
@@ -455,10 +458,36 @@ ngf_audio_play_stream (NgfAudio *self, const char *filename, pa_proplist *p, Ngf
     gst_bus_add_watch (bus, _bus_cb, stream);
     gst_object_unref (bus);
 
-    gst_element_set_state (stream->element, GST_STATE_PLAYING);
+    if (gst_element_set_state (stream->element, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE)
+        goto failed_link;
+
     self->active_streams = g_list_append (self->active_streams, stream);
 
     return stream->stream_id;
+
+failed:
+    if (sink)
+        gst_object_unref (sink);
+
+    if (decodebin)
+        gst_object_unref (decodebin);
+
+    if (source)
+        gst_object_unref (source);
+
+    if (stream->element) {
+        gst_object_unref (stream->element);
+        stream->element = NULL;
+    }
+
+    _audio_stream_free (stream);
+    return 0;
+
+failed_link:
+    gst_object_unref (stream->element);
+    stream->element = NULL;
+    _audio_stream_free (stream);
+    return 0;
 }
 
 void
