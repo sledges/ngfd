@@ -169,8 +169,10 @@ pulseaudio_initialize (NgfAudio *self)
 	pa_proplist_free (proplist);
     pa_context_set_state_callback (self->context, context_state_cb, self);
 
-    if (pa_context_connect (self->context, NULL, /* PA_CONTEXT_NOFAIL | */ PA_CONTEXT_NOAUTOSPAWN, NULL) < 0) {
-    	return FALSE;
+    if (pa_context_connect (self->context, NULL,
+        PA_CONTEXT_NOFAIL | PA_CONTEXT_NOAUTOSPAWN, NULL) < 0)
+    {
+        return FALSE;
     }
 
     return TRUE;
