@@ -460,9 +460,7 @@ ngf_audio_play_stream (NgfAudio *self, const char *filename, pa_proplist *p, Ngf
     gst_bus_add_watch (bus, _bus_cb, stream);
     gst_object_unref (bus);
 
-    if (gst_element_set_state (stream->element, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE)
-        goto failed_link;
-
+    gst_element_set_state (stream->element, GST_STATE_PLAYING);
     self->active_streams = g_list_append (self->active_streams, stream);
 
     return stream->stream_id;
@@ -482,13 +480,16 @@ failed:
         stream->element = NULL;
     }
 
-    _audio_stream_free (stream);
+    audio_stream_free (stream);
     return 0;
 
 failed_link:
-    gst_object_unref (stream->element);
-    stream->element = NULL;
-    _audio_stream_free (stream);
+    if (stream->element) {
+        gst_object_unref (stream->element);
+        stream->element = NULL;
+    }
+
+    audio_stream_free (stream);
     return 0;
 }
 
