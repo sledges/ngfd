@@ -59,6 +59,8 @@ AM_CONDITIONAL([VIBRATOR], [test x$vibrator = xtrue])
 
 PKG_CHECK_MODULES(NGFD,
 		  [glib-2.0
+		   gobject-2.0
+		   gthread-2.0
 		   dbus-1
 		   dbus-glib-1
 		   libpulse
