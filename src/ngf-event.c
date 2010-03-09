@@ -246,6 +246,16 @@ _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpoint
                does not exist. In this case, if the fallback is specified we will
                try to play it. */
 
+            if (!self->use_fallback) {
+                self->use_fallback = TRUE;
+
+                self->audio_id = ngf_audio_play_stream (self->context->audio,
+                    _event_get_fallback (self), self->proto->stream_properties,
+                    _stream_state_cb, self);
+
+                break;
+            }
+
             if (self->callback)
                 self->callback (self, NGF_EVENT_FAILED, self->userdata);
 
@@ -288,12 +298,14 @@ _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpoint
 
                 else if  (self->tone_repeat_count >= self->proto->tone_repeat_count) {
                     LOG_DEBUG ("%s: STREAM REPEAT FINISHED", __FUNCTION__);
+                    self->audio_id = 0;
                     if (self->callback)
                         self->callback (self, NGF_EVENT_COMPLETED, self->userdata);
                 }
             }
             else {
                 LOG_DEBUG ("%s: STREAM COMPLETED", __FUNCTION__);
+                self->audio_id = 0;
                 if (self->callback)
                     self->callback (self, NGF_EVENT_COMPLETED, self->userdata);
             }
@@ -356,6 +368,8 @@ _setup_audio (NgfEvent *self)
             tone, self->proto->stream_properties, _stream_state_cb, self);
 
         if (self->audio_id == 0) {
+            LOG_DEBUG ("%s: Failed to start tone, trying fallback.", __FUNCTION__);
+
             /* We couldn't start the provided tone. Let's try fallback if there is one. */
             if ((tone = _event_get_fallback (self)) != NULL) {
                 self->audio_id = ngf_audio_play_stream (self->context->audio,
