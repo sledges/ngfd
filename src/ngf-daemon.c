@@ -47,11 +47,6 @@ ngf_daemon_create ()
         return NULL;
     }
 
-    if ((self->event_manager = ngf_event_manager_create ()) == NULL) {
-        LOG_ERROR ("Failed to create event manager instance!");
-        return NULL;
-    }
-
     if ((self->dbus = ngf_dbus_create (_handle_play_cb, _handle_stop_cb, self)) == NULL) {
         LOG_ERROR ("Failed to create D-Bus interface!");
         return NULL;

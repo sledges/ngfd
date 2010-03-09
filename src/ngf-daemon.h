@@ -51,8 +51,8 @@ void        ngf_daemon_run (NgfDaemon *self);
 guint       ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *properties);
 void        ngf_daemon_event_stop (NgfDaemon *self, guint id);
 
-void        ngf_daemon_register_definition (NgfEventManager *self, const char *name, NgfEventDefinition *def);
-void        ngf_daemon_register_prototype (NgfEventManager *self, const char *name, NgfEventPrototype *proto);
+void        ngf_daemon_register_definition (NgfDaemon *self, const char *name, NgfEventDefinition *def);
+void        ngf_daemon_register_prototype (NgfDaemon *self, const char *name, NgfEventPrototype *proto);
 
 gboolean    ngf_daemon_settings_load (NgfDaemon *self);
 
