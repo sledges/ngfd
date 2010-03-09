@@ -64,7 +64,6 @@ PKG_CHECK_MODULES(NGFD,
 		   libpulse
 		   libpulse-mainloop-glib
 		   profile
-		   gstreamer-0.10
 		   sndfile])
 
 AC_SUBST(NGFD_LIBS)
