@@ -34,11 +34,16 @@ ngfd_SOURCES = \
 	ngf-led.c \
 	ngf-log.h \
 	ngf-log.c \
-	ngf-tone-mapper.h \
-	ngf-tone-mapper.c
+	ngf-tone-mapper.h
 
 ngfd_LDFLAGS = \
 	$(NGFD_LIBS)
+
+if TONEMAPPER
+ngfd_SOURCES += ngf-tone-mapper.c
+else
+ngfd_SOURCES += ngf-tone-mapper-dummy.c
+endif
 
 if GSTREAMER
 ngfd_SOURCES += ngf-audio-gstreamer.c

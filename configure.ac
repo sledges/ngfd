@@ -31,6 +31,16 @@ AC_ARG_ENABLE([debug],
 	[debug=false])
 AM_CONDITIONAL([DEBUG], [test x$debug = xtrue])
 
+AC_ARG_ENABLE([tonemapper],
+	AS_HELP_STRING([--enable-tonemapper],[Enable tonemapper @<:@default=false@:>@]),
+	[case "${enableval}" in
+		yes) tonemapper=true ;;
+		no)  tonemapper=false ;;
+		*) AC_MSG_ERROR([bad value ${enableval} for --enable-tonemapper]) ;;
+	esac],
+	[tonemapper=false])
+AM_CONDITIONAL([TONEMAPPER], [test x$tonemapper = xtrue])
+
 AC_ARG_ENABLE([gstreamer],
 	AS_HELP_STRING([--enable-gstreamer],[Enable gstreamer @<:@default=false@:>@]),
 	[case "${enableval}" in
@@ -80,6 +90,7 @@ echo "
     Debug enabled:          ${debug}
     Vibrator enabled:       ${vibrator}
     GStreamer backend:      ${gstreamer}
+    Tone mapper enabled:    ${tonemapper}
 "
 
 AC_OUTPUT(Makefile src/Makefile tests/Makefile data/Makefile)
