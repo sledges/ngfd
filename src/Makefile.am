@@ -50,7 +50,7 @@ ngfd_SOURCES += ngf-audio-gstreamer.c
 ngfd_CFLAGS  += $(GST_CFLAGS)
 ngfd_LDFLAGS += $(GST_LIBS)
 else
-ngfd_SOURCES += ngf-audio.c
+ngfd_SOURCES += ngf-audio-pulse.c
 endif
 
 if VIBRATOR
