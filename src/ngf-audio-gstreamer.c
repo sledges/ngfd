@@ -31,13 +31,6 @@
 #define PACKAGE_VERSION     "0.1"
 #define MAX_BUFFER_SIZE     65536
 
-typedef struct _AudioSample
-{
-    uint32_t    index;
-    int         lazy;
-    gchar       *filename;
-} AudioSample;
-
 typedef struct _AudioStream
 {
     gchar               *filename;
@@ -61,9 +54,6 @@ struct _NgfAudio
     guint               stream_count;
     gboolean            stream_requested;
 
-    gboolean            sample_cache_loaded;
-    GHashTable          *sample_cache;
-
     NgfAudioCallback    callback;
     gpointer            userdata;
 };
@@ -73,13 +63,6 @@ static void     pulseaudio_shutdown (NgfAudio *self);
 static void     pulseaudio_get_cached_samples (NgfAudio *self);
 
 
-
-static void
-audio_sample_free (AudioSample *sample)
-{
-    g_free (sample->filename);
-    g_free (sample);
-}
 
 static void
 audio_stream_free (AudioStream *stream)
@@ -118,9 +101,6 @@ context_state_cb (pa_context *c, void *userdata)
             break;
 
         case PA_CONTEXT_READY:
-            /* Query a list of samples */
-            pulseaudio_get_cached_samples (self);
-
             if (self->callback)
                 self->callback (self, NGF_AUDIO_READY, self->userdata);
 
@@ -194,47 +174,6 @@ pulseaudio_shutdown (NgfAudio *self)
     }
 }
 
-static void
-sample_info_cb (pa_context *c, const pa_sample_info *i, int eol, void *userdata)
-{
-    NgfAudio *self = (NgfAudio*) userdata;
-
-    if (eol) {
-
-        /* Trigger a callback to notify client that we have the sample
-           list. */
-
-        self->sample_cache_loaded = TRUE;
-
-        if (self->callback)
-            self->callback (self, NGF_AUDIO_SAMPLE_LIST, self->userdata);
-
-        return;
-    }
-
-    AudioSample *sample = NULL;
-
-    sample = g_new0 (AudioSample, 1);
-    sample->index    = i->index;
-    sample->lazy     = i->lazy;
-    sample->filename = g_strdup (i->filename);
-
-    g_hash_table_insert (self->sample_cache, g_strdup (i->name), sample);
-}
-
-static void
-pulseaudio_get_cached_samples (NgfAudio *self)
-{
-    pa_operation *o = NULL;
-
-    if (self->sample_cache_loaded)
-        return;
-
-    o = pa_context_get_sample_info_list (self->context, sample_info_cb, self);
-    if (o)
-        pa_operation_unref (o);
-}
-
 NgfAudio*
 ngf_audio_create ()
 {
@@ -265,12 +204,6 @@ ngf_audio_destroy (NgfAudio *self)
         return;
 
     pulseaudio_shutdown (self);
-
-    if (self->sample_cache) {
-        g_hash_table_destroy (self->sample_cache);
-        self->sample_cache = NULL;
-    }
-
     g_free (self);
 }
 
@@ -321,20 +254,6 @@ ngf_audio_set_volume (NgfAudio *self, const char *role, gint volume)
         (const pa_ext_stream_restore2_info *const *) stream_restore_info, 1, TRUE, NULL, NULL);
     if (o != NULL)
         pa_operation_unref (o);
-}
-
-static gchar*
-_get_uri (const char *filename)
-{
-    GFile *file = NULL;
-    gchar *uri = NULL;
-
-    if ((file = g_file_new_for_path (filename)) == NULL)
-        return NULL;
-
-    uri = g_file_get_uri (file);
-    g_object_unref (file);
-    return uri;
 }
 
 static gboolean
@@ -516,32 +435,4 @@ ngf_audio_stop_stream (NgfAudio *self, guint stream_id)
             break;
         }
     }
-}
-
-GList*
-ngf_audio_get_sample_list (NgfAudio *self)
-{
-    GList *sample_list = NULL;
-
-    GHashTableIter iter;
-    gpointer key, value;
-
-    g_hash_table_iter_init (&iter, self->sample_cache);
-    while (g_hash_table_iter_next (&iter, &key, &value))
-        sample_list = g_list_append (sample_list, g_strdup (key));
-
-    return sample_list;
-}
-
-void
-ngf_audio_free_sample_list (GList *sample_list)
-{
-    if (sample_list == NULL)
-        return;
-
-    GList *iter = NULL;
-    for (iter = g_list_first (sample_list); iter; iter = g_list_next (iter))
-        g_free ((gchar*) iter->data);
-
-    g_list_free (sample_list);
 }
