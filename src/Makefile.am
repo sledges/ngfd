@@ -34,7 +34,9 @@ ngfd_SOURCES = \
 	ngf-led.c \
 	ngf-log.h \
 	ngf-log.c \
-	ngf-tone-mapper.h
+	ngf-tone-mapper.h \
+	ngf-pulse-context.h \
+	ngf-pulse-context.c
 
 ngfd_LDFLAGS = \
 	$(NGFD_LIBS)
