@@ -1,6 +1,5 @@
 /*
  * ngfd - Non-graphical feedback daemon
- * This file is part of ngfd.
  *
  * Copyright (C) 2010 Nokia Corporation. All rights reserved.
  *
