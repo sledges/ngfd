@@ -1,22 +1,3 @@
-/*
- * ngfd - Non-graphical feedback daemon
- *
- * Copyright (C) 2010 Nokia Corporation. All rights reserved.
- *
- * Contact: Xun Chen <xun.chen@nokia.com>
- *
- * This software, including documentation, is protected by copyright
- * controlled by Nokia Corporation. All rights are reserved.
- * Copying, including reproducing, storing, adapting or translating,
- * any or all of this material requires the prior written consent of
- * Nokia Corporation. This material also contains confidential
- * information which may not be disclosed to others without the prior
- * written consent of Nokia.
- */
-
-#include "ngf-log.h"
-#include "ngf-audio.h"
-
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -26,98 +7,60 @@
 
 #include <glib.h>
 
-#include <pulse/pulseaudio.h>
 #include <pulse/context.h>
 #include <pulse/stream.h>
-#include <pulse/glib-mainloop.h>
-#include <pulse/ext-stream-restore.h>
 
 #include <sndfile.h>
 
-#define APPLICATION_NAME    "ngf-audio-backend"
-#define PACKAGE_VERSION     "0.1"
-#define MAX_BUFFER_SIZE     65536
+#include "ngf-log.h"
+#include "ngf-audio-pulse.h"
 
-typedef struct _AudioStream
+#define PULSE_BACKEND_NAME "NGF Pulse backend"
+#define MAX_BUFFER_SIZE    65536
+
+typedef struct _PulseStream PulseStream;
+
+struct _PulseStream
 {
-    gchar               *filename;
-    pa_stream           *stream;
-    guint               stream_id;
-    uint32_t            stream_index;
-
-    pa_proplist         *proplist;
-
-    int                 fd;
-    int                 fd_error;
-    SNDFILE             *sf;
-
-    unsigned char       buffer[MAX_BUFFER_SIZE];
-
-    pa_operation        *drain_op;
-
-    NgfAudio            *audio;
-    NgfStreamCallback   callback;
-    gpointer            userdata;
-} AudioStream;
-
-struct _NgfAudio
-{
-    pa_glib_mainloop    *mainloop;
-    pa_context          *context;
-
-    GList               *active_streams;
-    GList               *stream_queue;
-    guint               stream_count;
-    gboolean            stream_requested;
-
-    NgfAudioCallback    callback;
-    gpointer            userdata;
+    pa_stream         *stream;
+    uint32_t           stream_index;
+    int                fd;
+    int                fd_error;
+    SNDFILE           *sf;
+    pa_operation      *drain_op;
+    unsigned char      buffer[MAX_BUFFER_SIZE];
+    NgfAudioInterface *iface;
 };
 
-static gboolean pulseaudio_initialize (NgfAudio *self);
-static void     pulseaudio_shutdown (NgfAudio *self);
-static gboolean pulseaudio_create_stream (NgfAudio *self, AudioStream *stream);
-static void     pulseaudio_destroy_stream (NgfAudio *self, AudioStream *stream);
-
-
-
-static void
-audio_stream_free (AudioStream *stream)
-{
-    if (stream == NULL)
-        return;
-
-    if (stream->proplist) {
-        pa_proplist_free (stream->proplist);
-        stream->proplist = NULL;
-    }
-
-    g_free (stream->filename);
-    stream->filename = NULL;
-
-    g_free (stream);
-}
+static gboolean _pulse_initialize (NgfAudioInterface *iface, NgfPulseContext *context);
+static void     _pulse_shutdown   (NgfAudioInterface *iface);
+static gboolean _pulse_prepare    (NgfAudioInterface *iface, NgfAudioStream *stream);
+static gboolean _pulse_play       (NgfAudioInterface *iface, NgfAudioStream *stream);
+static void     _pulse_stop       (NgfAudioInterface *iface, NgfAudioStream *stream);
 
 static void
-stream_drain_cb (pa_stream *s, int success, void *userdata)
+_stream_drain_cb (pa_stream *s, int success, void *userdata)
 {
-    AudioStream *stream = (AudioStream*) userdata;
+    NgfAudioStream *stream       = (NgfAudioStream*) userdata;
+    PulseStream    *pulse_stream = (PulseStream*) stream->data;
 
-    pulseaudio_destroy_stream (stream->audio, stream);
+    _pulse_stop (pulse_stream->iface, stream);
 
     if (stream->callback)
-        stream->callback (stream->audio, stream->stream_id, NGF_STREAM_COMPLETED, stream->userdata);
+        stream->callback (stream,NGF_AUDIO_STREAM_STATE_COMPLETED, stream->userdata);
 
-    pa_operation_unref (stream->drain_op);
-    stream->drain_op = NULL;
-
-    audio_stream_free (stream);
+    pa_operation_unref (pulse_stream->drain_op);
+    pulse_stream->drain_op = NULL;
 }
 
+
 static void
-stream_write_cb (pa_stream *s, size_t bytes, void *userdata)
+_stream_write_cb (pa_stream *s,
+                  size_t     bytes,
+                  void      *userdata)
 {
-    AudioStream *stream = (AudioStream*) userdata;
+    NgfAudioStream *stream       = (NgfAudioStream*) userdata;
+    PulseStream    *pulse_stream = (PulseStream*) stream->data;
 
     pa_operation *o = NULL;
     size_t bytes_left = bytes;
@@ -127,11 +70,11 @@ stream_write_cb (pa_stream *s, size_t bytes, void *userdata)
 	    if (bytes_left <= 0)
 	        break;
 
-	    bytes_read = sf_read_raw (stream->sf, &stream->buffer[0], bytes_left >= MAX_BUFFER_SIZE ? MAX_BUFFER_SIZE : bytes_left);
+	    bytes_read = sf_read_raw (pulse_stream->sf, &pulse_stream->buffer[0], bytes_left >= MAX_BUFFER_SIZE ? MAX_BUFFER_SIZE : bytes_left);
 	    if (bytes_read == 0)
 	        goto stream_drain;
 
-    if (pa_stream_write (s, &stream->buffer[0], bytes_read, NULL, 0, PA_SEEK_RELATIVE) < 0)
+    if (pa_stream_write (s, &pulse_stream->buffer[0], bytes_read, NULL, 0, PA_SEEK_RELATIVE) < 0)
         goto stream_drain;
 
 	    bytes_left -= bytes_read;
@@ -141,167 +84,46 @@ stream_write_cb (pa_stream *s, size_t bytes, void *userdata)
 
 stream_drain:
     pa_stream_set_write_callback (s, NULL, NULL);
-    stream->drain_op = pa_stream_drain (s, stream_drain_cb, stream);
+    pulse_stream->drain_op = pa_stream_drain (s, _stream_drain_cb, stream);
 
     return;
 }
 
 static void
-stream_state_cb (pa_stream *s, void *userdata)
+_stream_state_cb (pa_stream *s,
+                  void      *userdata)
 {
-    AudioStream *stream = (AudioStream*) userdata;
+    NgfAudioStream *stream       = (NgfAudioStream*) userdata;
+    PulseStream    *pulse_stream = (PulseStream*) stream->data;
 
     switch (pa_stream_get_state (s)) {
-        case PA_STREAM_UNCONNECTED:
-        case PA_STREAM_CREATING:
-	        break;
-
         case PA_STREAM_READY:
-	        stream->stream_index = pa_stream_get_index (s);
+	        pulse_stream->stream_index = pa_stream_get_index (s);
 
             if (stream->callback)
-                stream->callback (stream->audio, stream->stream_id, NGF_STREAM_STARTED, stream->userdata);
+                stream->callback (stream, NGF_AUDIO_STREAM_STATE_STARTED, stream->userdata);
 
             break;
 
         case PA_STREAM_FAILED:
-	        pulseaudio_destroy_stream (stream->audio, stream);
-
             if (stream->callback)
-                stream->callback (stream->audio, stream->stream_id, NGF_STREAM_FAILED, stream->userdata);
+                stream->callback (stream, NGF_AUDIO_STREAM_STATE_FAILED, stream->userdata);
 
-            audio_stream_free (stream);
 	        break;
 
         case PA_STREAM_TERMINATED:
-	        pulseaudio_destroy_stream (stream->audio, stream);
-
             if (stream->callback)
-                stream->callback (stream->audio, stream->stream_id, NGF_STREAM_TERMINATED, stream->userdata);
+                stream->callback (stream, NGF_AUDIO_STREAM_STATE_FAILED, stream->userdata);
 
-            audio_stream_free (stream);
 	        break;
 
         default:
             break;
-    }
-}
-
-static void
-start_queued_streams (NgfAudio *self)
-{
-    AudioStream *stream = NULL;
-    GList *iter = NULL;
-
-    for (iter = g_list_first (self->stream_queue); iter; iter = g_list_next (iter)) {
-        stream = (AudioStream*) iter->data;
-
-        if (!pulseaudio_create_stream (self, stream)) {
-            g_free (stream->filename);
-            g_free (stream);
-        }
-        else {
-            self->active_streams = g_list_append (self->active_streams, stream);
-        }
-    }
-
-    g_list_free (self->stream_queue);
-    self->stream_queue = NULL;
- }
-
-static void
-context_state_cb (pa_context *c, void *userdata)
-{
-    NgfAudio *self = (NgfAudio*) userdata;
-
-    switch (pa_context_get_state (c)) {
-        case PA_CONTEXT_CONNECTING:
-            break;
-
-        case PA_CONTEXT_UNCONNECTED:
-        case PA_CONTEXT_AUTHORIZING:
-        case PA_CONTEXT_SETTING_NAME:
-            break;
-
-        case PA_CONTEXT_READY:
-            if (self->callback)
-                self->callback (self, NGF_AUDIO_READY, self->userdata);
-
-            if (self->stream_requested) {
-                start_queued_streams (self);
-                self->stream_requested = FALSE;
-            }
-
-            break;
-
-        case PA_CONTEXT_FAILED:
-            if (self->callback)
-                self->callback (self, NGF_AUDIO_FAILED, self->userdata);
-
-            break;
-
-        case PA_CONTEXT_TERMINATED:
-            if (self->callback)
-                self->callback (self, NGF_AUDIO_TERMINATED, self->userdata);
-
-            break;
-
-        default:
-            break;
-    }
-}
-
-static gboolean
-pulseaudio_initialize (NgfAudio *self)
-{
-    pa_proplist *proplist = NULL;
-    pa_mainloop_api *api = NULL;
-
-    if ((self->mainloop = pa_glib_mainloop_new (g_main_context_default ())) == NULL)
-        return FALSE;
-
-    if ((api = pa_glib_mainloop_get_api (self->mainloop)) == NULL)
-        return FALSE;
-
-    proplist = pa_proplist_new ();
-    pa_proplist_sets (proplist, PA_PROP_APPLICATION_NAME, APPLICATION_NAME);
-    pa_proplist_sets (proplist, PA_PROP_APPLICATION_ID, APPLICATION_NAME);
-    pa_proplist_sets (proplist, PA_PROP_APPLICATION_VERSION, PACKAGE_VERSION);
-
-    self->context = pa_context_new_with_proplist (api, APPLICATION_NAME, proplist);
-    if (self->context == NULL) {
-        pa_proplist_free (proplist);
-	    return FALSE;
-    }
-
-	pa_proplist_free (proplist);
-    pa_context_set_state_callback (self->context, context_state_cb, self);
-
-    if (pa_context_connect (self->context, NULL, /* PA_CONTEXT_NOFAIL | */ PA_CONTEXT_NOAUTOSPAWN, NULL) < 0) {
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
-static void
-pulseaudio_shutdown (NgfAudio *self)
-{
-    if (self->context) {
-        pa_context_set_state_callback (self->context, NULL, NULL);
-        pa_context_disconnect (self->context);
-        pa_context_unref (self->context);
-        self->context = NULL;
-    }
-
-    if (self->mainloop) {
-        pa_glib_mainloop_free (self->mainloop);
-        self->mainloop = NULL;
     }
 }
 
 static pa_sample_format_t
-sf_to_pa_sample_format (int format)
+_get_pa_sample_format (int format)
 {
     int subformat = format & SF_FORMAT_SUBMASK;
 
@@ -335,217 +157,129 @@ sf_to_pa_sample_format (int format)
 }
 
 static gboolean
-pulseaudio_create_stream (NgfAudio *self, AudioStream *stream)
+_pulse_initialize (NgfAudioInterface *iface,
+                   NgfPulseContext   *context)
 {
-    SF_INFO sf_info;
-    pa_sample_spec ss;
+    LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
-    if (stream->filename == NULL)
-        goto failed;
+    iface->data = (gpointer) context;
+    return TRUE;
+}
 
-	if ((stream->fd = open (stream->filename, O_RDONLY)) <0) {
-        stream->fd_error = errno;
-	    g_warning ("Unable to open file descriptor '%s': %s (%d)", stream->filename, strerror (stream->fd_error), stream->fd_error);
+static void
+_pulse_shutdown (NgfAudioInterface *iface)
+{
+    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+
+    (void) iface;
+}
+
+static gboolean
+_pulse_prepare (NgfAudioInterface *iface,
+                NgfAudioStream    *stream)
+{
+    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+
+    (void) iface;
+    (void) stream;
+
+    return TRUE;
+}
+
+static gboolean
+_pulse_play (NgfAudioInterface *iface,
+             NgfAudioStream    *stream)
+{
+    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+
+    PulseStream     *pulse_stream = NULL;
+    pa_sample_spec   ss;
+    SF_INFO          sf_info;
+
+    NgfPulseContext *context = (NgfPulseContext*) iface->data;
+    pa_context      *c       = ngf_pulse_context_get_context (context);
+
+    if (stream->source == NULL)
+        return FALSE;
+
+    if ((pulse_stream = g_new0 (PulseStream, 1)) == NULL)
+        return FALSE;
+
+    /* Save the reference to our private data. */
+    pulse_stream->iface = iface;
+    stream->data        = (gpointer) pulse_stream;
+
+	if ((pulse_stream->fd = open (stream->source, O_RDONLY)) <0) {
+        pulse_stream->fd_error = errno;
+	    g_warning ("Unable to open file descriptor '%s': %s (%d)", stream->source, strerror (pulse_stream->fd_error), pulse_stream->fd_error);
         goto failed;
 	}
 
-    if ((stream->sf = sf_open_fd (stream->fd, SFM_READ, &sf_info, FALSE)) == NULL)
+    if ((pulse_stream->sf = sf_open_fd (pulse_stream->fd, SFM_READ, &sf_info, FALSE)) == NULL)
         goto failed;
 
-    ss.format = sf_to_pa_sample_format (sf_info.format);
+    ss.format   = _get_pa_sample_format (sf_info.format);
 	ss.channels = sf_info.channels;
-	ss.rate = sf_info.samplerate;
+	ss.rate     = sf_info.samplerate;
 
     if (ss.format == PA_SAMPLE_INVALID)
         goto failed;
 
-    stream->stream = pa_stream_new_with_proplist (self->context, APPLICATION_NAME, &ss, NULL, stream->proplist);
-    if (stream->stream == NULL) {
+    pulse_stream->stream = pa_stream_new_with_proplist (c, PULSE_BACKEND_NAME, &ss, NULL, stream->properties);
+    if (pulse_stream->stream == NULL) {
         goto failed;
     }
 
-    pa_stream_set_state_callback (stream->stream, stream_state_cb, stream);
-    pa_stream_set_write_callback (stream->stream, stream_write_cb, stream);
+    pa_stream_set_state_callback (pulse_stream->stream, _stream_state_cb, stream);
+    pa_stream_set_write_callback (pulse_stream->stream, _stream_write_cb, stream);
 
-    if (pa_stream_connect_playback (stream->stream, NULL, NULL, 0, NULL, NULL) < 0)
+    if (pa_stream_connect_playback (pulse_stream->stream, NULL, NULL, 0, NULL, NULL) < 0)
         goto failed;
 
-    self->active_streams = g_list_append (self->active_streams, stream);
     return TRUE;
 
 failed:
-    pulseaudio_destroy_stream (self, stream);
+    _pulse_stop (iface, stream);
     return FALSE;
-
 }
 
 static void
-pulseaudio_destroy_stream (NgfAudio *self, AudioStream *stream)
+_pulse_stop (NgfAudioInterface *iface,
+             NgfAudioStream    *stream)
 {
-    if (stream->stream) {
-        pa_stream_set_state_callback (stream->stream, NULL, NULL);
-        pa_stream_set_write_callback (stream->stream, NULL, NULL);
-        pa_stream_disconnect (stream->stream);
-        pa_stream_unref (stream->stream);
-        stream->stream = NULL;
+    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+
+    PulseStream *s = (PulseStream*) stream->data;
+
+    if (s->stream) {
+        pa_stream_set_state_callback (s->stream, NULL, NULL);
+        pa_stream_set_write_callback (s->stream, NULL, NULL);
+        pa_stream_disconnect (s->stream);
+        pa_stream_unref (s->stream);
+        s->stream = NULL;
     }
 
-    if (stream->sf) {
-        sf_close (stream->sf);
-        stream->sf = NULL;
+    if (s->sf) {
+        sf_close (s->sf);
+        s->sf = NULL;
     }
 
-    if (stream->fd > -1) {
-        close (stream->fd);
-        stream->fd = -1;
+    if (s->fd > -1) {
+        close (s->fd);
+        s->fd = -1;
     }
-
-    self->active_streams = g_list_remove (self->active_streams, stream);
 }
 
-NgfAudio*
-ngf_audio_create ()
+NgfAudioInterface*
+ngf_audio_pulse_create ()
 {
-    NgfAudio *self = NULL;
+    static NgfAudioInterface iface = {
+        .initialize = _pulse_initialize,
+        .shutdown   = _pulse_shutdown,
+        .prepare    = _pulse_prepare,
+        .play       = _pulse_play,
+        .stop       = _pulse_stop
+    };
 
-    if ((self = g_new0 (NgfAudio, 1)) == NULL)
-        goto failed;
-
-    if ((self->sample_cache = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) audio_sample_free)) == NULL)
-        goto failed;
-
-    if (!pulseaudio_initialize (self))
-        goto failed;
-
-    return self;
-
-failed:
-    ngf_audio_destroy (self);
-    return NULL;
-}
-
-void
-ngf_audio_destroy (NgfAudio *self)
-{
-    if (self == NULL)
-        return;
-
-    pulseaudio_shutdown (self);
-    g_free (self);
-}
-
-void
-ngf_audio_set_callback (NgfAudio *self, NgfAudioCallback callback, gpointer userdata)
-{
-    if (self == NULL || callback == NULL)
-        return;
-
-    self->callback = callback;
-    self->userdata = userdata;
-}
-
-void
-ngf_audio_set_volume (NgfAudio *self, const char *role, gint volume)
-{
-    pa_ext_stream_restore2_info *stream_restore_info[1], info;
-
-    pa_cvolume vol;
-    gdouble v = 0.0;
-    pa_operation *o = NULL;
-
-    if (self->context == NULL)
-        return;
-
-    if (pa_context_get_state (self->context) != PA_CONTEXT_READY)
-        return;
-
-    if (volume < 0)
-        return;
-
-    volume = volume > 100 ? 100 : volume;
-    v = (gdouble) volume / 100.0;
-
-    pa_cvolume_set (&vol, 1, v * PA_VOLUME_NORM);
-
-    info.name = role;
-    info.channel_map.channels = 1;
-    info.channel_map.map[0] = PA_CHANNEL_POSITION_MONO;
-    info.volume = vol;
-    info.device = NULL;
-    info.mute = FALSE;
-    info.volume_is_absolute = TRUE;
-
-    stream_restore_info[0] = &info;
-
-    o = pa_ext_stream_restore2_write (self->context, PA_UPDATE_REPLACE,
-        (const pa_ext_stream_restore2_info *const *) stream_restore_info, 1, TRUE, NULL, NULL);
-
-    if (o != NULL)
-        pa_operation_unref (o);
-}
-
-guint
-ngf_audio_play_stream (NgfAudio *self, const char *filename, pa_proplist *p, NgfStreamCallback callback, gpointer userdata)
-{
-    AudioStream *stream = NULL;
-
-    if (self == NULL || filename == NULL)
-        return 0;
-
-    if (self->context == NULL)
-        return 0;
-
-    if ((stream = g_new0 (AudioStream, 1)) == NULL)
-        return 0;
-
-    stream->stream_id = ++self->stream_count;
-    stream->filename = g_strdup (filename);
-    stream->proplist = p != NULL ? pa_proplist_copy (p) : NULL;
-    stream->callback = callback;
-    stream->userdata = userdata;
-    stream->audio = self;
-
-    if (pa_context_get_state (self->context) != PA_CONTEXT_READY) {
-        self->stream_queue = g_list_append (self->stream_queue, stream);
-        self->stream_requested = TRUE;
-        return stream->stream_id;
-    }
-
-    /* Context is ready, we can start the stream immediately. */
-
-    if (!pulseaudio_create_stream (self, stream)) {
-        audio_stream_free (stream);
-        return 0;
-    }
-
-    return stream->stream_id;
-}
-
-void
-ngf_audio_stop_stream (NgfAudio *self, guint stream_id)
-{
-    AudioStream *stream = NULL;
-    GList *iter = NULL;
-
-    if (self == NULL || stream_id == 0)
-        return;
-
-    for (iter = g_list_first (self->active_streams); iter; iter = g_list_next (iter)) {
-        stream = (AudioStream*) iter->data;
-        if (stream->stream_id == stream_id) {
-            if (stream->drain_op) {
-                LOG_DEBUG ("DRAIN OP (stream_id=%d)", stream_id);
-                pa_operation_cancel (stream->drain_op);
-                pa_operation_unref (stream->drain_op);
-            }
-
-            pulseaudio_destroy_stream (self, stream);
-
-            if (stream->callback)
-                stream->callback (self, stream->stream_id, NGF_STREAM_STOPPED, stream->userdata);
-
-            audio_stream_free (stream);
-            break;
-        }
-    }
+    return (NgfAudioInterface*) &iface;
 }

@@ -1,7 +1,7 @@
 bin_PROGRAMS = ngfd
 
 ngfd_CFLAGS= \
-	$(NGFD_CFLAGS)
+	$(NGFD_CFLAGS) $(GST_CFLAGS)
 
 ngfd_SOURCES = \
 	main.c \
@@ -23,6 +23,13 @@ ngfd_SOURCES = \
 	ngf-event.h \
 	ngf-event.c \
 	ngf-audio.h \
+	ngf-audio.c \
+	ngf-audio-interface.h \
+	ngf-audio-interface.c \
+	ngf-audio-gstreamer.h \
+	ngf-audio-gstreamer.c \
+	ngf-audio-pulse.h \
+	ngf-audio-pulse.c \
 	ngf-controller.h \
 	ngf-controller.c \
 	ngf-vibrator.h \
@@ -39,20 +46,12 @@ ngfd_SOURCES = \
 	ngf-pulse-context.c
 
 ngfd_LDFLAGS = \
-	$(NGFD_LIBS)
+	$(NGFD_LIBS) $(GST_LIBS)
 
 if TONEMAPPER
 ngfd_SOURCES += ngf-tone-mapper.c
 else
 ngfd_SOURCES += ngf-tone-mapper-dummy.c
-endif
-
-if GSTREAMER
-ngfd_SOURCES += ngf-audio-gstreamer.c
-ngfd_CFLAGS  += $(GST_CFLAGS)
-ngfd_LDFLAGS += $(GST_LIBS)
-else
-ngfd_SOURCES += ngf-audio-pulse.c
 endif
 
 if VIBRATOR

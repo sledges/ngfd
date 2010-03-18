@@ -22,7 +22,6 @@ static gboolean     _event_manager_create         (NgfDaemon *self);
 static void         _event_manager_destroy        (NgfDaemon *self);
 NgfEventDefinition* _event_manager_get_definition (NgfDaemon *self, const char *name);
 NgfEventPrototype*  _event_manager_get_prototype  (NgfDaemon *self, const char *name);
-static void         _audio_state_cb               (NgfAudio *audio, NgfAudioState state, gpointer userdata);
 static void         _event_state_cb               (NgfEvent *event, NgfEventState state, gpointer userdata);
 static gboolean     _properties_get_boolean       (GHashTable *properties, const char *key);
 static guint        _properties_get_policy_id     (GHashTable *properties);

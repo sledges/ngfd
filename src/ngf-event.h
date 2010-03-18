@@ -19,6 +19,7 @@
 
 #include <glib.h>
 #include "ngf-context.h"
+#include "ngf-audio-stream.h"
 #include "ngf-event-prototype.h"
 
 /* Resource flags */
@@ -54,15 +55,17 @@ struct _NgfEvent
 
     /* Internal event specific data */
     guint               max_length_timeout_id;
-    guint               audio_id;
+
+    NgfAudioStream     *audio_stream;
+    guint               audio_volume_id;
+    gboolean            audio_volume_set;
+    gboolean            audio_use_fallback;
+    gint                audio_repeat_count;
+
     guint               vibra_id;
-    guint               controller_id;
     guint               tonegen_id;
     guint               led_id;
     guint               backlight_id;
-
-    gboolean            use_fallback;
-    gint                tone_repeat_count;
 
     /* Startup timer for monitoring event length */
     GTimer              *start_timer;

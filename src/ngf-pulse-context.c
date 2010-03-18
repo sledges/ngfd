@@ -208,7 +208,7 @@ ngf_pulse_context_set_volume (NgfPulseContext *self,
     pa_operation *o = NULL;
     pa_cvolume    vol;
 
-    if (self->context == NULL || role == NULL || volume < 0)
+    if (self->context == NULL || role == NULL || volume < 0)
         return;
 
     if (pa_context_get_state (self->context) != PA_CONTEXT_READY)

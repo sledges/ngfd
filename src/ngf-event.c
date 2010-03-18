@@ -20,7 +20,7 @@
 #include "ngf-tone-mapper.h"
 
 static gboolean     _event_max_timeout_cb (gpointer userdata);
-static void         _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpointer userdata);
+static void         _stream_state_cb (NgfAudioStream *stream, NgfAudioStreamState state, gpointer userdata);
 static const char*  _get_mapped_tone (NgfToneMapper *mapper, const char *tone);
 static const char*  _event_get_tone (NgfEvent *self);
 static const char*  _event_get_fallback (NgfEvent *self);
@@ -28,11 +28,16 @@ static const char*  _event_get_vibra (NgfEvent *self);
 static const char*  _event_get_led (NgfEvent *self);
 static gboolean     _event_is_vibra_enabled (NgfEvent *self);
 static gboolean     _volume_control_cb (guint id, guint step_time, guint step_value, gpointer userdata);
-static gboolean     _setup_audio (NgfEvent *self);
+
+static gboolean     _tone_generator_start (NgfEvent *self);
+static void         _tone_generator_stop (NgfEvent *self);
+
+static gboolean     _audio_playback_start (NgfEvent *self);
+static void         _audio_playback_stop (NgfEvent *self);
+
 static gboolean     _setup_vibrator (NgfEvent *self);
 static gboolean     _setup_led (NgfEvent *self);
 static gboolean     _setup_backlight (NgfEvent *self);
-static void         _shutdown_audio (NgfEvent *self);
 static void         _shutdown_vibrator (NgfEvent *self);
 static void         _shutdown_led (NgfEvent *self);
 static void         _shutdown_backlight (NgfEvent *self);
@@ -118,8 +123,7 @@ _get_mapped_tone (NgfToneMapper *mapper, const char *tone)
         return mapped_tone;
     }
 
-    LOG_DEBUG ("Tone (original): %s", tone);
-    return tone;
+    return NULL;
 }
 
 static const char*
@@ -131,15 +135,13 @@ _event_get_tone (NgfEvent *self)
 
     value = g_hash_table_lookup (self->properties, "tone");
     if (value && ngf_value_get_type (value) == NGF_VALUE_STRING)
-        tone = (const char*) ngf_value_get_string (value);
+        return ngf_value_get_string (value);
 
-    if (tone == NULL && proto->tone_filename)
-        tone = proto->tone_filename;
+    if (proto->tone_filename)
+        return proto->tone_filename;
 
-    if (tone == NULL)
-        ngf_profile_get_string (self->context->profile, proto->tone_profile, proto->tone_key, &tone);
-
-    return _get_mapped_tone (self->context->tone_mapper, tone);
+    ngf_profile_get_string (self->context->profile, proto->tone_profile, proto->tone_key, &tone);
+    return tone;
 }
 
 static const char*
@@ -149,12 +151,10 @@ _event_get_fallback (NgfEvent *self)
     const gchar *tone = NULL, *mapped_tone = NULL;
 
     if (proto->fallback_filename)
-        tone = proto->fallback_filename;
+        return proto->fallback_filename;
 
-    if (tone == NULL)
-        ngf_profile_get_string (self->context->profile, proto->fallback_profile, proto->fallback_key, &tone);
-
-    return _get_mapped_tone (self->context->tone_mapper, tone);
+    ngf_profile_get_string (self->context->profile, proto->fallback_profile, proto->fallback_key, &tone);
+    return tone;
 }
 
 static const char*
@@ -223,12 +223,12 @@ _event_get_volume (NgfEvent *self)
 }
 
 static void
-_stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpointer userdata)
+_stream_state_cb (NgfAudioStream *stream, NgfAudioStreamState state, gpointer userdata)
 {
     NgfEvent *self = (NgfEvent*) userdata;
 
     switch (state) {
-        case NGF_STREAM_STARTED: {
+        case NGF_AUDIO_STREAM_STATE_STARTED: {
 
             /* Stream started, let's notify the client that we are all up and running */
 
@@ -238,7 +238,7 @@ _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpoint
             break;
         }
 
-        case NGF_STREAM_FAILED: {
+        case NGF_AUDIO_STREAM_STATE_FAILED: {
 
             LOG_DEBUG ("%s: STREAM FAILED\n", __FUNCTION__);
 
@@ -246,66 +246,51 @@ _stream_state_cb (NgfAudio *audio, guint stream_id, NgfStreamState state, gpoint
                does not exist. In this case, if the fallback is specified we will
                try to play it. */
 
-            if (!self->use_fallback) {
-                self->use_fallback = TRUE;
+            _audio_playback_stop (self);
 
-                self->audio_id = ngf_audio_play_stream (self->context->audio,
-                    _event_get_fallback (self), self->proto->stream_properties,
-                    _stream_state_cb, self);
-
+            if (self->audio_use_fallback) {
+                if (self->callback)
+                    self->callback (self, NGF_EVENT_FAILED, self->userdata);
                 break;
             }
 
-            if (self->callback)
-                self->callback (self, NGF_EVENT_FAILED, self->userdata);
-
+            self->audio_use_fallback = TRUE;
+            _audio_playback_start (self);
             break;
         }
 
-        case NGF_STREAM_TERMINATED: {
-
-            LOG_DEBUG ("%s: STREAM TERMINATED\n", __FUNCTION__);
-
-            /* Audio stream terminated. This means that the underlying audio context
-               was lost (probably Pulseaudio went down). We will stop the event at
-               this point (consider it completed). */
-
-            if (self->callback)
-                self->callback (self, NGF_EVENT_COMPLETED, self->userdata);
-
-            break;
-        }
-
-        case NGF_STREAM_COMPLETED: {
+        case NGF_AUDIO_STREAM_STATE_COMPLETED: {
 
             /* Stream was played and completed successfully. If the repeat flag is
                set, then we will restart the stream again. Otherwise, let's notify
                the user of the completion of the event. */
 
-            const char *tone = NULL;
+            _audio_playback_stop (self);
 
             if (self->proto->tone_repeat) {
 
-                ++self->tone_repeat_count;
+                ++self->audio_repeat_count;
 
                 if (self->proto->tone_repeat_count <= 0) {
                     LOG_DEBUG ("%s: STREAM REPEAT", __FUNCTION__);
-
-                    tone = self->use_fallback ? _event_get_fallback (self) : _event_get_tone (self);
-                    if (tone != NULL)
-                        self->audio_id = ngf_audio_play_stream (self->context->audio, tone, self->proto->stream_properties, _stream_state_cb, self);
+                    _audio_playback_start (self);
+                    break;
                 }
 
-                else if  (self->tone_repeat_count >= self->proto->tone_repeat_count) {
+                else if  (self->audio_repeat_count >= self->proto->tone_repeat_count) {
                     LOG_DEBUG ("%s: STREAM REPEAT FINISHED", __FUNCTION__);
-                    self->audio_id = 0;
+
+                    _audio_playback_stop (self);
+
                     if (self->callback)
                         self->callback (self, NGF_EVENT_COMPLETED, self->userdata);
                 }
             }
             else {
                 LOG_DEBUG ("%s: STREAM COMPLETED", __FUNCTION__);
-                self->audio_id = 0;
+
+                _audio_playback_stop (self);
+
                 if (self->callback)
                     self->callback (self, NGF_EVENT_COMPLETED, self->userdata);
             }
@@ -341,64 +326,128 @@ _backlight_control_cb (guint id, guint step_time, guint step_value, gpointer use
 }
 
 static gboolean
-_setup_audio (NgfEvent *self)
+_tone_generator_start (NgfEvent *self)
 {
-    gint volume = 0;
-    const char *tone = NULL;
-
     if (self->proto->tonegen_enabled) {
         self->tonegen_id = ngf_tonegen_start (self->context->tonegen, self->proto->tonegen_pattern);
         return TRUE;
     }
 
-    if ((self->resources & NGF_RESOURCE_AUDIO) == 0)
-        return FALSE;
-
-    /* If we have a volume controller, it overrides all other volume settings. */
-    if (self->proto->volume_controller) {
-        self->controller_id = ngf_controller_start (self->proto->volume_controller,
-            self->proto->volume_controller_repeat, _volume_control_cb, self);
-    }
-    else if ((volume = _event_get_volume (self)) > -1) {
-        ngf_audio_set_volume (self->context->audio, self->proto->volume_role, volume);
-    }
-
-    if ((tone = _event_get_tone (self)) != NULL) {
-        self->audio_id = ngf_audio_play_stream (self->context->audio,
-            tone, self->proto->stream_properties, _stream_state_cb, self);
-
-        if (self->audio_id == 0) {
-            LOG_DEBUG ("%s: Failed to start tone, trying fallback.", __FUNCTION__);
-
-            /* We couldn't start the provided tone. Let's try fallback if there is one. */
-            if ((tone = _event_get_fallback (self)) != NULL) {
-                self->audio_id = ngf_audio_play_stream (self->context->audio,
-                    tone, self->proto->stream_properties, _stream_state_cb, self);
-
-                self->use_fallback = TRUE;
-            }
-        }
-    }
-
-    return TRUE;
+    return FALSE;
 }
 
 static void
-_shutdown_audio (NgfEvent *self)
+_tone_generator_stop (NgfEvent *self)
 {
     if (self->tonegen_id > 0) {
         ngf_tonegen_stop (self->context->tonegen, self->tonegen_id);
         self->tonegen_id = 0;
     }
+}
 
-    if (self->controller_id > 0) {
-        ngf_controller_stop (self->proto->volume_controller, self->controller_id);
-        self->controller_id = 0;
+static gboolean
+_audio_playback_start (NgfEvent *self)
+{
+    NgfEventPrototype *p = self->proto;
+
+    const char         *mapped      = NULL;
+    const char         *source      = NULL;
+    NgfAudioStreamType  stream_type = 0;
+    NgfAudioStream     *stream      = NULL;
+    gint                volume      = -1;
+
+    if ((self->resources & NGF_RESOURCE_AUDIO) == 0)
+        return FALSE;
+
+    /* If a volume controller has been specified, it will override
+       all other volume settings. Start the volume control here and
+       set the audio_volume_set flag to indicate that volume has already
+       been set for this event. */
+
+    if (!self->audio_volume_set && p->volume_controller != NULL) {
+
+        self->audio_volume_id = ngf_controller_start (p->volume_controller,
+            p->volume_controller_repeat, _volume_control_cb, self);
+
+        if (self->audio_volume_id > 0)
+            self->audio_volume_set = TRUE;
+
     }
 
-    if (self->audio_id > 0) {
-        ngf_audio_stop_stream (self->context->audio, self->audio_id);
-        self->audio_id = 0;
+    /* If no volume set before, there is no volume controller and we
+       have a volume specified let's set it here. */
+
+    if (!self->audio_volume_set && (volume = _event_get_volume (self)) > -1) {
+        ngf_audio_set_volume (self->context->audio, p->volume_role, volume);
+        self->audio_volume_set = TRUE;
+    }
+
+    /* Get the sound file for the event, if such exists. If no sound file,
+       try to get the fallback. If no fallback, we won't play anything. */
+
+    source = self->audio_use_fallback ? _event_get_fallback (self) : _event_get_tone (self);
+
+    /* If we tried to get fallback and it did not exist, nothing to
+       play here. */
+
+    if (source == NULL && self->audio_use_fallback)
+        return FALSE;
+
+    /* There was no tone available, use the fallback and try again. */
+
+    if (source == NULL && !self->audio_use_fallback) {
+        self->audio_use_fallback = TRUE;
+        return _audio_playback_start (self);
+    }
+
+    /* Get the mapped (uncompressed) filename, if such thing exists and
+       set the stream type to uncompressed. */
+
+    mapped = _get_mapped_tone (self->context->tone_mapper, source);
+    if (mapped != NULL) {
+        source = mapped;
+        stream_type = NGF_AUDIO_STREAM_UNCOMPRESSED;
+    }
+
+    /* Create a new audio stream and set it's properties. */
+
+    stream = ngf_audio_create_stream (self->context->audio, stream_type);
+    stream->source     = g_strdup (source);
+    stream->properties = pa_proplist_copy (p->stream_properties);
+    stream->callback   = _stream_state_cb;
+    stream->userdata   = self;
+
+    /* Prepare the stream and start it's playback. */
+
+    if (!ngf_audio_prepare (self->context->audio, stream)) {
+        ngf_audio_destroy_stream (self->context->audio, stream);
+        return FALSE;
+    }
+
+    if (!ngf_audio_play (self->context->audio, stream)) {
+        ngf_audio_destroy_stream (self->context->audio, stream);
+        return FALSE;
+    }
+
+    self->audio_stream = stream;
+    return TRUE;
+}
+
+static void
+_audio_playback_stop (NgfEvent *self)
+{
+    /* If the volume controller has been started, then let's stop
+       it here. */
+
+    if (self->audio_volume_id > 0) {
+        ngf_controller_stop (self->proto->volume_controller, self->audio_volume_id);
+        self->audio_volume_id = 0;
+    }
+
+    if (self->audio_stream != NULL) {
+        ngf_audio_stop (self->context->audio, self->audio_stream);
+        ngf_audio_destroy_stream (self->context->audio, self->audio_stream);
+        self->audio_stream = NULL;
     }
 }
 
@@ -485,7 +534,9 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
     /* Check the resources and start the backends if we have the proper resources,
        profile allows us to and valid data is provided. */
 
-    _setup_audio (self);
+    if (!_tone_generator_start (self))
+        _audio_playback_start (self);
+
     _setup_vibrator (self);
     _setup_led (self);
     _setup_backlight (self);
@@ -511,7 +562,9 @@ ngf_event_stop (NgfEvent *self)
         self->max_length_timeout_id = 0;
     }
 
-    _shutdown_audio (self);
+    _tone_generator_stop (self);
+    _audio_playback_stop (self);
+
     _shutdown_vibrator (self);
     _shutdown_led (self);
     _shutdown_backlight (self);

@@ -41,22 +41,6 @@ AC_ARG_ENABLE([tonemapper],
 	[tonemapper=false])
 AM_CONDITIONAL([TONEMAPPER], [test x$tonemapper = xtrue])
 
-AC_ARG_ENABLE([gstreamer],
-	AS_HELP_STRING([--enable-gstreamer],[Enable gstreamer @<:@default=false@:>@]),
-	[case "${enableval}" in
-		yes) gstreamer=true ;;
-		no)  gstreamer=false ;;
-		*) AC_MSG_ERROR([bad value ${enableval} for --enable-gstreamer]) ;;
-	esac],
-	[gstreamer=false])
-AM_CONDITIONAL([GSTREAMER], [test x$gstreamer = xtrue])
-
-if test "x$gstreamer" = "xtrue" ; then
-	PKG_CHECK_MODULES(GST, gstreamer-0.10 gio-2.0)
-	AC_SUBST(GST_CFLAGS)
-	AC_SUBST(GST_LIBS)
-fi
-
 AC_ARG_ENABLE([vibrator],
 	AS_HELP_STRING([--disable-vibrator],[Disable vibrator @<:@default=false@:>@]),
 	[case "${enableval}" in
@@ -66,6 +50,10 @@ AC_ARG_ENABLE([vibrator],
 	esac],
 	[vibrator=true])
 AM_CONDITIONAL([VIBRATOR], [test x$vibrator = xtrue])
+
+PKG_CHECK_MODULES(GST, gstreamer-0.10 gio-2.0)
+AC_SUBST(GST_CFLAGS)
+AC_SUBST(GST_LIBS)
 
 PKG_CHECK_MODULES(NGFD,
 		  [glib-2.0
@@ -89,7 +77,6 @@ echo "
 
     Debug enabled:          ${debug}
     Vibrator enabled:       ${vibrator}
-    GStreamer backend:      ${gstreamer}
     Tone mapper enabled:    ${tonemapper}
 "
 
