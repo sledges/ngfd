@@ -158,12 +158,16 @@ ngf_pulse_context_create ()
     NgfPulseContext *self = NULL;
 
     if ((self = g_new0 (NgfPulseContext, 1)) == NULL)
-        return NULL;
+        goto failed;
 
     if (!_pulseaudio_initialize (self))
-        return NULL;
+        goto failed;
 
     return self;
+
+failed:
+    ngf_pulse_context_destroy (self);
+    return NULL;
 }
 
 void
