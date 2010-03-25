@@ -137,10 +137,10 @@ _event_get_tone (NgfEvent *self)
     if (value && ngf_value_get_type (value) == NGF_VALUE_STRING)
         return ngf_value_get_string (value);
 
-    if (proto->tone_filename)
-        return proto->tone_filename;
+    if (proto->audio_tone_filename)
+        return proto->audio_tone_filename;
 
-    ngf_profile_get_string (self->context->profile, proto->tone_profile, proto->tone_key, &tone);
+    ngf_profile_get_string (self->context->profile, proto->audio_tone_profile, proto->audio_tone_key, &tone);
     return tone;
 }
 
@@ -150,10 +150,10 @@ _event_get_fallback (NgfEvent *self)
     NgfEventPrototype *proto = self->proto;
     const gchar *tone = NULL, *mapped_tone = NULL;
 
-    if (proto->fallback_filename)
-        return proto->fallback_filename;
+    if (proto->audio_fallback_filename)
+        return proto->audio_fallback_filename;
 
-    ngf_profile_get_string (self->context->profile, proto->fallback_profile, proto->fallback_key, &tone);
+    ngf_profile_get_string (self->context->profile, proto->audio_fallback_profile, proto->audio_fallback_key, &tone);
     return tone;
 }
 
@@ -213,10 +213,10 @@ _event_get_volume (NgfEvent *self)
     if (value && ngf_value_get_type (value) == NGF_VALUE_INT)
         return ngf_value_get_int (value);
 
-    if (proto->volume_set >= 0)
-        return proto->volume_set;
+    if (proto->audio_volume_value >= 0)
+        return proto->audio_volume_value;
 
-    if (ngf_profile_get_integer (self->context->profile, proto->volume_profile, proto->volume_key, &volume))
+    if (ngf_profile_get_integer (self->context->profile, proto->audio_volume_profile, proto->audio_volume_key, &volume))
         return volume;
 
     return -1;
@@ -267,17 +267,17 @@ _stream_state_cb (NgfAudioStream *stream, NgfAudioStreamState state, gpointer us
 
             _audio_playback_stop (self);
 
-            if (self->proto->tone_repeat) {
+            if (self->proto->audio_repeat) {
 
                 ++self->audio_repeat_count;
 
-                if (self->proto->tone_repeat_count <= 0) {
+                if (self->proto->audio_max_repeats <= 0) {
                     LOG_DEBUG ("%s: STREAM REPEAT", __FUNCTION__);
                     _audio_playback_start (self);
                     break;
                 }
 
-                else if  (self->audio_repeat_count >= self->proto->tone_repeat_count) {
+                else if  (self->audio_repeat_count >= self->proto->audio_max_repeats) {
                     LOG_DEBUG ("%s: STREAM REPEAT FINISHED", __FUNCTION__);
 
                     _audio_playback_stop (self);
@@ -309,7 +309,7 @@ _volume_control_cb (guint id, guint step_time, guint step_value, gpointer userda
     NgfEvent *self = (NgfEvent*) userdata;
 
     LOG_DEBUG ("VOLUME CONTROL SET VOLUME (id=%d, time=%d, value=%d)", id, step_time, step_value);
-    ngf_audio_set_volume (self->context->audio, self->proto->volume_role, step_value);
+    ngf_audio_set_volume (self->context->audio, self->proto->audio_stream_role, step_value);
 
     return TRUE;
 }
@@ -328,8 +328,8 @@ _backlight_control_cb (guint id, guint step_time, guint step_value, gpointer use
 static gboolean
 _tone_generator_start (NgfEvent *self)
 {
-    if (self->proto->tonegen_enabled) {
-        self->tonegen_id = ngf_tonegen_start (self->context->tonegen, self->proto->tonegen_pattern);
+    if (self->proto->audio_tonegen_enabled) {
+        self->tonegen_id = ngf_tonegen_start (self->context->tonegen, self->proto->audio_tonegen_pattern);
         return TRUE;
     }
 
@@ -370,10 +370,10 @@ _audio_playback_start (NgfEvent *self)
        set the audio_volume_set flag to indicate that volume has already
        been set for this event. */
 
-    if (!self->audio_volume_set && p->volume_controller != NULL) {
+    if (!self->audio_volume_set && p->audio_volume_controller != NULL) {
 
-        self->audio_volume_id = ngf_controller_start (p->volume_controller,
-            p->volume_controller_repeat, _volume_control_cb, self);
+        self->audio_volume_id = ngf_controller_start (p->audio_volume_controller,
+            p->audio_volume_repeat, _volume_control_cb, self);
 
         if (self->audio_volume_id > 0)
             self->audio_volume_set = TRUE;
@@ -384,7 +384,7 @@ _audio_playback_start (NgfEvent *self)
        have a volume specified let's set it here. */
 
     if (!self->audio_volume_set && (volume = _event_get_volume (self)) > -1) {
-        ngf_audio_set_volume (self->context->audio, p->volume_role, volume);
+        ngf_audio_set_volume (self->context->audio, p->audio_stream_role, volume);
         self->audio_volume_set = TRUE;
     }
 
@@ -446,7 +446,7 @@ _audio_playback_stop (NgfEvent *self)
        it here. */
 
     if (self->audio_volume_id > 0) {
-        ngf_controller_stop (self->proto->volume_controller, self->audio_volume_id);
+        ngf_controller_stop (self->proto->audio_volume_controller, self->audio_volume_id);
         self->audio_volume_id = 0;
     }
 
@@ -513,7 +513,7 @@ _setup_backlight (NgfEvent *self)
 
     if (self->proto->backlight_controller) {
         self->backlight_id = ngf_controller_start (self->proto->backlight_controller,
-            self->proto->backlight_controller_repeat, _backlight_control_cb, self);
+            self->proto->backlight_repeat, _backlight_control_cb, self);
     }
 
     return TRUE;
@@ -531,8 +531,7 @@ _shutdown_backlight (NgfEvent *self)
 gboolean
 ngf_event_start (NgfEvent *self, GHashTable *properties)
 {
-    const char *tone = NULL, *vibra = NULL, *led =  NULL;
-    gint volume = 0;
+    NgfEventPrototype *p = self->proto;
 
     /* Take ownership of the properties */
     self->properties = properties;
@@ -540,12 +539,7 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
     /* Check the resources and start the backends if we have the proper resources,
        profile allows us to and valid data is provided. */
 
-    if (!_tone_generator_start (self))
-        _audio_playback_start (self);
 
-    _setup_vibrator (self);
-    _setup_led (self);
-    _setup_backlight (self);
 
     /* Timeout callback for maximum length of the event. Once triggered we will
        stop the event ourselves. */

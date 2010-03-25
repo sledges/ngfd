@@ -33,22 +33,21 @@ ngf_event_prototype_free (NgfEventPrototype *proto)
     if (proto == NULL)
         return;
 
-    g_free (proto->tone_filename);
-    g_free (proto->tone_key);
-    g_free (proto->tone_profile);
+    g_free (proto->audio_tone_filename);
+    g_free (proto->audio_tone_key);
+    g_free (proto->audio_tone_profile);
+    g_free (proto->audio_fallback_filename);
+    g_free (proto->audio_fallback_key);
+    g_free (proto->audio_fallback_profile);
+    g_free (proto->audio_volume_key);
+    g_free (proto->audio_volume_profile);
+    g_free (proto->audio_stream_role);
+    g_free (proto->vibrator_pattern);
+    g_free (proto->led_pattern);
 
-    g_free (proto->fallback_filename);
-    g_free (proto->fallback_key);
-    g_free (proto->fallback_profile);
-
-    g_free (proto->volume_key);
-    g_free (proto->volume_profile);
-
-    g_free (proto->volume_role);
-
-    if (proto->volume_controller) {
-        ngf_controller_free (proto->volume_controller);
-        proto->volume_controller = NULL;
+    if (proto->audio_volume_controller) {
+        ngf_controller_free (proto->audio_volume_controller);
+        proto->audio_volume_controller = NULL;
     }
 
     if (proto->backlight_controller) {
@@ -60,9 +59,6 @@ ngf_event_prototype_free (NgfEventPrototype *proto)
         pa_proplist_free (proto->stream_properties);
         proto->stream_properties = NULL;
     }
-
-    g_free (proto->vibrator_pattern);
-    g_free (proto->led_pattern);
 
     g_free (proto);
 }

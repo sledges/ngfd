@@ -14,6 +14,8 @@
  * written consent of Nokia.
  */
 
+#include <string.h>
+
 #include "ngf-daemon.h"
 #include "ngf-conf.h"
 #include "ngf-event-prototype.h"
@@ -133,60 +135,72 @@ _parse_controller_pattern (NgfConf *c, const char *group, const char *name, NgfC
 static void
 _configuration_parse_proto (NgfConf *c, const char *group, const char *name, gpointer userdata)
 {
-    NgfDaemon *self = (NgfDaemon*) userdata;
-    char **keys = NULL, **k = NULL;
-    gchar *stream_prop = NULL, *stream_value = NULL, *default_role = NULL;
+    NgfDaemon  *self         = (NgfDaemon*) userdata;
+    gchar     **keys         = NULL;
+    gchar     **k            = NULL;
+    gchar      *stream_prop  = NULL;
+    gchar      *stream_value = NULL;
+    gchar      *default_role = NULL;
+
+    NgfEventPrototype *p = NULL;
 
     if (name == NULL)
         return;
 
     default_role = g_strdup_printf ("x-maemo-ngf-%s", name);
+    p = ngf_event_prototype_new ();
 
-    NgfEventPrototype *proto = NULL;
-    proto = ngf_event_prototype_new ();
+    /* Event */
+    ngf_conf_get_integer      (c, group, "max_length", &p->max_length, 0);
 
-    ngf_conf_get_integer        (c, group, "max_length", &proto->max_length, 0);
+    /* Audio */
+    ngf_conf_get_boolean      (c, group, "audio_repeat", &p->audio_repeat, FALSE);
+    ngf_conf_get_integer      (c, group, "audio_max_repeats", &p->audio_max_repeats, 0);
+    ngf_conf_get_string       (c, group, "audio_tone_filename", &p->audio_tone_filename, NULL);
+    _profile_key_get          (c, group, "audio_tone_profile", &p->audio_tone_key, &p->audio_tone_profile);
+    ngf_conf_get_boolean      (c, group, "audio_silent", &p->audio_silent, FALSE);
 
-    ngf_conf_get_boolean        (c, group, "tone_repeat", &proto->tone_repeat, FALSE);
-    ngf_conf_get_integer        (c, group, "tone_repeat_count", &proto->tone_repeat_count, 0);
-    ngf_conf_get_string         (c, group, "tone_filename", &proto->tone_filename, NULL);
-    _profile_key_get            (c, group, "tone_key", &proto->tone_key, &proto->tone_profile);
-    ngf_conf_get_boolean        (c, group, "audio_silent", &proto->audio_silent, FALSE);
+    /* Fallback */
+    ngf_conf_get_string       (c, group, "audio_fallback_filename", &p->audio_fallback_filename, NULL);
+    _profile_key_get          (c, group, "audio_fallback_profile", &p->audio_fallback_key, &p->audio_fallback_profile);
 
-    ngf_conf_get_string         (c, group, "fallback_filename", &proto->fallback_filename, NULL);
-    _profile_key_get            (c, group, "fallback_key", &proto->fallback_key, &proto->fallback_profile);
+    /* Audio volume */
+    ngf_conf_get_integer      (c, group, "audio_volume_value", &p->audio_volume_value, -1);
+    _profile_key_get          (c, group, "audio_volume_profile", &p->audio_volume_key, &p->audio_volume_profile);
+    ngf_conf_get_string       (c, group, "audio_stream_role", &p->audio_stream_role, NULL);
 
-    ngf_conf_get_integer        (c, group, "volume_set", &proto->volume_set, -1);
-    ngf_conf_get_string         (c, group, "volume_role", &proto->volume_role, NULL);
-    _profile_key_get            (c, group, "volume_key", &proto->volume_key, &proto->volume_profile);
+    /* Tone generator */
+    ngf_conf_get_boolean      (c, group, "audio_volume_repeat", &p->audio_volume_repeat, FALSE);
+    _parse_controller_pattern (c, group, "audio_volume_pattern", &p->audio_volume_controller);
 
-    ngf_conf_get_boolean        (c, group, "volume_repeat", &proto->volume_controller_repeat, FALSE);
-    _parse_controller_pattern   (c, group, "volume_pattern", &proto->volume_controller);
+    ngf_conf_get_boolean      (c, group, "audio_tonegen_enabled", &p->audio_tonegen_enabled, FALSE);
+    ngf_conf_get_integer      (c, group, "audio_tonegen_pattern", &p->audio_tonegen_pattern, -1);
 
-    ngf_conf_get_boolean        (c, group, "tonegen_enabled", &proto->tonegen_enabled, FALSE);
-    ngf_conf_get_integer        (c, group, "tonegen_pattern", &proto->tonegen_pattern, -1);
+    /* Stream properties */
+    _parse_stream_properties  (c, group, "stream.", &p->stream_properties);
 
-    _parse_stream_properties    (c, group, "stream.", &proto->stream_properties);
+    /* Vibrator */
+    ngf_conf_get_string       (c, group, "vibrator_pattern", &p->vibrator_pattern, NULL);
 
-    ngf_conf_get_string         (c, group, "vibrator_pattern", &proto->vibrator_pattern, NULL);
-    ngf_conf_get_string         (c, group, "led_pattern", &proto->led_pattern, NULL);
+    /* LED */
+    ngf_conf_get_string       (c, group, "led_pattern", &p->led_pattern, NULL);
 
-    ngf_conf_get_boolean        (c, group, "backlight_repeat", &proto->backlight_controller_repeat, FALSE);
-    _parse_controller_pattern   (c, group, "backlight_pattern", &proto->backlight_controller);
+    /* Backlight */
+    ngf_conf_get_boolean      (c, group, "backlight_repeat", &p->backlight_repeat, FALSE);
+    _parse_controller_pattern (c, group, "backlight_pattern", &p->backlight_controller);
 
     /* If no override volume role specified, let's use the default role. Also
        set the role to the stream properties. */
 
-    if (proto->volume_role == NULL)
-        proto->volume_role = default_role;
+    if (p->audio_stream_role == NULL)
+        p->audio_stream_role = default_role;
     else
         g_free (default_role);
 
-    pa_proplist_sets (proto->stream_properties, STREAM_RESTORE_ID, proto->volume_role);
+    pa_proplist_sets (p->stream_properties, STREAM_RESTORE_ID, p->audio_stream_role);
 
     /* Register the prototype */
-
-    ngf_daemon_register_prototype (self, name, proto);
+    ngf_daemon_register_prototype (self, name, p);
 }
 
 static void
