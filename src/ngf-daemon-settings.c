@@ -154,6 +154,7 @@ _configuration_parse_proto (NgfConf *c, const char *group, const char *name, gpo
     ngf_conf_get_integer      (c, group, "max_length", &p->max_length, 0);
 
     /* Audio */
+    ngf_conf_get_boolean      (c, group, "audio_enabled", &p->audio_enabled, TRUE);
     ngf_conf_get_boolean      (c, group, "audio_repeat", &p->audio_repeat, FALSE);
     ngf_conf_get_integer      (c, group, "audio_max_repeats", &p->audio_max_repeats, 0);
     ngf_conf_get_string       (c, group, "audio_tone_filename", &p->audio_tone_filename, NULL);
@@ -180,12 +181,15 @@ _configuration_parse_proto (NgfConf *c, const char *group, const char *name, gpo
     _parse_stream_properties  (c, group, "stream.", &p->stream_properties);
 
     /* Vibrator */
+    ngf_conf_get_boolean      (c, group, "vibrator_enabled", &p->vibrator_enabled, FALSE);
     ngf_conf_get_string       (c, group, "vibrator_pattern", &p->vibrator_pattern, NULL);
 
     /* LED */
+    ngf_conf_get_boolean      (c, group, "led_enabled", &p->led_enabled, FALSE);
     ngf_conf_get_string       (c, group, "led_pattern", &p->led_pattern, NULL);
 
     /* Backlight */
+    ngf_conf_get_boolean      (c, group, "backlight_enabled", &p->backlight_enabled, FALSE);
     ngf_conf_get_boolean      (c, group, "backlight_repeat", &p->backlight_repeat, FALSE);
     _parse_controller_pattern (c, group, "backlight_pattern", &p->backlight_controller);
 

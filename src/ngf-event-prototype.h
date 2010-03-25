@@ -30,6 +30,7 @@ struct _NgfEventPrototype
     gint             max_length;                /* Maximum event length, once reached the event
                                                    is completed */
 
+    gboolean         audio_enabled;             /* Audio is enabled */
     gboolean         audio_repeat;              /* Enable audio repeating */
     gint             audio_max_repeats;         /* Maximum number of repeats */
     gchar           *audio_tone_filename;       /* Full path to audio file */
@@ -54,10 +55,13 @@ struct _NgfEventPrototype
     gchar           *audio_stream_role;         /* Stream: volume role to use */
     pa_proplist     *stream_properties;         /* Stream: pulseaudio properties to use */
 
+    gboolean         vibrator_enabled;          /* Vibrator is enabled */
     gchar           *vibrator_pattern;          /* Vibrator pattern to use */
 
+    gboolean         led_enabled;               /* Use LED pattern */
     gchar           *led_pattern;               /* LED pattern to use @see /etc/mce/mce.ini */
 
+    gboolean         backlight_enabled;         /* Backlight controller is enabled */
     gboolean         backlight_repeat;          /* Repeat backlight controller pattern */
     NgfController   *backlight_controller;      /* Controller for backlight patterns, if no pattern and
                                                    backlight is enabled, turn on the backlight. */

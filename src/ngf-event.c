@@ -539,7 +539,19 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
     /* Check the resources and start the backends if we have the proper resources,
        profile allows us to and valid data is provided. */
 
+    if (p->audio_enabled) {
+        if (!_tone_generator_start (self))
+            _audio_playback_start (self);
+    }
 
+    if (p->vibrator_enabled)
+        _setup_vibrator (self);
+
+    if (p->led_enabled)
+        _setup_led (self);
+
+    if (p->backlight_enabled)
+        _setup_backlight (self);
 
     /* Timeout callback for maximum length of the event. Once triggered we will
        stop the event ourselves. */
