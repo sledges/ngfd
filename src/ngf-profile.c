@@ -27,8 +27,9 @@ typedef struct _ProfileEntry
 
 struct _NgfProfile
 {
-    gchar *current_profile;
-    GList *profiles;
+    gchar    *current_profile;
+    gboolean  is_silent;
+    GList    *profiles;
 };
 
 static void
@@ -102,6 +103,8 @@ _profile_setup (NgfProfile *self)
     /* Get the initial current profile */
 
     self->current_profile = g_strdup (profile_get_profile ());
+    if (g_str_equal (self->current_profile, NGF_PROFILE_SILENT))
+        self->is_silent = TRUE;
 
     /* Get all keys defined in the profiles. We will use this to iterate through
        all the profiles and get the respective values. */
@@ -151,6 +154,10 @@ _track_profile_change_cb (const char *profile,
 
     g_free (self->current_profile);
     self->current_profile = g_strdup (profile);
+
+    self->is_silent = FALSE;
+    if (g_str_equal (self->current_profile, NGF_PROFILE_SILENT))
+        self->is_silent = TRUE;
 }
 
 NgfProfile*
@@ -257,3 +264,13 @@ ngf_profile_get_boolean (NgfProfile *self, const char *profile, const char *key,
     *value = profile_parse_bool (v) ? TRUE : FALSE;
     return TRUE;
 }
+
+gboolean
+ngf_profile_is_silent (NgfProfile *self)
+{
+    if (self == NULL)
+        return FALSE;
+
+    return self->is_silent;
+}
+

@@ -359,6 +359,12 @@ _audio_playback_start (NgfEvent *self)
     if ((self->resources & NGF_RESOURCE_AUDIO) == 0)
         return FALSE;
 
+    /* If we are in the silent mode and the prototype's audio_silent
+       flag has not been set, nothing to do here. */
+
+    if (ngf_profile_is_silent (self->context->profile) && !p->audio_silent)
+        return FALSE;
+
     /* If a volume controller has been specified, it will override
        all other volume settings. Start the volume control here and
        set the audio_volume_set flag to indicate that volume has already

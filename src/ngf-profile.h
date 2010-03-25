@@ -36,4 +36,6 @@ gboolean    ngf_profile_get_string (NgfProfile *self, const char *profile, const
 gboolean    ngf_profile_get_integer (NgfProfile *self, const char *profile, const char *key, gint *value);
 gboolean    ngf_profile_get_boolean (NgfProfile *self, const char *profile, const char *key, gboolean *value);
 
+gboolean    ngf_profile_is_silent (NgfProfile *self);
+
 #endif /* NGF_PROFILE_H */

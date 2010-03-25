@@ -34,6 +34,7 @@ struct _NgfEventPrototype
     gchar           *tone_filename;
     gchar           *tone_key;
     gchar           *tone_profile;
+    gboolean        audio_silent;               /* Audio is enabled in silent mode. */
 
     gchar           *fallback_filename;
     gchar           *fallback_key;
