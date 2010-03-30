@@ -105,18 +105,42 @@ _new_decoded_pad_cb (GstElement *element,
     gst_caps_unref (caps);
 }
 
-static gboolean
-_gst_initialize (NgfAudioInterface *iface,
-                 NgfPulseContext   *context)
+static void
+_gst_element_preload (gchar * name)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+	GstElement *element = NULL;
 
-    (void) iface;
-    (void) context;
+	if (!(element = gst_element_factory_make (name, NULL))) {
+		LOG_WARNING ("Preloading element %s failed", name);
+	}
+	
+	g_object_unref(element);
+}
 
-    gst_init_check (NULL, NULL, NULL);
+static gboolean
+_gst_initialize (NgfAudioInterface * iface, NgfPulseContext * context)
+{
+	LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
-    return TRUE;
+	(void) iface;
+	(void) context;
+
+	gst_init_check (NULL, NULL, NULL);
+
+	_gst_element_preload ("aacparse");
+	_gst_element_preload ("nokiaaacdec");
+	_gst_element_preload ("id3demux");
+	_gst_element_preload ("uridecodebin");
+	_gst_element_preload ("mp3parse");
+	_gst_element_preload ("nokiamp3dec");
+	_gst_element_preload ("wavparse");
+	_gst_element_preload ("oggdemux");
+	_gst_element_preload ("tremor");
+	_gst_element_preload ("filesrc");
+	_gst_element_preload ("decodebin2");
+	_gst_element_preload ("pulsesink");
+
+	return TRUE;
 }
 
 static void

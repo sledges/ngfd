@@ -311,7 +311,7 @@ _event_state_cb (NgfEvent *event, NgfEventState state, gpointer userdata)
 
     switch (state) {
         case NGF_EVENT_STARTED:
-            LOG_DEBUG ("EVENT STARTED (id=%d)", event->policy_id);
+            LOG_DEBUG ("EVENT STARTED (id=%d): Time: %f s", event->policy_id, g_timer_elapsed(event->start_timer,NULL));
             break;
 
         case NGF_EVENT_FAILED:
