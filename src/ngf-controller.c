@@ -39,9 +39,9 @@ struct _Controller
 
 struct _NgfController
 {
-    GList   *steps;
-    GList   *active_controllers;
-    guint   controller_count;
+    GList    *steps;
+    GList    *active_controllers;
+    guint     controller_count;
 };
 
 static void
@@ -95,6 +95,50 @@ NgfController*
 ngf_controller_new ()
 {
     return g_new0 (NgfController, 1);
+}
+
+NgfController*
+ngf_controller_new_from_string (const char *pattern, gboolean repeat)
+{
+    NgfController  *c     = NULL;
+    gchar         **split = NULL;
+    guint           step_time  = 0;
+    guint           step_value = 0;
+
+    if (pattern == NULL)
+        return NULL;
+
+    c = ngf_controller_new ();
+
+    /* Split the pattern by the ; separator */
+    split = g_strsplit (pattern, ";", -1);
+    if (split == NULL)
+        goto failed;
+
+    gchar **item = split;
+    while (1) {
+        if (*item == NULL)
+            break;
+
+        step_time = atoi (*item);
+
+        ++item;
+        if (*item == NULL)
+            break;
+
+        step_value = atoi (*item);
+        ngf_controller_add_step (c, step_time, step_value);
+
+        ++item;
+    }
+
+    g_strfreev (split);
+
+    return c;
+
+failed:
+    ngf_controller_free (c);
+    return NULL;
 }
 
 void

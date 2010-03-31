@@ -23,10 +23,11 @@ typedef struct _NgfController NgfController;
 
 typedef gboolean (*NgfControllerCallback) (guint id, guint step_time, guint step_value, gpointer userdata);
 
-NgfController*  ngf_controller_new ();
-void            ngf_controller_free (NgfController *self);
-void            ngf_controller_add_step (NgfController *self, guint step_time, guint step_value);
-guint           ngf_controller_start (NgfController *self, gboolean repeat, NgfControllerCallback callback, gpointer userdata);
-void            ngf_controller_stop (NgfController *self, guint id);
+NgfController*  ngf_controller_new             ();
+NgfController*  ngf_controller_new_from_string (const char *pattern, gboolean repeat);
+void            ngf_controller_free            (NgfController *self);
+void            ngf_controller_add_step        (NgfController *self, guint step_time, guint step_value);
+guint           ngf_controller_start           (NgfController *self, NgfControllerCallback callback, gpointer userdata);
+void            ngf_controller_stop            (NgfController *self, guint id);
 
 #endif /* NGF_CONTROLLER_H */
