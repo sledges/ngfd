@@ -22,6 +22,34 @@ ngf_value_new ()
     return g_slice_new0 (NgfValue);
 }
 
+NgfValue*
+ngf_value_copy (NgfValue *value)
+{
+    NgfValue *new_value = NULL;
+
+    new_value = ngf_value_new ();
+    new_value->value_type = value->value_type;
+    switch (value->value_type) {
+        case NGF_VALUE_STRING:
+            new_value->values.str_value = g_strdup (value->values.str_value);
+            break;
+        case NGF_VALUE_INT:
+            new_value->values.int_value = value->values.int_value;
+            break;
+        case NGF_VALUE_UINT:
+            new_value->values.uint_value = value->values.uint_value;
+            break;
+        case NGF_VALUE_BOOLEAN:
+            new_value->values.boolean_value = value->values.boolean_value;
+            break;
+        default:
+            ngf_value_free (new_value);
+            return NULL;
+    }
+
+    return new_value;
+}
+
 static void
 _internal_value_free (NgfValue *value)
 {

@@ -40,6 +40,7 @@ typedef struct _NgfValue
 } NgfValue;
 
 NgfValue*       ngf_value_new ();
+NgfValue*       ngf_value_copy (NgfValue *value);
 void            ngf_value_free (NgfValue *value);
 
 NgfValueType    ngf_value_get_type (NgfValue *value);
