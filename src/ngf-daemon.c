@@ -21,7 +21,6 @@
 static gboolean     _event_manager_create         (NgfDaemon *self);
 static void         _event_manager_destroy        (NgfDaemon *self);
 NgfEventDefinition* _event_manager_get_definition (NgfDaemon *self, const char *name);
-NgfEventPrototype*  _event_manager_get_prototype  (NgfDaemon *self, const char *name);
 static void         _event_state_cb               (NgfEvent *event, NgfEventState state, gpointer userdata);
 static gboolean     _properties_get_boolean       (GHashTable *properties, const char *key);
 static guint        _properties_get_policy_id     (GHashTable *properties);
@@ -213,7 +212,7 @@ ngf_daemon_register_prototype (NgfDaemon *self, const char *name, NgfEventProtot
 }
 
 NgfEventPrototype*
-_event_manager_get_prototype (NgfDaemon *self, const char *name)
+ngf_daemon_get_prototype (NgfDaemon *self, const char *name)
 {
     if (self == NULL || name == NULL)
         return NULL;
@@ -374,7 +373,7 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
 
     proto_name = (play_mode == NGF_PLAY_MODE_LONG) ? def->long_proto : def->short_proto;
 
-    if ((proto = _event_manager_get_prototype (self, proto_name)) == 0) {
+    if ((proto = ngf_daemon_get_prototype (self, proto_name)) == 0) {
         LOG_ERROR ("Failed to get event prototype %s for event %s", proto_name, event_name);
         goto failed;
     }
