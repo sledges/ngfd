@@ -16,13 +16,65 @@
 
 #include <dbus/dbus.h>
 #include <mce/dbus-names.h>
+
+#include "ngf-controller.h"
 #include "ngf-backlight.h"
+
+typedef struct _BacklightPattern
+{
+    gchar         *name;
+    NgfController *controller;
+} BacklightPattern;
+
+typedef struct _BacklightActive
+{
+    guint             id;
+    BacklightPattern *pattern;
+    NgfBacklight     *backlight;
+} BacklightActive;
 
 struct _NgfBacklight
 {
     DBusConnection *connection;
     GHashTable     *patterns;
+    guint           pattern_count;
+    GSList         *active_patterns;
 };
+
+static BacklightPattern*
+_pattern_new (const char *name,
+              const char *pattern,
+              gboolean    repeat)
+{
+    BacklightPattern *p = NULL;
+
+    p = g_slice_new0 (BacklightPattern);
+    p->name       = g_strdup (name);
+    p->controller = ngf_controller_new_from_string (pattern, repeat);
+
+    if (p->controller == NULL) {
+        g_free (p->name);
+        g_slice_free (BacklightPattern, p);
+        return NULL;
+    }
+
+    return p;
+}
+
+static void
+_pattern_free (BacklightPattern *pattern)
+{
+    if (pattern == NULL)
+        return;
+
+    if (pattern->controller != NULL) {
+        ngf_controller_free (pattern->controller);
+        pattern->controller = NULL;
+    }
+
+    g_free (pattern->name);
+    g_slice_free (BacklightPattern, pattern);
+}
 
 NgfBacklight*
 ngf_backlight_create ()
@@ -31,18 +83,24 @@ ngf_backlight_create ()
     DBusError error;
 
     if ((self = g_new0 (NgfBacklight, 1)) == NULL)
-        return NULL;
+        goto failed;
+
+    if ((self->patterns = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) _pattern_free)) == NULL)
+        goto failed;
 
     dbus_error_init (&error);
     if ((self->connection = dbus_bus_get (DBUS_BUS_SYSTEM, &error)) == NULL) {
         if (dbus_error_is_set (&error))
             dbus_error_free (&error);
 
-        g_free (self);
-        return NULL;
+        goto failed;
     }
 
     return self;
+
+failed:
+    ngf_backlight_destroy (self);
+    return NULL;
 }
 
 void
@@ -50,6 +108,11 @@ ngf_backlight_destroy (NgfBacklight *self)
 {
     if (self == NULL)
         return;
+
+    if (self->patterns) {
+        g_hash_table_destroy (self->patterns);
+        self->patterns = NULL;
+    }
 
     if (self->connection) {
         dbus_connection_unref (self->connection);
@@ -94,8 +157,83 @@ _toggle_state (NgfBacklight *self, gint state)
 }
 
 void
-ngf_backlight_toggle (NgfBacklight *self, gint state)
+ngf_backlight_register (NgfBacklight *self,
+                        const char   *name,
+                        const char   *pattern,
+                        gboolean      repeat)
 {
-    _toggle_state (self, state);
+    BacklightPattern *p = NULL;
+
+    if (self == NULL)
+        return;
+
+    p = _pattern_new (name, pattern, repeat);
+    if (p == NULL)
+        return;
+
+    g_hash_table_insert (self->patterns, g_strdup (name), p);
 }
 
+static gboolean
+_controller_cb (NgfController *controller,
+                guint          id,
+                guint          step_time,
+                guint          step_value,
+                gpointer       userdata)
+{
+    BacklightActive *active = (BacklightActive*) userdata;
+    _toggle_state (active->backlight, step_value);
+    return TRUE;
+}
+
+guint
+ngf_backlight_start (NgfBacklight *self,
+                     const char   *name)
+{
+    BacklightPattern *pattern       = NULL;
+    BacklightActive  *active        = NULL;
+    guint             controller_id = 0;
+
+    if (self == NULL || name == NULL)
+        return 0;
+
+    pattern = (BacklightPattern*) g_hash_table_lookup (self->patterns, name);
+    if (pattern == NULL)
+        return 0;
+
+    active = g_slice_new0 (BacklightActive);
+    self->active_patterns = g_slist_append (self->active_patterns, active);
+
+    active->pattern   = pattern;
+    active->backlight = self;
+    active->id        = ngf_controller_start (active->pattern->controller, _controller_cb, active);
+
+    if (active->id == 0) {
+        self->active_patterns = g_slist_remove (self->active_patterns, active);
+        g_slice_free (BacklightActive, active);
+        return 0;
+    }
+
+    return active->id;
+}
+
+void
+ngf_backlight_stop (NgfBacklight *self,
+                    guint         id)
+{
+    BacklightActive *active = NULL;
+    GSList          *iter   = NULL;
+
+    if (self == NULL || id == 0)
+        return;
+
+    for (iter = self->active_patterns; iter; iter = g_slist_next (iter)) {
+        active = (BacklightActive*) iter->data;
+        if (active->id == id) {
+            self->active_patterns = g_slist_remove (self->active_patterns, active);
+            ngf_controller_stop (active->pattern->controller, active->id);
+            g_slice_free (BacklightActive, active);
+            break;
+        }
+    }
+}

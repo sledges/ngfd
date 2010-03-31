@@ -19,6 +19,7 @@
 
 #include <glib.h>
 #include "ngf-context.h"
+#include "ngf-controller.h"
 #include "ngf-audio-stream.h"
 #include "ngf-event-prototype.h"
 
@@ -57,6 +58,7 @@ struct _NgfEvent
     guint               max_length_timeout_id;
 
     NgfAudioStream     *audio_stream;
+    NgfController      *audio_volume_controller;
     guint               audio_volume_id;
     gboolean            audio_volume_set;
     gboolean            audio_use_fallback;

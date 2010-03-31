@@ -14,6 +14,8 @@
  * written consent of Nokia.
  */
 
+#include "ngf-log.h"
+#include "ngf-properties.h"
 #include "ngf-event-prototype.h"
 
 NgfEventPrototype*
@@ -24,7 +26,36 @@ ngf_event_prototype_new ()
     if ((proto = g_new0 (NgfEventPrototype, 1)) == NULL)
         return NULL;
 
+    if ((proto->properties = ngf_properties_new ()) == NULL) {
+        g_free (proto);
+        return NULL;
+    }
+
+    if ((proto->stream_properties = pa_proplist_new ()) == NULL) {
+        g_hash_table_destroy (proto->properties);
+        g_free (proto);
+        return NULL;
+    }
+
     return proto;
+}
+
+NgfEventPrototype*
+ngf_event_prototype_copy (NgfEventPrototype *source)
+{
+    NgfEventPrototype *p = NULL;
+
+    p = ngf_event_prototype_new ();
+    p->properties = ngf_properties_copy (source->properties);
+    p->stream_properties = pa_proplist_copy (source->stream_properties);
+    return p;
+}
+
+void
+ngf_event_prototype_merge (NgfEventPrototype *target, NgfEventPrototype *source)
+{
+    ngf_properties_merge (target->properties, source->properties);
+    pa_proplist_update (target->stream_properties, PA_UPDATE_REPLACE, source->stream_properties);
 }
 
 void
@@ -33,26 +64,14 @@ ngf_event_prototype_free (NgfEventPrototype *proto)
     if (proto == NULL)
         return;
 
-    g_free (proto->audio_tone_filename);
-    g_free (proto->audio_tone_key);
-    g_free (proto->audio_tone_profile);
-    g_free (proto->audio_fallback_filename);
-    g_free (proto->audio_fallback_key);
-    g_free (proto->audio_fallback_profile);
-    g_free (proto->audio_volume_key);
-    g_free (proto->audio_volume_profile);
-    g_free (proto->audio_stream_role);
-    g_free (proto->vibrator_pattern);
-    g_free (proto->led_pattern);
-
-    if (proto->audio_volume_controller) {
-        ngf_controller_free (proto->audio_volume_controller);
-        proto->audio_volume_controller = NULL;
+    if (proto->allowed_keys) {
+        g_strfreev (proto->allowed_keys);
+        proto->allowed_keys = NULL;
     }
 
-    if (proto->backlight_controller) {
-        ngf_controller_free (proto->backlight_controller);
-        proto->backlight_controller = NULL;
+    if (proto->properties) {
+        g_hash_table_destroy (proto->properties);
+        proto->properties = NULL;
     }
 
     if (proto->stream_properties) {
@@ -61,4 +80,10 @@ ngf_event_prototype_free (NgfEventPrototype *proto)
     }
 
     g_free (proto);
+}
+
+void
+ngf_event_prototype_dump (NgfEventPrototype *proto)
+{
+    ngf_properties_dump (proto->properties);
 }

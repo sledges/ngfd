@@ -16,18 +16,15 @@
 
 #include "ngf-log.h"
 #include "ngf-value.h"
-#include "ngf-event.h"
+#include "ngf-properties.h"
 #include "ngf-tone-mapper.h"
+#include "ngf-controller.h"
+#include "ngf-event.h"
 
 static gboolean     _event_max_timeout_cb (gpointer userdata);
 static void         _stream_state_cb (NgfAudioStream *stream, NgfAudioStreamState state, gpointer userdata);
 static const char*  _get_mapped_tone (NgfToneMapper *mapper, const char *tone);
-static const char*  _event_get_tone (NgfEvent *self);
-static const char*  _event_get_fallback (NgfEvent *self);
-static const char*  _event_get_vibra (NgfEvent *self);
-static const char*  _event_get_led (NgfEvent *self);
 static gboolean     _event_is_vibra_enabled (NgfEvent *self);
-static gboolean     _volume_control_cb (guint id, guint step_time, guint step_value, gpointer userdata);
 
 static gboolean     _tone_generator_start (NgfEvent *self);
 static void         _tone_generator_stop (NgfEvent *self);
@@ -55,8 +52,8 @@ ngf_event_new (NgfContext *context, NgfEventPrototype *proto)
     if ((self = g_new0 (NgfEvent, 1)) == NULL)
         return NULL;
 
-    self->context = context;
-    self->proto = proto;
+    self->context     = context;
+    self->proto       = proto;
     self->start_timer = g_timer_new ();
 
     return self;
@@ -126,71 +123,6 @@ _get_mapped_tone (NgfToneMapper *mapper, const char *tone)
     return NULL;
 }
 
-static const char*
-_event_get_tone (NgfEvent *self)
-{
-    NgfEventPrototype *proto = self->proto;
-    NgfValue *value = NULL;
-    const gchar *tone = NULL, *mapped_tone = NULL;
-
-    value = g_hash_table_lookup (self->properties, "tone");
-    if (value && ngf_value_get_type (value) == NGF_VALUE_STRING)
-        return ngf_value_get_string (value);
-
-    if (proto->audio_tone_filename)
-        return proto->audio_tone_filename;
-
-    ngf_profile_get_string (self->context->profile, proto->audio_tone_profile, proto->audio_tone_key, &tone);
-    return tone;
-}
-
-static const char*
-_event_get_fallback (NgfEvent *self)
-{
-    NgfEventPrototype *proto = self->proto;
-    const gchar *tone = NULL, *mapped_tone = NULL;
-
-    if (proto->audio_fallback_filename)
-        return proto->audio_fallback_filename;
-
-    ngf_profile_get_string (self->context->profile, proto->audio_fallback_profile, proto->audio_fallback_key, &tone);
-    return tone;
-}
-
-static const char*
-_event_get_vibra (NgfEvent *self)
-{
-    NgfEventPrototype *proto = self->proto;
-    NgfValue *value = NULL;
-    const gchar *vibra = NULL;
-
-    value = g_hash_table_lookup (self->properties, "vibra");
-    if (value && ngf_value_get_type (value) == NGF_VALUE_STRING)
-        return (const char*) ngf_value_get_string (value);
-
-    if (proto->vibrator_pattern)
-        return (const char*) proto->vibrator_pattern;
-
-    return NULL;
-}
-
-static const char*
-_event_get_led (NgfEvent *self)
-{
-    NgfEventPrototype *proto = self->proto;
-    NgfValue *value = NULL;
-    const gchar *vibra = NULL;
-
-    value = g_hash_table_lookup (self->properties, "led");
-    if (value && ngf_value_get_type (value) == NGF_VALUE_STRING)
-        return (const char*) ngf_value_get_string (value);
-
-    if (proto->led_pattern)
-        return (const char*) proto->led_pattern;
-
-    return NULL;
-}
-
 static gboolean
 _event_is_vibra_enabled (NgfEvent *self)
 {
@@ -200,26 +132,6 @@ _event_is_vibra_enabled (NgfEvent *self)
         return enabled;
 
     return FALSE;
-}
-
-static gint
-_event_get_volume (NgfEvent *self)
-{
-    NgfValue *value = NULL;
-    NgfEventPrototype *proto = self->proto;
-    gint volume;
-
-    value = g_hash_table_lookup (self->properties, "volume");
-    if (value && ngf_value_get_type (value) == NGF_VALUE_INT)
-        return ngf_value_get_int (value);
-
-    if (proto->audio_volume_value >= 0)
-        return proto->audio_volume_value;
-
-    if (ngf_profile_get_integer (self->context->profile, proto->audio_volume_profile, proto->audio_volume_key, &volume))
-        return volume;
-
-    return -1;
 }
 
 static void
@@ -267,17 +179,17 @@ _stream_state_cb (NgfAudioStream *stream, NgfAudioStreamState state, gpointer us
 
             _audio_playback_stop (self);
 
-            if (self->proto->audio_repeat) {
+            if (ngf_properties_get_bool (self->properties, "audio_repeat")) {
 
                 ++self->audio_repeat_count;
 
-                if (self->proto->audio_max_repeats <= 0) {
+                if (ngf_properties_get_int (self->properties, "audio_max_repeats") <= 0) {
                     LOG_DEBUG ("%s: STREAM REPEAT", __FUNCTION__);
                     _audio_playback_start (self);
                     break;
                 }
 
-                else if  (self->audio_repeat_count >= self->proto->audio_max_repeats) {
+                else if  (self->audio_repeat_count >= ngf_properties_get_int (self->properties, "audio_max_repeats")) {
                     LOG_DEBUG ("%s: STREAM REPEAT FINISHED", __FUNCTION__);
 
                     _audio_playback_stop (self);
@@ -304,32 +216,10 @@ _stream_state_cb (NgfAudioStream *stream, NgfAudioStreamState state, gpointer us
 }
 
 static gboolean
-_volume_control_cb (guint id, guint step_time, guint step_value, gpointer userdata)
-{
-    NgfEvent *self = (NgfEvent*) userdata;
-
-    LOG_DEBUG ("VOLUME CONTROL SET VOLUME (id=%d, time=%d, value=%d)", id, step_time, step_value);
-    ngf_audio_set_volume (self->context->audio, self->proto->audio_stream_role, step_value);
-
-    return TRUE;
-}
-
-static gboolean
-_backlight_control_cb (guint id, guint step_time, guint step_value, gpointer userdata)
-{
-    NgfEvent *self = (NgfEvent*) userdata;
-
-    LOG_DEBUG ("BACKLIGHT CONTROL SET (id=%d, time=%d, value=%d)", id, step_time, step_value);
-    ngf_backlight_toggle (self->context->backlight, step_value);
-
-    return TRUE;
-}
-
-static gboolean
 _tone_generator_start (NgfEvent *self)
 {
-    if (self->proto->audio_tonegen_enabled) {
-        self->tonegen_id = ngf_tonegen_start (self->context->tonegen, self->proto->audio_tonegen_pattern);
+    if (ngf_properties_get_bool (self->properties, "audio_tonegen_enabled")) {
+        self->tonegen_id = ngf_tonegen_start (self->context->tonegen, ngf_properties_get_int (self->properties, "audio_tonegen_pattern"));
         return TRUE;
     }
 
@@ -345,15 +235,26 @@ _tone_generator_stop (NgfEvent *self)
     }
 }
 
+static void
+_volume_controller_cb (NgfController *controller,
+                       guint          id,
+                       guint          step_time,
+                       guint          step_value,
+                       gpointer       userdata)
+{
+    NgfEvent *self = (NgfEvent*) userdata;
+    ngf_audio_set_volume (self->context->audio, ngf_properties_get_string (self->properties, "audio_stream_role"), step_value);
+}
+
 static gboolean
 _audio_playback_start (NgfEvent *self)
 {
-    NgfEventPrototype *p = self->proto;
-
+    NgfEventPrototype  *prototype   = self->proto;
     const char         *mapped      = NULL;
     const char         *source      = NULL;
     NgfAudioStreamType  stream_type = 0;
     NgfAudioStream     *stream      = NULL;
+    const char         *pattern     = NULL;
     gint                volume      = -1;
 
     if ((self->resources & NGF_RESOURCE_AUDIO) == 0)
@@ -362,36 +263,29 @@ _audio_playback_start (NgfEvent *self)
     /* If we are in the silent mode and the prototype's audio_silent
        flag has not been set, nothing to do here. */
 
-    if (ngf_profile_is_silent (self->context->profile) && !p->audio_silent)
+    if (ngf_profile_is_silent (self->context->profile) && ngf_properties_get_bool (self->properties, "audio_silent"))
         return FALSE;
 
-    /* If a volume controller has been specified, it will override
-       all other volume settings. Start the volume control here and
-       set the audio_volume_set flag to indicate that volume has already
-       been set for this event. */
+    if (!self->audio_volume_set) {
 
-    if (!self->audio_volume_set && p->audio_volume_controller != NULL) {
+        if ((pattern = ngf_properties_get_string (self->properties, "audio_volume_pattern")) != NULL) {
+            self->audio_volume_controller = ngf_audio_get_controller (self->context->audio, pattern);
+            self->audio_volume_id = ngf_controller_start (self->audio_volume_controller, _volume_controller_cb, self);
+        }
+        else {
+            volume = ngf_properties_get_int (self->properties, "audio_volume_value");
+            if (volume >= 0)
+                ngf_audio_set_volume (self->context->audio, ngf_properties_get_string (self->properties, "audio_stream_role"), volume);
+        }
 
-        self->audio_volume_id = ngf_controller_start (p->audio_volume_controller,
-            p->audio_volume_repeat, _volume_control_cb, self);
-
-        if (self->audio_volume_id > 0)
-            self->audio_volume_set = TRUE;
-
-    }
-
-    /* If no volume set before, there is no volume controller and we
-       have a volume specified let's set it here. */
-
-    if (!self->audio_volume_set && (volume = _event_get_volume (self)) > -1) {
-        ngf_audio_set_volume (self->context->audio, p->audio_stream_role, volume);
         self->audio_volume_set = TRUE;
     }
 
     /* Get the sound file for the event, if such exists. If no sound file,
        try to get the fallback. If no fallback, we won't play anything. */
 
-    source = self->audio_use_fallback ? _event_get_fallback (self) : _event_get_tone (self);
+    source = self->audio_use_fallback ?
+        ngf_properties_get_string (self->properties, "audio_tone_filename") : ngf_properties_get_string (self->properties, "audio_fallback_filename");
 
     /* If we tried to get fallback and it did not exist, nothing to
        play here. */
@@ -419,7 +313,7 @@ _audio_playback_start (NgfEvent *self)
 
     stream = ngf_audio_create_stream (self->context->audio, stream_type);
     stream->source     = g_strdup (source);
-    stream->properties = pa_proplist_copy (p->stream_properties);
+    stream->properties = pa_proplist_copy (prototype->stream_properties);
     stream->callback   = _stream_state_cb;
     stream->userdata   = self;
 
@@ -442,11 +336,9 @@ _audio_playback_start (NgfEvent *self)
 static void
 _audio_playback_stop (NgfEvent *self)
 {
-    /* If the volume controller has been started, then let's stop
-       it here. */
-
     if (self->audio_volume_id > 0) {
-        ngf_controller_stop (self->proto->audio_volume_controller, self->audio_volume_id);
+        ngf_controller_stop (self->audio_volume_controller, self->audio_volume_id);
+        self->audio_volume_controller = NULL;
         self->audio_volume_id = 0;
     }
 
@@ -464,7 +356,7 @@ _setup_vibrator (NgfEvent *self)
 
     if (self->resources & NGF_RESOURCE_VIBRATION && _event_is_vibra_enabled (self)) {
 
-        if ((vibra = _event_get_vibra (self)) != NULL)
+        if ((vibra = ngf_properties_get_string (self->properties, "vibra_pattern")) != NULL)
             self->vibra_id = ngf_vibrator_start (self->context->vibrator, vibra);
 
         return TRUE;
@@ -490,7 +382,7 @@ _setup_led (NgfEvent *self)
     if ((self->resources & NGF_RESOURCE_LED) == 0)
         return FALSE;
 
-    if ((led = _event_get_led (self)) != NULL)
+    if ((led = ngf_properties_get_string (self->properties, "led_pattern")) != NULL)
         self->led_id = ngf_led_start (self->context->led, led);
 
     return TRUE;
@@ -508,13 +400,13 @@ _shutdown_led (NgfEvent *self)
 static gboolean
 _setup_backlight (NgfEvent *self)
 {
+    const char *pattern = NULL;
+
     if ((self->resources & NGF_RESOURCE_BACKLIGHT) == 0)
         return FALSE;
 
-    if (self->proto->backlight_controller) {
-        self->backlight_id = ngf_controller_start (self->proto->backlight_controller,
-            self->proto->backlight_repeat, _backlight_control_cb, self);
-    }
+    if ((pattern = ngf_properties_get_string (self->properties, "backlight_pattern")) != NULL)
+        self->backlight_id = ngf_backlight_start (self->context->backlight, pattern);
 
     return TRUE;
 }
@@ -522,10 +414,8 @@ _setup_backlight (NgfEvent *self)
 static void
 _shutdown_backlight (NgfEvent *self)
 {
-    if (self->backlight_id > 0) {
-        ngf_controller_stop (self->proto->backlight_controller, self->backlight_id);
-        self->backlight_id = 0;
-    }
+    if (self->backlight_id > 0)
+        ngf_backlight_stop (self->context->backlight, self->backlight_id);
 }
 
 gboolean
@@ -533,31 +423,38 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
 {
     NgfEventPrototype *p = self->proto;
 
-    /* Take ownership of the properties */
-    self->properties = properties;
+    /* Make a copy of the prototype's property hash table and merge our
+       custom allowed properties in. */
+
+    self->properties = ngf_properties_copy (p->properties);
+    ngf_properties_merge (self->properties, properties);
+
+    LOG_DEBUG ("<event properties>");
+    ngf_properties_dump (self->properties);
 
     /* Check the resources and start the backends if we have the proper resources,
        profile allows us to and valid data is provided. */
 
-    if (p->audio_enabled) {
+    if (ngf_properties_get_bool (self->properties, "audio_enabled")) {
         if (!_tone_generator_start (self))
             _audio_playback_start (self);
     }
 
-    if (p->vibrator_enabled)
+    if (ngf_properties_get_bool (self->properties, "vibra_enabled"))
         _setup_vibrator (self);
 
-    if (p->led_enabled)
+    if (ngf_properties_get_bool (self->properties, "led_enabled"))
         _setup_led (self);
 
-    if (p->backlight_enabled)
+    if (ngf_properties_get_bool (self->properties, "backlight_enabled"))
         _setup_backlight (self);
 
     /* Timeout callback for maximum length of the event. Once triggered we will
        stop the event ourselves. */
 
-    if (self->proto->max_length > 0)
-        self->max_length_timeout_id = g_timeout_add (self->proto->max_length, _event_max_timeout_cb, self);
+    guint max_length = ngf_properties_get_int (self->properties, "max_length");
+    if (max_length > 0)
+        self->max_length_timeout_id = g_timeout_add (max_length, _event_max_timeout_cb, self);
 
     /* Trigger the start timer, which will be used to monitor the minimum timeout. */
 

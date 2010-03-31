@@ -41,6 +41,7 @@ struct _NgfController
 {
     GList    *steps;
     GList    *active_controllers;
+    gboolean  repeat;
     guint     controller_count;
 };
 
@@ -63,7 +64,7 @@ _process_next_step (gpointer userdata)
     LOG_DEBUG ("CONTROLLER STEP (id=%d, time=%d, value=%d)", c->id, step->time, step->value);
 
     if (c->callback)
-        do_continue = c->callback (c->id, step->time, step->value, c->userdata);
+        do_continue = c->callback (c->controller, c->id, step->time, step->value, c->userdata);
 
     c->current = g_list_next (c->current);
     if (do_continue && c->current) {
@@ -109,6 +110,7 @@ ngf_controller_new_from_string (const char *pattern, gboolean repeat)
         return NULL;
 
     c = ngf_controller_new ();
+    c->repeat = repeat;
 
     /* Split the pattern by the ; separator */
     split = g_strsplit (pattern, ";", -1);
@@ -187,7 +189,7 @@ ngf_controller_add_step (NgfController *self, guint step_time, guint step_value)
 }
 
 guint
-ngf_controller_start (NgfController *self, gboolean repeat, NgfControllerCallback callback, gpointer userdata)
+ngf_controller_start (NgfController *self, NgfControllerCallback callback, gpointer userdata)
 {
     Controller *c = NULL;
     ControlStep *step = NULL;
@@ -200,7 +202,7 @@ ngf_controller_start (NgfController *self, gboolean repeat, NgfControllerCallbac
 
     c = g_slice_new0 (Controller);
     c->current      = g_list_first (self->steps);
-    c->repeat       = repeat;
+    c->repeat       = self->repeat;
     c->controller   = self;
     c->callback     = callback;
     c->userdata     = userdata;

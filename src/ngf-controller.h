@@ -21,7 +21,7 @@
 
 typedef struct _NgfController NgfController;
 
-typedef gboolean (*NgfControllerCallback) (guint id, guint step_time, guint step_value, gpointer userdata);
+typedef gboolean (*NgfControllerCallback) (NgfController *controller, guint id, guint step_time, guint step_value, gpointer userdata);
 
 NgfController*  ngf_controller_new             ();
 NgfController*  ngf_controller_new_from_string (const char *pattern, gboolean repeat);
