@@ -18,13 +18,17 @@
 #define NGF_AUDIO_H
 
 #include <glib.h>
+
+#include "ngf-controller.h"
 #include "ngf-audio-stream.h"
 
 typedef struct _NgfAudio NgfAudio;
 
-NgfAudio*        ngf_audio_create           ();
-void             ngf_audio_destroy          (NgfAudio *self);
-void             ngf_audio_set_volume       (NgfAudio *self, const char *role, gint volume);
+NgfAudio*        ngf_audio_create              ();
+void             ngf_audio_destroy             (NgfAudio *self);
+void             ngf_audio_set_volume          (NgfAudio *self, const char *role, gint volume);
+void             ngf_audio_register_controller (NgfAudio *self, const char *name, const char *pattern, gboolean repeat);
+NgfController*   ngf_audio_get_controller      (NgfAudio *self, const char *name);
 
 NgfAudioStream*  ngf_audio_create_stream    (NgfAudio *self, NgfAudioStreamType type);
 void             ngf_audio_destroy_stream   (NgfAudio *self, NgfAudioStream *stream);
