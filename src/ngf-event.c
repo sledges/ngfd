@@ -141,33 +141,42 @@ _trigger_event_callback (NgfEvent      *event,
         event->callback (event, state, event->userdata);
 }
 
+/**
+ * Stream state callback is triggered by the audio backend to inform us
+ * of the streams state.
+ *
+ * @param stream NgfAudioStream
+ * @param state NgfAudioStreamState
+ * @param userdata Userdata
+ */
+
 static void
 _stream_state_cb (NgfAudioStream *stream, NgfAudioStreamState state, gpointer userdata)
 {
     NgfEvent *self = (NgfEvent*) userdata;
 
+    NgfEventState callback_state = NGF_EVENT_NONE;
+    gboolean      restart_stream = FALSE;
+
     switch (state) {
         case NGF_AUDIO_STREAM_STATE_STARTED:
-            LOG_DEBUG ("%s: STREAM STARTED\n", __FUNCTION__);
-            _trigger_event_callback (self, NGF_EVENT_STARTED);
+            callback_state = NGF_EVENT_STARTED;
             break;
 
         case NGF_AUDIO_STREAM_STATE_FAILED: {
-            LOG_DEBUG ("%s: STREAM FAILED\n", __FUNCTION__);
-
-            _audio_playback_stop (self);
 
             /* If stream was a fallback stream and it failed, then trigger the
                callback and finish the event. */
 
+            _audio_playback_stop (self);
+
             if (self->audio_use_fallback) {
-                _trigger_event_callback (self, NGF_EVENT_FAILED);
+                callback_state = NGF_EVENT_FAILED;
+                break;
             }
-            else {
-                /* Restart the stream with fallback, if any. */
-                self->audio_use_fallback = TRUE;
-                _audio_playback_start (self);
-            }
+
+            self->audio_use_fallback = TRUE;
+            restart_stream           = TRUE;
 
             break;
         }
@@ -176,32 +185,28 @@ _stream_state_cb (NgfAudioStream *stream, NgfAudioStreamState state, gpointer us
 
             _audio_playback_stop (self);
 
-            if (ngf_properties_get_bool (self->properties, "audio_repeat")) {
-                ++self->audio_repeat_count;
-                if (ngf_properties_get_int (self->properties, "audio_max_repeats") <= 0) {
-                    LOG_DEBUG ("%s: STREAM REPEAT", __FUNCTION__);
-                    _audio_playback_start (self);
+            if (self->audio_repeat_enabled) {
+                self->audio_repeat_count++;
+
+                if (self->audio_max_repeats <= 0 || self->audio_repeat_count < self->audio_max_repeats) {
+                    restart_stream = TRUE;
                     break;
                 }
-                else if  (self->audio_repeat_count >= ngf_properties_get_int (self->properties, "audio_max_repeats")) {
-                    LOG_DEBUG ("%s: STREAM REPEAT FINISHED", __FUNCTION__);
-
-                    _audio_playback_stop (self);
-                    _trigger_event_callback (self, NGF_EVENT_COMPLETED);
-                }
-            }
-            else {
-                LOG_DEBUG ("%s: STREAM COMPLETED", __FUNCTION__);
-                _audio_playback_stop (self);
-                _trigger_event_callback (self, NGF_EVENT_COMPLETED);
             }
 
+            callback_state = NGF_EVENT_COMPLETED;
             break;
         }
 
         default:
             break;
     }
+
+    if (restart_stream)
+        _audio_playback_start (self);
+
+    if (callback_state != NGF_EVENT_NONE)
+        _trigger_event_callback (self, callback_state);
 }
 
 static gboolean
@@ -421,6 +426,11 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
 
     LOG_DEBUG ("<event properties>");
     ngf_properties_dump (self->properties);
+
+    /* Fetch some properties and save as internal data */
+
+    self->audio_repeat_enabled = ngf_properties_get_bool (self->properties, "audio_repeat");
+    self->audio_max_repeats    = ngf_properties_get_int  (self->properties, "audio_max_repeats");
 
     /* Check the resources and start the backends if we have the proper resources,
        profile allows us to and valid data is provided. */

@@ -39,6 +39,7 @@ typedef void    (*NgfEventCallback) (NgfEvent *event, NgfEventState state, gpoin
 
 enum _NgfEventState
 {
+    NGF_EVENT_NONE = 0,
     NGF_EVENT_STARTED,
     NGF_EVENT_COMPLETED,
     NGF_EVENT_FAILED
@@ -62,7 +63,10 @@ struct _NgfEvent
     guint               audio_volume_id;
     gboolean            audio_volume_set;
     gboolean            audio_use_fallback;
+
+    gboolean            audio_repeat_enabled;
     gint                audio_repeat_count;
+    gint                audio_max_repeats;
 
     guint               vibra_id;
     guint               tonegen_id;
