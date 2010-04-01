@@ -234,7 +234,7 @@ _tone_generator_stop (NgfEvent *self)
     }
 }
 
-static void
+static gboolean
 _volume_controller_cb (NgfController *controller,
                        guint          id,
                        guint          step_time,
@@ -243,6 +243,7 @@ _volume_controller_cb (NgfController *controller,
 {
     NgfEvent *self = (NgfEvent*) userdata;
     ngf_audio_set_volume (self->context->audio, ngf_properties_get_string (self->properties, "audio_stream_role"), step_value);
+    return TRUE;
 }
 
 static gboolean
