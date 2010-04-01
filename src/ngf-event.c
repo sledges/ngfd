@@ -26,7 +26,6 @@ static gboolean     _max_timeout_triggered_cb (gpointer userdata);
 
 static void         _stream_state_cb (NgfAudioStream *stream, NgfAudioStreamState state, gpointer userdata);
 static const char*  _get_mapped_tone (NgfToneMapper *mapper, const char *tone);
-static gboolean     _event_is_vibra_enabled (NgfEvent *self);
 
 static gboolean     _tone_generator_start (NgfEvent *self);
 static void         _tone_generator_stop (NgfEvent *self);
@@ -123,17 +122,6 @@ _get_mapped_tone (NgfToneMapper *mapper, const char *tone)
     }
 
     return NULL;
-}
-
-static gboolean
-_event_is_vibra_enabled (NgfEvent *self)
-{
-    gboolean enabled = FALSE;
-
-    if (ngf_profile_get_boolean (self->context->profile, NULL, "vibrating.alert.enabled", &enabled))
-        return enabled;
-
-    return FALSE;
 }
 
 /**
@@ -356,7 +344,7 @@ _setup_vibrator (NgfEvent *self)
 {
     const char *vibra = NULL;
 
-    if (self->resources & NGF_RESOURCE_VIBRATION && _event_is_vibra_enabled (self)) {
+    if (self->resources & NGF_RESOURCE_VIBRATION && ngf_profile_is_vibra_enabled (self->context->profile)) {
 
         if ((vibra = ngf_properties_get_string (self->properties, "vibra_pattern")) != NULL)
             self->vibra_id = ngf_vibrator_start (self->context->vibrator, vibra);

@@ -19,6 +19,8 @@
 
 #include "ngf-profile.h"
 
+#define VIBRATION_ENABLED_KEY "vibrating.alert.enabled"
+
 typedef struct _ProfileEntry
 {
     gchar       *profile_name;
@@ -29,6 +31,7 @@ struct _NgfProfile
 {
     gchar    *current_profile;
     gboolean  is_silent;
+    gboolean  is_vibra_enabled;
     GList    *profiles;
 };
 
@@ -106,6 +109,9 @@ _profile_setup (NgfProfile *self)
     if (g_str_equal (self->current_profile, NGF_PROFILE_SILENT))
         self->is_silent = TRUE;
 
+    /* Get the vibration enabled status for the current profile. */
+    self->is_vibra_enabled = profile_get_value_as_bool (NULL, VIBRATION_ENABLED_KEY) ? TRUE : FALSE;
+
     /* Get all keys defined in the profiles. We will use this to iterate through
        all the profiles and get the respective values. */
 
@@ -137,6 +143,9 @@ _track_value_change_cb (const char *profile,
 {
     NgfProfile *self = (NgfProfile*) userdata;
     ProfileEntry *entry = NULL;
+
+    if (g_str_equal (key, VIBRATION_ENABLED_KEY) && g_str_equal (profile, self->current_profile))
+        self->is_vibra_enabled = profile_parse_bool (value) == 1 ? TRUE : FALSE;
 
     if ((entry = _profile_entry_find (self, profile)) == NULL) {
         entry = _profile_entry_new (profile);
@@ -272,5 +281,14 @@ ngf_profile_is_silent (NgfProfile *self)
         return FALSE;
 
     return self->is_silent;
+}
+
+gboolean
+ngf_profile_is_vibra_enabled (NgfProfile *self)
+{
+    if (self == NULL)
+        return FALSE;
+
+    return self->is_vibra_enabled;
 }
 

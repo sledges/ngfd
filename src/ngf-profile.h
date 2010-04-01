@@ -37,5 +37,6 @@ gboolean    ngf_profile_get_integer (NgfProfile *self, const char *profile, cons
 gboolean    ngf_profile_get_boolean (NgfProfile *self, const char *profile, const char *key, gboolean *value);
 
 gboolean    ngf_profile_is_silent (NgfProfile *self);
+gboolean    ngf_profile_is_vibra_enabled (NgfProfile *self);
 
 #endif /* NGF_PROFILE_H */
