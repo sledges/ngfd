@@ -47,11 +47,11 @@ void    ngf_log (NgfLogCategory category, const char *function, int line, const 
 
 #else
 
-#define LOG_EVENT(...)
-#define LOG_MESSAGE(...)
-#define LOG_DEBUG(...)
-#define LOG_WARNING(...)
-#define LOG_ERROR(...)
+#define LOG_EVENT(...)   do { } while (0)
+#define LOG_MESSAGE(...) do { } while (0)
+#define LOG_DEBUG(...)   do { } while (0)
+#define LOG_WARNING(...) do { } while (0)
+#define LOG_ERROR(...)   do { } while (0)
 
 #endif
 
