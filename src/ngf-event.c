@@ -426,7 +426,7 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
        custom allowed properties in. */
 
     self->properties = ngf_properties_copy (p->properties);
-    ngf_properties_merge (self->properties, properties);
+    ngf_properties_merge_allowed (self->properties, properties, p->allowed_keys);
 
     LOG_DEBUG ("<event properties>");
     ngf_properties_dump (self->properties);

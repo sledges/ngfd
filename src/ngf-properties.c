@@ -61,7 +61,6 @@ void
 ngf_properties_merge_allowed (GHashTable *target, GHashTable *source, gchar **allowed_keys)
 {
     gchar      **allowed = NULL;
-    const char  *key     = NULL;
     NgfValue    *value   = NULL;
 
     if (target == NULL || source == NULL || allowed_keys == NULL)
@@ -69,7 +68,7 @@ ngf_properties_merge_allowed (GHashTable *target, GHashTable *source, gchar **al
 
     for (allowed = allowed_keys; *allowed != NULL; ++allowed) {
         if ((value = (NgfValue*) g_hash_table_lookup (source, *allowed)) != NULL)
-            g_hash_table_replace (target, g_strdup (key), ngf_value_copy (value));
+            g_hash_table_replace (target, g_strdup (*allowed), ngf_value_copy (value));
     }
 }
 

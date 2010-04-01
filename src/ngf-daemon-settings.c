@@ -30,6 +30,13 @@
 
 #define STREAM_RESTORE_ID "module-stream-restore.id"
 
+/** Temporary structure when configuration is being parsed */
+typedef struct _SettingsData
+{
+    NgfDaemon  *self;
+    gchar     **allowed_keys;
+} SettingsData;
+
 /**
  * Strip the group type (event, prototype) from the group name.
  *
@@ -132,14 +139,14 @@ _parse_group_parent (const char *group)
 /**
  * Parse general options.
  *
- * @param self NgfDaemon
+ * @param data SettingsData
  * @param k GKeyFile
  */
 
 static void
-_parse_general (NgfDaemon *self, GKeyFile *k)
+_parse_general (SettingsData *data, GKeyFile *k)
 {
-    /* No general settings for now. */
+    NgfDaemon *self = data->self;
 
     /* Get list of allowed properties that we allow to be overridden through
        the client interface. */
@@ -153,9 +160,7 @@ _parse_general (NgfDaemon *self, GKeyFile *k)
     for (p = allowed_keys; *p != NULL; ++p)
         LOG_DEBUG ("<allowed override key: %s>", *p);
 
-    /*
-    self->context.allowed_keys = allowed_keys;
-    */
+    data->allowed_keys = allowed_keys;
 }
 
 /**
@@ -163,14 +168,16 @@ _parse_general (NgfDaemon *self, GKeyFile *k)
  * pattern we will get the IVT file and pattern id and register it to the
  * vibrator backend.
  *
- * @param self NgfDaemon
+ * @param data SettingsData
  * @param k GKeyFile
  * @post Vibrator patterns registered to the backend.
  */
 
 static void
-_parse_vibrator_patterns (NgfDaemon *self, GKeyFile *k)
+_parse_vibrator_patterns (SettingsData *data, GKeyFile *k)
 {
+    NgfDaemon *self = data->self;
+
     gchar **group_list = NULL;
     gchar **group      = NULL;
     gchar  *filename   = NULL;
@@ -201,8 +208,10 @@ _parse_vibrator_patterns (NgfDaemon *self, GKeyFile *k)
 }
 
 static void
-_parse_volume_patterns (NgfDaemon *self, GKeyFile *k)
+_parse_volume_patterns (SettingsData *data, GKeyFile *k)
 {
+    NgfDaemon *self = data->self;
+
     gchar    **group_list = NULL;
     gchar    **group      = NULL;
     gchar     *name       = NULL;
@@ -233,8 +242,10 @@ _parse_volume_patterns (NgfDaemon *self, GKeyFile *k)
 }
 
 static void
-_parse_backlight_patterns (NgfDaemon *self, GKeyFile *k)
+_parse_backlight_patterns (SettingsData *data, GKeyFile *k)
 {
+    NgfDaemon *self = data->self;
+
     gchar    **group_list = NULL;
     gchar    **group      = NULL;
     gchar     *name       = NULL;
@@ -268,14 +279,16 @@ _parse_backlight_patterns (NgfDaemon *self, GKeyFile *k)
  * Parse event definitions. Event definition contains a reference to
  * long and short prototypes.
  *
- * @param self NgfDaemon
+ * @param data SettingsData
  * @param k GKeyFile
  * @post New event definition registered to event definitions.
  */
 
 static void
-_parse_definitions (NgfDaemon *self, GKeyFile *k)
+_parse_definitions (SettingsData *data, GKeyFile *k)
 {
+    NgfDaemon *self = data->self;
+
     gchar **group_list = NULL;
     gchar **group      = NULL;
     gchar  *name       = NULL;
@@ -499,8 +512,10 @@ _parse_stream_properties (NgfEventPrototype *prototype,
  */
 
 static void
-_parse_single_prototype (NgfDaemon *self, GKeyFile *k, GList **prototypes_done, GHashTable *prototypes, const char *name)
+_parse_single_prototype (SettingsData *data, GKeyFile *k, GList **prototypes_done, GHashTable *prototypes, const char *name)
 {
+    NgfDaemon *self = data->self;
+
     const gchar       *group        = NULL;
     gchar             *parent       = NULL;
     NgfEventPrototype *p            = NULL;
@@ -515,7 +530,7 @@ _parse_single_prototype (NgfDaemon *self, GKeyFile *k, GList **prototypes_done, 
         return;
 
     if ((parent = _parse_group_parent (group)) != NULL)
-        _parse_single_prototype (self, k, prototypes_done, prototypes, parent);
+        _parse_single_prototype (data, k, prototypes_done, prototypes, parent);
 
     if (name == NULL)
         return;
@@ -578,6 +593,9 @@ _parse_single_prototype (NgfDaemon *self, GKeyFile *k, GList **prototypes_done, 
         }
     }
 
+    /* Make a copy of the list of allowed keys for this prototype. */
+    p->allowed_keys = g_strdupv (data->allowed_keys);
+
     /* We're done, let's register the new prototype. */
     ngf_daemon_register_prototype (self, name, p);
 
@@ -599,8 +617,10 @@ _parse_single_prototype (NgfDaemon *self, GKeyFile *k, GList **prototypes_done, 
  */
 
 static void
-_parse_prototypes (NgfDaemon *self, GKeyFile *k)
+_parse_prototypes (SettingsData *data, GKeyFile *k)
 {
+    NgfDaemon *self = data->self;
+
     gchar         **group_list = NULL;
     gchar         **group      = NULL;
     gchar          *name       = NULL;
@@ -629,7 +649,7 @@ _parse_prototypes (NgfDaemon *self, GKeyFile *k)
 
     g_hash_table_iter_init (&iter, prototypes);
     while (g_hash_table_iter_next (&iter, (gpointer) &key, (gpointer) &value))
-        _parse_single_prototype (self, k, &prototypes_done, prototypes, key);
+        _parse_single_prototype (data, k, &prototypes_done, prototypes, key);
 
     g_list_foreach (prototypes_done, (GFunc) g_free, NULL);
     g_list_free (prototypes_done);
@@ -642,9 +662,10 @@ ngf_daemon_settings_load (NgfDaemon *self)
 {
     static const char *conf_files[] = { "/etc/ngf/ngf.ini", "./ngf.ini", NULL };
 
-    GKeyFile    *key_file = NULL;
-    const char **filename = NULL;
-    gboolean     success  = FALSE;
+    SettingsData  *data     = NULL;
+    GKeyFile      *key_file = NULL;
+    const char   **filename = NULL;
+    gboolean       success  = FALSE;
 
     if ((key_file = g_key_file_new ()) == NULL)
         return FALSE;
@@ -659,12 +680,18 @@ ngf_daemon_settings_load (NgfDaemon *self)
     if (!success)
         return FALSE;
 
-    _parse_general            (self, key_file);
-    _parse_vibrator_patterns  (self, key_file);
-    _parse_volume_patterns    (self, key_file);
-    _parse_backlight_patterns (self, key_file);
-    _parse_definitions        (self, key_file);
-    _parse_prototypes         (self, key_file);
+    data = g_new0 (SettingsData, 1);
+    data->self = self;
+
+    _parse_general            (data, key_file);
+    _parse_vibrator_patterns  (data, key_file);
+    _parse_volume_patterns    (data, key_file);
+    _parse_backlight_patterns (data, key_file);
+    _parse_definitions        (data, key_file);
+    _parse_prototypes         (data, key_file);
+
+    g_strfreev (data->allowed_keys);
+    g_free (data);
 
     return TRUE;
 }
