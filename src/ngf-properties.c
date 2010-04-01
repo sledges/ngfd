@@ -64,6 +64,9 @@ ngf_properties_merge_allowed (GHashTable *target, GHashTable *source, gchar **al
     const char  *key     = NULL;
     NgfValue    *value   = NULL;
 
+    if (target == NULL || source == NULL || allowed_keys == NULL)
+        return;
+
     for (allowed = allowed_keys; *allowed != NULL; ++allowed) {
         if ((value = (NgfValue*) g_hash_table_lookup (source, *allowed)) != NULL)
             g_hash_table_replace (target, g_strdup (key), ngf_value_copy (value));
