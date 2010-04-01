@@ -22,7 +22,8 @@
 #include "ngf-event.h"
 
 static inline void  _trigger_event_callback (NgfEvent *event, NgfEventState  state);
-static gboolean     _event_max_timeout_cb (gpointer userdata);
+static gboolean     _max_timeout_triggered_cb (gpointer userdata);
+
 static void         _stream_state_cb (NgfAudioStream *stream, NgfAudioStreamState state, gpointer userdata);
 static const char*  _get_mapped_tone (NgfToneMapper *mapper, const char *tone);
 static gboolean     _event_is_vibra_enabled (NgfEvent *self);
@@ -87,9 +88,10 @@ ngf_event_set_callback (NgfEvent *self, NgfEventCallback callback, gpointer user
 }
 
 static gboolean
-_event_max_timeout_cb (gpointer userdata)
+_max_timeout_triggered_cb (gpointer userdata)
 {
     NgfEvent *self = (NgfEvent*) userdata;
+
     self->max_length_timeout_id = 0;
     ngf_event_stop (self);
 
@@ -454,7 +456,7 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
 
     guint max_length = ngf_properties_get_int (self->properties, "max_length");
     if (max_length > 0)
-        self->max_length_timeout_id = g_timeout_add (max_length, _event_max_timeout_cb, self);
+        self->max_length_timeout_id = g_timeout_add (max_length, _max_timeout_triggered_cb, self);
 
     /* Trigger the start timer, which will be used to monitor the minimum timeout. */
 
