@@ -21,6 +21,7 @@
 #include "ngf-controller.h"
 #include "ngf-event.h"
 
+static inline void  _trigger_event_callback (NgfEvent *event, NgfEventState  state);
 static gboolean     _event_max_timeout_cb (gpointer userdata);
 static void         _stream_state_cb (NgfAudioStream *stream, NgfAudioStreamState state, gpointer userdata);
 static const char*  _get_mapped_tone (NgfToneMapper *mapper, const char *tone);
@@ -92,9 +93,7 @@ _event_max_timeout_cb (gpointer userdata)
     self->max_length_timeout_id = 0;
     ngf_event_stop (self);
 
-    if (self->callback)
-        self->callback (self, NGF_EVENT_COMPLETED, self->userdata);
-
+    _trigger_event_callback (self, NGF_EVENT_COMPLETED);
     return FALSE;
 }
 
@@ -106,6 +105,7 @@ _event_max_timeout_cb (gpointer userdata)
  * @param tone Original tone
  * @return Full path to uncompressed tone
  */
+
 static const char*
 _get_mapped_tone (NgfToneMapper *mapper, const char *tone)
 {
@@ -134,77 +134,76 @@ _event_is_vibra_enabled (NgfEvent *self)
     return FALSE;
 }
 
+/**
+ * Trigger the user specified callback for the event. If no callback
+ * specified, nothing is done.
+ *
+ * @param event NgfEvent
+ * @param state NgfEventState
+ * @post User provided callback is triggered with given state and userdata.
+ */
+
+static inline void
+_trigger_event_callback (NgfEvent      *event,
+                         NgfEventState  state)
+{
+    if (event->callback)
+        event->callback (event, state, event->userdata);
+}
+
 static void
 _stream_state_cb (NgfAudioStream *stream, NgfAudioStreamState state, gpointer userdata)
 {
     NgfEvent *self = (NgfEvent*) userdata;
 
     switch (state) {
-        case NGF_AUDIO_STREAM_STATE_STARTED: {
-
-            /* Stream started, let's notify the client that we are all up and running */
-
-            if (self->callback)
-                self->callback (self, NGF_EVENT_STARTED, self->userdata);
-
+        case NGF_AUDIO_STREAM_STATE_STARTED:
+            LOG_DEBUG ("%s: STREAM STARTED\n", __FUNCTION__);
+            _trigger_event_callback (self, NGF_EVENT_STARTED);
             break;
-        }
 
         case NGF_AUDIO_STREAM_STATE_FAILED: {
-
             LOG_DEBUG ("%s: STREAM FAILED\n", __FUNCTION__);
-
-            /* Stream failed to start, most probably reason is that the file
-               does not exist. In this case, if the fallback is specified we will
-               try to play it. */
 
             _audio_playback_stop (self);
 
+            /* If stream was a fallback stream and it failed, then trigger the
+               callback and finish the event. */
+
             if (self->audio_use_fallback) {
-                if (self->callback)
-                    self->callback (self, NGF_EVENT_FAILED, self->userdata);
-                break;
+                _trigger_event_callback (self, NGF_EVENT_FAILED);
+            }
+            else {
+                /* Restart the stream with fallback, if any. */
+                self->audio_use_fallback = TRUE;
+                _audio_playback_start (self);
             }
 
-            self->audio_use_fallback = TRUE;
-            _audio_playback_start (self);
             break;
         }
 
         case NGF_AUDIO_STREAM_STATE_COMPLETED: {
 
-            /* Stream was played and completed successfully. If the repeat flag is
-               set, then we will restart the stream again. Otherwise, let's notify
-               the user of the completion of the event. */
-
             _audio_playback_stop (self);
 
             if (ngf_properties_get_bool (self->properties, "audio_repeat")) {
-
                 ++self->audio_repeat_count;
-
                 if (ngf_properties_get_int (self->properties, "audio_max_repeats") <= 0) {
                     LOG_DEBUG ("%s: STREAM REPEAT", __FUNCTION__);
                     _audio_playback_start (self);
                     break;
                 }
-
                 else if  (self->audio_repeat_count >= ngf_properties_get_int (self->properties, "audio_max_repeats")) {
                     LOG_DEBUG ("%s: STREAM REPEAT FINISHED", __FUNCTION__);
 
                     _audio_playback_stop (self);
-
-                    if (self->callback)
-                        self->callback (self, NGF_EVENT_COMPLETED, self->userdata);
+                    _trigger_event_callback (self, NGF_EVENT_COMPLETED);
                 }
             }
             else {
                 LOG_DEBUG ("%s: STREAM COMPLETED", __FUNCTION__);
-
                 _audio_playback_stop (self);
-
-                if (self->callback)
-                    self->callback (self, NGF_EVENT_COMPLETED, self->userdata);
+                _trigger_event_callback (self, NGF_EVENT_COMPLETED);
             }
 
             break;
