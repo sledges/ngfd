@@ -21,6 +21,8 @@ AC_SUBST(X_CFLAGS)
 ngfconfdir=${sysconfdir}/ngf
 AC_SUBST(ngfconfdir)
 
+CFLAGS="${CFLAGS} -Werror"
+
 AC_ARG_ENABLE([debug],
 	AS_HELP_STRING([--enable-debug],[Enable debug @<:@default=false@:>@]),
 	[case "${enableval}" in
