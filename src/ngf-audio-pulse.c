@@ -78,7 +78,6 @@ _stream_write_cb (pa_stream *s,
     NgfAudioStream *stream       = (NgfAudioStream*) userdata;
     PulseStream    *pulse_stream = (PulseStream*) stream->data;
 
-    pa_operation *o = NULL;
     size_t bytes_left = bytes;
     size_t bytes_read;
 

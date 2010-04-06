@@ -192,7 +192,6 @@ ngf_backlight_start (NgfBacklight *self,
 {
     BacklightPattern *pattern       = NULL;
     BacklightActive  *active        = NULL;
-    guint             controller_id = 0;
 
     if (self == NULL || name == NULL)
         return 0;

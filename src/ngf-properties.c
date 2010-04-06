@@ -28,7 +28,7 @@ static void
 _copy_property_cb (gpointer k, gpointer v, gpointer userdata)
 {
     const char *key        = (const char*) k;
-    NgfValue   *value      = (const char*) v;
+    NgfValue   *value      = (NgfValue*) v;
     GHashTable *properties = (GHashTable*) userdata;
 
     g_hash_table_insert (properties, g_strdup (key), (gpointer) ngf_value_copy (value));

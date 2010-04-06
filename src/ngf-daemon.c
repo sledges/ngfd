@@ -286,7 +286,6 @@ _properties_get_play_mode (GHashTable *properties)
 static gint
 _properties_get_resources (GHashTable *properties)
 {
-    NgfValue *value = NULL;
     gint resources = 0;
 
     if (_properties_get_boolean (properties, "media.audio"))

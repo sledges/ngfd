@@ -146,8 +146,6 @@ _parse_group_parent (const char *group)
 static void
 _parse_general (SettingsData *data, GKeyFile *k)
 {
-    NgfDaemon *self = data->self;
-
     /* Get list of allowed properties that we allow to be overridden through
        the client interface. */
 
@@ -469,7 +467,6 @@ _parse_stream_properties (NgfEventPrototype *prototype,
 {
     gchar **keys = NULL, **iter = NULL, *stream_prop = NULL, *stream_value = NULL;
     pa_proplist *p = NULL;
-    gboolean has_props = FALSE;
 
     keys = g_key_file_get_keys (k, group, NULL, NULL);
 
@@ -538,7 +535,7 @@ _parse_single_prototype (SettingsData *data, GKeyFile *k, GList **prototypes_don
     /* set_default flag is set if the prototype does not have a parent element (ie. it is a parent
        element by itself). */
 
-    set_default == (parent == NULL) ? TRUE : FALSE;
+    set_default = (parent == NULL) ? TRUE : FALSE;
 
     p = ngf_event_prototype_new ();
 
@@ -619,8 +616,6 @@ _parse_single_prototype (SettingsData *data, GKeyFile *k, GList **prototypes_don
 static void
 _parse_prototypes (SettingsData *data, GKeyFile *k)
 {
-    NgfDaemon *self = data->self;
-
     gchar         **group_list = NULL;
     gchar         **group      = NULL;
     gchar          *name       = NULL;

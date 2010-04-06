@@ -17,6 +17,7 @@
 #include <dbus/dbus.h>
 #include <dbus/dbus-glib-lowlevel.h>
 
+#include "ngf-log.h"
 #include "ngf-dbus.h"
 
 struct _NgfDBus
@@ -205,7 +206,6 @@ _message_function (DBusConnection *connection,
                    void *userdata)
 {
     const char *member = dbus_message_get_member (msg);
-    const char *sender = dbus_message_get_sender (msg);
 
     if (!dbus_message_has_interface (msg, NGF_DBUS_IFACE))
         return DBUS_HANDLER_RESULT_HANDLED;
@@ -232,9 +232,9 @@ _dbus_initialize (NgfDBus *self, const char *name, const char *path)
     dbus_error_init (&error);
     self->connection = dbus_bus_get (DBUS_BUS_SESSION, &error);
     if (self->connection == NULL) {
-        g_warning ("%s: Failed to get session bus!");
+        LOG_ERROR ("%s: Failed to get session bus!", __FUNCTION__);
         if (dbus_error_is_set (&error)) {
-            g_warning ("%s: Failed to get DBus: %s", __FUNCTION__, error.message);
+            LOG_ERROR ("%s: Failed to get DBus: %s", __FUNCTION__, error.message);
             dbus_error_free (&error);
         }
         return FALSE;

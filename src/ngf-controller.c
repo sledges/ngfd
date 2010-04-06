@@ -14,6 +14,7 @@
  * written consent of Nokia.
  */
 
+#include <stdlib.h>
 #include "ngf-log.h"
 #include "ngf-controller.h"
 
