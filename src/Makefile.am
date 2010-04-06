@@ -14,8 +14,6 @@ ngfd_SOURCES = \
 	ngf-profile.c \
 	ngf-dbus.h \
 	ngf-dbus.c \
-	ngf-conf.h \
-	ngf-conf.c \
 	ngf-value.h \
 	ngf-value.c \
 	ngf-event-definition.h \
