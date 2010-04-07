@@ -18,14 +18,7 @@
 #include "ngf-log.h"
 #include "ngf-controller.h"
 
-typedef struct _ControlStep ControlStep;
 typedef struct _Controller  Controller;
-
-struct _ControlStep
-{
-    guint time;
-    guint value;
-};
 
 struct _Controller
 {
@@ -58,10 +51,10 @@ _process_next_step (gpointer userdata)
     Controller *c = (Controller*) userdata;
     NgfController *self = c->controller;
 
-    ControlStep *step = NULL, *next = NULL;
+    NgfControllerStep *step = NULL, *next = NULL;
     gboolean do_continue = FALSE;
 
-    step = (ControlStep*) c->current->data;
+    step = (NgfControllerStep*) c->current->data;
     LOG_DEBUG ("CONTROLLER STEP (id=%d, time=%d, value=%d)", c->id, step->time, step->value);
 
     if (c->callback)
@@ -69,7 +62,7 @@ _process_next_step (gpointer userdata)
 
     c->current = g_list_next (c->current);
     if (do_continue && c->current) {
-        next = (ControlStep*) c->current->data;
+        next = (NgfControllerStep*) c->current->data;
         c->source_id = g_timeout_add ((next->time - step->time), _process_next_step, c);
     }
     else {
@@ -77,7 +70,7 @@ _process_next_step (gpointer userdata)
             LOG_DEBUG ("CONTROLLER REPEAT (id=%d)", c->id);
 
             c->current = g_list_first (self->steps);
-            step = (ControlStep*) c->current->data;
+            step = (NgfControllerStep*) c->current->data;
             if (step->time == 0)
                 _process_next_step ((gpointer) c);
             else
@@ -150,7 +143,7 @@ ngf_controller_free (NgfController *self)
     GList *iter = NULL;
 
     Controller *c = NULL;
-    ControlStep *step = NULL;
+    NgfControllerStep *step = NULL;
 
     if (self == NULL)
         return;
@@ -164,8 +157,8 @@ ngf_controller_free (NgfController *self)
     self->active_controllers = NULL;
 
     for (iter = g_list_first (self->steps); iter; iter = g_list_next (iter)) {
-        step = (ControlStep*) iter->data;
-        g_slice_free (ControlStep, step);
+        step = (NgfControllerStep*) iter->data;
+        g_slice_free (NgfControllerStep, step);
     }
 
     g_list_free (self->steps);
@@ -177,23 +170,32 @@ ngf_controller_free (NgfController *self)
 void
 ngf_controller_add_step (NgfController *self, guint step_time, guint step_value)
 {
-    ControlStep *step = NULL;
+    NgfControllerStep *step = NULL;
 
     if (self == NULL)
         return;
 
-    step = g_slice_new0 (ControlStep);
+    step = g_slice_new0 (NgfControllerStep);
     step->time = step_time;
     step->value = step_value;
 
     self->steps = g_list_append (self->steps, step);
 }
 
+GList*
+ngf_controller_get_steps (NgfController *self)
+{
+    if (self == NULL)
+        return NULL;
+
+    return self->steps;
+}
+
 guint
 ngf_controller_start (NgfController *self, NgfControllerCallback callback, gpointer userdata)
 {
     Controller *c = NULL;
-    ControlStep *step = NULL;
+    NgfControllerStep *step = NULL;
 
     if (self == NULL || callback == NULL)
         return 0;
@@ -215,7 +217,7 @@ ngf_controller_start (NgfController *self, NgfControllerCallback callback, gpoin
     /* If the first step's time is 0, then let's execute that immediately. */
     self->active_controllers = g_list_append (self->active_controllers, c);
 
-    step = (ControlStep*) c->current->data;
+    step = (NgfControllerStep*) c->current->data;
     if (step->time == 0)
         _process_next_step ((gpointer) c);
     else
