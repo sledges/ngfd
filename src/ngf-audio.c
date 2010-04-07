@@ -89,7 +89,7 @@ ngf_audio_destroy (NgfAudio *self)
 void
 ngf_audio_set_volume (NgfAudio *self, const char *role, gint volume)
 {
-    if (self == NULL || role == NULL || volume <= 0)
+    if (self == NULL || role == NULL || volume < 0)
         return;
 
     ngf_pulse_context_set_volume (self->context, role, volume);

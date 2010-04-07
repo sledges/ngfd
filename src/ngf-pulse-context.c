@@ -235,6 +235,9 @@ ngf_pulse_context_set_volume (NgfPulseContext *self,
     o = pa_ext_stream_restore2_write (self->context,
         PA_UPDATE_REPLACE, (const pa_ext_stream_restore2_info *const *) stream_restore_info, 1, TRUE, NULL, NULL);
 
-    if (o != NULL)
+    if (o != NULL) {
+		while (pa_operation_get_state (o) != PA_OPERATION_DONE)
+			g_main_context_iteration (NULL,FALSE);
         pa_operation_unref (o);
+	}
 }
