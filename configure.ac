@@ -53,6 +53,10 @@ AC_ARG_ENABLE([vibrator],
 	[vibrator=true])
 AM_CONDITIONAL([VIBRATOR], [test x$vibrator = xtrue])
 
+PKG_CHECK_MODULES(CHECK, check)
+AC_SUBST(CHECK_LIBS)
+AC_SUBST(CHECK_CFLAGS)
+
 PKG_CHECK_MODULES(NGFD,
 		  [glib-2.0
 		   gobject-2.0

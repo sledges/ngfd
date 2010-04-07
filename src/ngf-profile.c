@@ -292,3 +292,65 @@ ngf_profile_is_vibra_enabled (NgfProfile *self)
     return self->is_vibra_enabled;
 }
 
+gboolean
+ngf_profile_parse_profile_key (const char *key, gchar **out_profile, gchar **out_key)
+{
+    gchar **split = NULL;
+    gboolean ret = FALSE;
+
+    if (key == NULL)
+        return FALSE;
+
+    if ((split = g_strsplit (key, "@", 2)) != NULL) {
+        if (split[0] == NULL || g_str_equal (split[0], "")) {
+            ret = FALSE;
+            goto done;
+        }
+
+        *out_key = g_strdup (split[0]);
+        *out_profile = g_strdup (split[1]);
+        ret = TRUE;
+    }
+
+done:
+    g_strfreev (split);
+    return ret;
+}
+
+const char*
+ngf_profile_get_string_from_key (NgfProfile *self, const char *key)
+{
+    gchar *profile = NULL, *inkey = NULL;
+    const char *value = NULL;
+
+    if (self == NULL || key == NULL)
+        return NULL;
+
+    if (!ngf_profile_parse_profile_key (key, &profile, &inkey))
+        return NULL;
+
+    ngf_profile_get_string (self, profile, inkey, &value);
+
+    g_free (profile);
+    g_free (inkey);
+    return value;
+}
+
+gint
+ngf_profile_get_int_from_key (NgfProfile *self, const char *key)
+{
+    gchar *profile = NULL, *inkey = NULL;
+    gint value = -1;
+
+    if (self == NULL || key == NULL)
+        return -1;
+
+    if (!ngf_profile_parse_profile_key (key, &profile, &inkey))
+        return -1;
+
+    ngf_profile_get_integer (self, profile, inkey, &value);
+
+    g_free (profile);
+    g_free (inkey);
+    return value;
+}
