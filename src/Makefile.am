@@ -1,7 +1,7 @@
 bin_PROGRAMS = ngfd
 
-ngfd_CFLAGS= \
-	$(NGFD_CFLAGS) $(GST_CFLAGS)
+ngfd_CFLAGS = $(NGFD_CFLAGS)
+ngfd_LDFLAGS = $(NGFD_LIBS)
 
 ngfd_SOURCES = \
 	main.c \
@@ -26,8 +26,6 @@ ngfd_SOURCES = \
 	ngf-audio.c \
 	ngf-audio-interface.h \
 	ngf-audio-interface.c \
-	ngf-audio-gstreamer.h \
-	ngf-audio-gstreamer.c \
 	ngf-audio-pulse.h \
 	ngf-audio-pulse.c \
 	ngf-controller.h \
@@ -44,9 +42,13 @@ ngfd_SOURCES = \
 	ngf-tone-mapper.h \
 	ngf-pulse-context.h \
 	ngf-pulse-context.c
-
-ngfd_LDFLAGS = \
-	$(NGFD_LIBS) $(GST_LIBS)
+	
+if HAVE_GST
+ngfd_CFLAGS += $(GST_CFLAGS)
+ngfd_LDFLAGS += $(GST_LIBS)
+ngfd_SOURCES += ngf-audio-gstreamer.h \
+	ngf-audio-gstreamer.c 
+endif
 
 if TONEMAPPER
 ngfd_SOURCES += ngf-tone-mapper.c

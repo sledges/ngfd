@@ -15,10 +15,14 @@
  */
 
 #include "ngf-pulse-context.h"
-#include "ngf-audio-gstreamer.h"
 #include "ngf-audio-pulse.h"
 #include "ngf-audio-stream.h"
 #include "ngf-audio.h"
+#include "config.h"
+
+#ifdef HAVE_GST
+#include "ngf-audio-gstreamer.h"
+#endif
 
 struct _NgfAudio
 {
@@ -42,9 +46,11 @@ ngf_audio_create ()
     if ((self->context = ngf_pulse_context_create ()) == NULL)
         goto failed;
 
+#ifdef HAVE_GST	
     self->gst = ngf_audio_gstreamer_create ();
     if (!ngf_audio_interface_initialize (self->gst, self->context))
         goto failed;
+#endif
 
     self->pulse = ngf_audio_pulse_create ();
     if (!ngf_audio_interface_initialize (self->pulse, self->context))
@@ -127,7 +133,11 @@ ngf_audio_create_stream (NgfAudio *self, NgfAudioStreamType type)
     if (self == NULL)
         return NULL;
 
+#ifdef HAVE_GST
     iface = (type == NGF_AUDIO_STREAM_UNCOMPRESSED) ? self->pulse : self->gst;
+#else
+    iface = self->pulse;
+#endif
 
     stream = ngf_audio_interface_create_stream (iface);
     stream->type = type;

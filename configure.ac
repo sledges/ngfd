@@ -53,10 +53,6 @@ AC_ARG_ENABLE([vibrator],
 	[vibrator=true])
 AM_CONDITIONAL([VIBRATOR], [test x$vibrator = xtrue])
 
-PKG_CHECK_MODULES(GST, gstreamer-0.10 gio-2.0)
-AC_SUBST(GST_CFLAGS)
-AC_SUBST(GST_LIBS)
-
 PKG_CHECK_MODULES(NGFD,
 		  [glib-2.0
 		   gobject-2.0
@@ -67,6 +63,40 @@ PKG_CHECK_MODULES(NGFD,
 		   libpulse-mainloop-glib
 		   profile
 		   sndfile])
+           
+#### Gstreamer support (optional) ####
+
+AC_ARG_ENABLE([gstreamer],
+    AS_HELP_STRING([--disable-gstreamer],[Disable optional Gstreamer support]),
+        [
+            case "${enableval}" in
+                yes) gstreamer=true ;;
+                no) gstreamer=false ;;
+                *) AC_MSG_ERROR(bad value ${enableval} for --disable-gstreamer) ;;
+            esac
+        ],
+        [gstreamer=true])
+
+if test "x${gstreamer}" != xfalse ; then
+    PKG_CHECK_MODULES(GST, [gstreamer-0.10 gio-2.0 ],
+        [
+            HAVE_GST=1
+            AC_DEFINE([HAVE_GST], 1, [Have Gstreamer?])
+        ],
+        [
+            HAVE_GST=0
+            if test "x$gstreamer" = xtrue ; then
+                AC_MSG_ERROR([*** Needed Gstreamer support not found])
+            fi
+        ])
+else
+    HAVE_GST=0
+fi
+
+AC_SUBST(GST_CFLAGS)
+AC_SUBST(GST_LIBS)
+AC_SUBST(HAVE_GST)
+AM_CONDITIONAL([HAVE_GST], [test "x$HAVE_GST" = x1])
 
 AC_SUBST(NGFD_LIBS)
 AC_SUBST(NGFD_CFLAGS)
@@ -80,6 +110,7 @@ echo "
     Debug enabled:          ${debug}
     Vibrator enabled:       ${vibrator}
     Tone mapper enabled:    ${tonemapper}
+    Gstreamer enabled:	     ${gstreamer}
 "
 
 AC_OUTPUT(Makefile src/Makefile tests/Makefile data/Makefile)
