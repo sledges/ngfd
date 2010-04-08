@@ -26,5 +26,7 @@ void            ngf_vibrator_destroy  (NgfVibrator *self);
 gboolean        ngf_vibrator_register (NgfVibrator *self, const char *name, const char *filename, gint pattern_id);
 guint           ngf_vibrator_start    (NgfVibrator *self, const char *name);
 void            ngf_vibrator_stop     (NgfVibrator *self, gint id);
+gboolean        ngf_vibrator_is_completed     (NgfVibrator *self, gint id);
+gboolean        ngf_vibrator_is_repeating    (NgfVibrator *self, const char *name);
 
 #endif /* NGF_VIBRATOR_H */

@@ -405,14 +405,36 @@ _audio_playback_stop (NgfEvent *self)
 }
 
 static gboolean
+_poll_vibrator (gpointer userdata)
+{
+    NgfEvent *self = (NgfEvent*) userdata;
+    
+    if (self) {
+        if (ngf_vibrator_is_completed (self->context->vibrator, self->vibra_id)) {
+            _trigger_event_callback (self, NGF_EVENT_COMPLETED);
+            return FALSE;
+        } else
+            return TRUE;
+    }
+    
+    return FALSE;
+}
+
+static gboolean
 _setup_vibrator (NgfEvent *self)
 {
     const char *vibra = NULL;
 
     if (self->resources & NGF_RESOURCE_VIBRATION && ngf_profile_is_vibra_enabled (self->context->profile)) {
 
-        if ((vibra = ngf_properties_get_string (self->properties, "vibrator_pattern")) != NULL)
+        if ((vibra = ngf_properties_get_string (self->properties, "vibrator_pattern")) != NULL) {
             self->vibra_id = ngf_vibrator_start (self->context->vibrator, vibra);
+            if (ngf_profile_is_silent (self->context->profile) && 
+                !ngf_vibrator_is_repeating (self->context->vibrator, vibra)) {
+                /* If we are in silent mode, set callback to monitor when pattern is complete, if pattern is non-repeating one */
+                g_timeout_add (NGF_VIBRA_POLL_TIMEOUT, _poll_vibrator, self);
+            }
+        }
 
         return TRUE;
     }

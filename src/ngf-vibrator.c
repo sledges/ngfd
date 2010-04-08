@@ -185,6 +185,7 @@ ngf_vibrator_start (NgfVibrator *self, const char *name)
         effects = g_pVibeIVTBuiltInEffects;
 
     ImmVibePlayIVTEffect (self->device, effects, p->pattern_id, &id);
+    
     return id;
 }
 
@@ -201,4 +202,44 @@ ngf_vibrator_stop (NgfVibrator *self, gint id)
     if (VIBE_SUCCEEDED (status)) {
         ImmVibeStopPlayingEffect (self->device, id);
     }
+}
+
+gboolean
+ngf_vibrator_is_completed (NgfVibrator *self, gint id)
+{
+    VibeStatus status;
+    VibeInt32 effect_state = 0;
+    
+    status = ImmVibeGetEffectState (self->device, id, &effect_state);
+    if (VIBE_SUCCEEDED (status)) {
+        if (status == VIBE_EFFECT_STATE_PLAYING)
+            return FALSE;
+    }
+    
+    return TRUE;
+}
+
+gboolean
+ngf_vibrator_is_repeating (NgfVibrator *self, const char *name)
+{
+    VibeUInt8 *effects = NULL;
+    Pattern *p = NULL;
+    VibeInt32 duration = 0;
+
+    if (self == NULL)
+        return FALSE;
+
+    if ((p = (Pattern*) g_hash_table_lookup (self->patterns, name)) == NULL)
+        return FALSE;
+
+    if (p->data)
+        effects = p->data;
+    else
+        effects = g_pVibeIVTBuiltInEffects;
+    
+    ImmVibeGetIVTEffectDuration (effects, p->pattern_id, &duration);
+    if (duration == VIBE_TIME_INFINITE)
+        return TRUE;
+    
+    return FALSE;
 }

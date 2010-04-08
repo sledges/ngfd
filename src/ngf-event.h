@@ -33,6 +33,8 @@
 #define NGF_PLAY_MODE_LONG      (1 << 1)
 #define NGF_PLAY_MODE_SHORT     (1 << 2)
 
+#define NGF_VIBRA_POLL_TIMEOUT 500  // Poll frequency in ms for vibra completition
+
 typedef enum    _NgfEventState  NgfEventState;
 typedef struct  _NgfEvent       NgfEvent;
 typedef void    (*NgfEventCallback) (NgfEvent *event, NgfEventState state, gpointer userdata);
