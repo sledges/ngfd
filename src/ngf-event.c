@@ -241,6 +241,65 @@ _volume_controller_cb (NgfController *controller,
     return TRUE;
 }
 
+/**
+ * Get audio filename from the the properties or if no such file, from
+ * the profiles.
+ *
+ * @param self NgfEvent
+ * @param filename_key Property key
+ * @param profile_key Profile key
+ * @returns Audio filename, do not free.
+ */
+
+static const char*
+_get_audio_filename (NgfEvent   *self,
+                     const char *filename_key,
+                     const char *profile_key)
+{
+    const char *filename = NULL;
+    const char *profile  = NULL;
+
+    g_assert (self != NULL);
+
+    if ((filename = ngf_properties_get_string (self->properties, filename_key)) != NULL)
+        return filename;
+
+    if ((profile = ngf_properties_get_string (self->properties, profile_key)) != NULL) {
+        return ngf_profile_get_string_from_key (self->context->profile, profile);
+    }
+
+    return NULL;
+}
+
+/**
+ * Get audio volume from the properties or from the profiles.
+ *
+ * @param self NgfEvent
+ * @param volume_key Property key
+ * @param profile_key Profile key
+ * @returns Audio volume or -1 if no volume.
+ */
+
+static gint
+_get_audio_volume (NgfEvent   *self,
+                   const char *volume_key,
+                   const char *profile_key)
+{
+    gint volume = 0;
+    const char *profile = NULL;
+
+    g_assert (self != NULL);
+
+    if ((profile = ngf_properties_get_string (self->properties, profile_key)) != NULL) {
+        return ngf_profile_get_int_from_key (self->context->profile, profile);
+    }
+
+    if ((volume = ngf_properties_get_int (self->properties, volume_key)) > -1)
+        return volume;
+
+    return -1;
+}
+
 static gboolean
 _audio_playback_start (NgfEvent *self)
 {
@@ -268,7 +327,7 @@ _audio_playback_start (NgfEvent *self)
             self->audio_volume_id = ngf_controller_start (self->audio_volume_controller, _volume_controller_cb, self);
         }
         else {
-            volume = ngf_properties_get_int (self->properties, "audio_volume_value");
+            volume = _get_audio_volume (self, "audio_volume_value", "audio_volume_profile");
             if (volume >= 0)
                 ngf_audio_set_volume (self->context->audio, ngf_properties_get_string (self->properties, "audio_stream_role"), volume);
         }
@@ -280,7 +339,8 @@ _audio_playback_start (NgfEvent *self)
        try to get the fallback. If no fallback, we won't play anything. */
 
     source = self->audio_use_fallback ?
-        ngf_properties_get_string (self->properties, "audio_tone_filename") : ngf_properties_get_string (self->properties, "audio_fallback_filename");
+        _get_audio_filename (self, "audio_tone_filename", "audio_tone_profile") :
+        _get_audio_filename (self, "audio_fallback_filename", "audio_fallback_profile");
 
     /* If we tried to get fallback and it did not exist, nothing to
        play here. */
