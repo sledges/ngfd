@@ -351,7 +351,7 @@ _setup_vibrator (NgfEvent *self)
 
     if (self->resources & NGF_RESOURCE_VIBRATION && ngf_profile_is_vibra_enabled (self->context->profile)) {
 
-        if ((vibra = ngf_properties_get_string (self->properties, "vibra_pattern")) != NULL)
+        if ((vibra = ngf_properties_get_string (self->properties, "vibrator_pattern")) != NULL)
             self->vibra_id = ngf_vibrator_start (self->context->vibrator, vibra);
 
         return TRUE;
@@ -440,7 +440,7 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
             _audio_playback_start (self);
     }
 
-    if (ngf_properties_get_bool (self->properties, "vibra_enabled"))
+    if (ngf_properties_get_bool (self->properties, "vibrator_enabled"))
         _setup_vibrator (self);
 
     if (ngf_properties_get_bool (self->properties, "led_enabled"))
