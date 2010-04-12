@@ -339,8 +339,8 @@ _audio_playback_start (NgfEvent *self)
        try to get the fallback. If no fallback, we won't play anything. */
 
     source = self->audio_use_fallback ?
-        _get_audio_filename (self, "audio_tone_filename", "audio_tone_profile") :
-        _get_audio_filename (self, "audio_fallback_filename", "audio_fallback_profile");
+        _get_audio_filename (self, "audio_fallback_filename", "audio_fallback_profile") :
+        _get_audio_filename (self, "audio_tone_filename", "audio_tone_profile");
 
     /* If we tried to get fallback and it did not exist, nothing to
        play here. */
