@@ -412,11 +412,14 @@ _poll_vibrator (gpointer userdata)
     if (self) {
         if (ngf_vibrator_is_completed (self->context->vibrator, self->vibra_id)) {
             _trigger_event_callback (self, NGF_EVENT_COMPLETED);
+            self->vibra_id = 0;
+            self->vibra_poll_id = 0;
             return FALSE;
         } else
             return TRUE;
     }
     
+    self->vibra_poll_id = 0;
     return FALSE;
 }
 
@@ -429,10 +432,10 @@ _setup_vibrator (NgfEvent *self)
 
         if ((vibra = ngf_properties_get_string (self->properties, "vibrator_pattern")) != NULL) {
             self->vibra_id = ngf_vibrator_start (self->context->vibrator, vibra);
-            if (ngf_profile_is_silent (self->context->profile) && 
+            if (self->vibra_id && ngf_profile_is_silent (self->context->profile) && 
                 !ngf_vibrator_is_repeating (self->context->vibrator, vibra)) {
                 /* If we are in silent mode, set callback to monitor when pattern is complete, if pattern is non-repeating one */
-                g_timeout_add (NGF_VIBRA_POLL_TIMEOUT, _poll_vibrator, self);
+                self->vibra_poll_id = g_timeout_add (NGF_VIBRA_POLL_TIMEOUT, _poll_vibrator, self);
             }
         }
 
@@ -551,6 +554,11 @@ ngf_event_stop (NgfEvent *self)
     if (self->max_length_timeout_id > 0) {
         g_source_remove (self->max_length_timeout_id);
         self->max_length_timeout_id = 0;
+    }
+    
+    if (self->vibra_poll_id > 0) {
+        g_source_remove (self->vibra_poll_id);
+        self->vibra_poll_id = 0;
     }
 
     _tone_generator_stop (self);

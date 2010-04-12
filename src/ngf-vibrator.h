@@ -19,6 +19,8 @@
 
 #include <glib.h>
 
+#define NGF_VIBRA_POLL_TIMEOUT 500  // Poll frequency in ms for vibra completition
+
 typedef struct _NgfVibrator NgfVibrator;
 
 NgfVibrator*    ngf_vibrator_create   ();
