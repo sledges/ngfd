@@ -134,6 +134,11 @@ _get_all_reply_cb (DBusPendingCall *pending, void *userdata)
     }
 
 done:
+    if (msg) {
+        dbus_message_unref (msg);
+        msg = NULL;
+    }
+
     dbus_pending_call_unref (pending);
 }
 
