@@ -317,7 +317,7 @@ _audio_playback_start (NgfEvent *self)
     /* If we are in the silent mode and the prototype's audio_silent
        flag has not been set, nothing to do here. */
 
-    if (ngf_profile_is_silent (self->context->profile) && ngf_properties_get_bool (self->properties, "audio_silent"))
+    if (ngf_profile_is_silent (self->context->profile) && !ngf_properties_get_bool (self->properties, "audio_silent"))
         return FALSE;
 
     if (!self->audio_volume_set) {
