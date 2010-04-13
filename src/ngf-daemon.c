@@ -354,7 +354,7 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
 
     if ((def = _event_manager_get_definition (self, event_name)) == NULL) {
         LOG_ERROR ("No event definition for event %s", event_name);
-        goto failed;
+        return 0;
     }
 
     /* Then, get the play mode from the passed properties. The play mode is either "long"
@@ -364,7 +364,7 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
 
     if ((play_mode = _properties_get_play_mode (properties)) == 0) {
         LOG_ERROR ("No play.mode property for event %s", event_name);
-        goto failed;
+        return 0;
     }
 
     /* Lookup the prototype based on the play mode. If not found, we have the definition,
@@ -374,7 +374,7 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
 
     if ((proto = ngf_daemon_get_prototype (self, proto_name)) == 0) {
         LOG_ERROR ("Failed to get event prototype %s for event %s", proto_name, event_name);
-        goto failed;
+        return 0;
     }
 
     /* Get the policy identifier, allowed resources and play mode and timeout
@@ -386,7 +386,7 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
 
     if (policy_id == 0 || resources == 0) {
         LOG_ERROR ("No policy.id or resources defined for event %s", event_name);
-        goto failed;
+        return 0;
     }
 
     LOG_EVENT ("event_name=%s, proto_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d (%s))",
@@ -397,7 +397,7 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
 
     if ((event = ngf_event_new (&self->context, proto)) == NULL) {
         LOG_ERROR ("Failed to create event %s", event_name);
-        goto failed;
+        return 0;
     }
 
     event->policy_id    = policy_id;
@@ -420,10 +420,6 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
     }
 
     return 1;
-
-failed:
-    g_hash_table_destroy (properties);
-    return 0;
 }
 
 void
