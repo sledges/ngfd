@@ -340,7 +340,7 @@ _audio_playback_start (NgfEvent *self)
 
     source = self->audio_use_fallback ?
         _get_audio_filename (self, "audio_fallback_filename", "audio_fallback_profile") :
-        _get_audio_filename (self, "audio_tone_filename", "audio_tone_profile");
+        _get_audio_filename (self, "audio", "audio_tone_profile");
 
     /* If we tried to get fallback and it did not exist, nothing to
        play here. */
@@ -430,7 +430,7 @@ _setup_vibrator (NgfEvent *self)
 
     if (self->resources & NGF_RESOURCE_VIBRATION && ngf_profile_is_vibra_enabled (self->context->profile)) {
 
-        if ((vibra = ngf_properties_get_string (self->properties, "vibrator_pattern")) != NULL) {
+        if ((vibra = ngf_properties_get_string (self->properties, "vibra")) != NULL) {
             self->vibra_id = ngf_vibrator_start (self->context->vibrator, vibra);
             if (self->vibra_id && ngf_profile_is_silent (self->context->profile) && 
                 !ngf_vibrator_is_repeating (self->context->vibrator, vibra)) {
@@ -462,7 +462,7 @@ _setup_led (NgfEvent *self)
     if ((self->resources & NGF_RESOURCE_LED) == 0)
         return FALSE;
 
-    if ((led = ngf_properties_get_string (self->properties, "led_pattern")) != NULL)
+    if ((led = ngf_properties_get_string (self->properties, "led")) != NULL)
         self->led_id = ngf_led_start (self->context->led, led);
 
     return TRUE;
@@ -525,7 +525,7 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
             _audio_playback_start (self);
     }
 
-    if (ngf_properties_get_bool (self->properties, "vibrator_enabled"))
+    if (ngf_properties_get_bool (self->properties, "vibra_enabled"))
         _setup_vibrator (self);
 
     if (ngf_properties_get_bool (self->properties, "led_enabled"))

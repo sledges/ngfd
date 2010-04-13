@@ -22,7 +22,7 @@
 #include "ngf-event-prototype.h"
 
 #define GROUP_GENERAL    "general"
-#define GROUP_VIBRATOR   "vibrator_pattern"
+#define GROUP_VIBRATOR   "vibra"
 #define GROUP_VOLUME     "volume_pattern"
 #define GROUP_BACKLIGHT  "backlight_pattern"
 #define GROUP_DEFINITION "event"
@@ -172,7 +172,7 @@ _parse_general (SettingsData *data, GKeyFile *k)
  */
 
 static void
-_parse_vibrator_patterns (SettingsData *data, GKeyFile *k)
+_parse_vibra_patterns (SettingsData *data, GKeyFile *k)
 {
     NgfDaemon *self = data->self;
 
@@ -548,7 +548,7 @@ _parse_single_prototype (SettingsData *data, GKeyFile *k, GList **prototypes_don
     _add_property_bool       (p, k, group, "audio_enabled", FALSE, set_default);
     _add_property_bool       (p, k, group, "audio_repeat", FALSE, set_default);
     _add_property_int        (p, k, group, "audio_max_repeats", 0, set_default);
-    _add_property_string     (p, k, group, "audio_tone_filename", NULL, set_default);
+    _add_property_string     (p, k, group, "audio", NULL, set_default);
     _add_property_string     (p, k, group, "audio_tone_profile", NULL, set_default);
     _add_property_bool       (p, k, group, "audio_silent", FALSE, set_default);
 
@@ -563,11 +563,11 @@ _parse_single_prototype (SettingsData *data, GKeyFile *k, GList **prototypes_don
     _add_property_bool       (p, k, group, "audio_tonegen_enabled", FALSE, set_default);
     _add_property_int        (p, k, group, "audio_tonegen_pattern", -1, set_default);
 
-    _add_property_bool       (p, k, group, "vibrator_enabled", FALSE, set_default);
-    _add_property_string     (p, k, group, "vibrator_pattern", NULL, set_default);
+    _add_property_bool       (p, k, group, "vibra_enabled", FALSE, set_default);
+    _add_property_string     (p, k, group, "vibra", NULL, set_default);
 
     _add_property_bool       (p, k, group, "led_enabled", FALSE, set_default);
-    _add_property_string     (p, k, group, "led_pattern", NULL, set_default);
+    _add_property_string     (p, k, group, "led", NULL, set_default);
 
     _add_property_bool       (p, k, group, "backlight_enabled", FALSE, set_default);
     _add_property_string     (p, k, group, "backlight_pattern", NULL, set_default);
@@ -679,7 +679,7 @@ ngf_daemon_settings_load (NgfDaemon *self)
     data->self = self;
 
     _parse_general            (data, key_file);
-    _parse_vibrator_patterns  (data, key_file);
+    _parse_vibra_patterns     (data, key_file);
     _parse_volume_patterns    (data, key_file);
     _parse_backlight_patterns (data, key_file);
     _parse_definitions        (data, key_file);
