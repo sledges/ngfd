@@ -41,21 +41,25 @@ ngf_vibrator_create ()
     NgfVibrator *self = NULL;
 
     if ((self = g_new0 (NgfVibrator, 1)) == NULL)
-        return NULL;
+        goto failed;
 
     if (VIBE_FAILED (ImmVibeInitialize (VIBE_CURRENT_VERSION_NUMBER)))
-        return NULL;
+        goto failed;
 
     if (VIBE_FAILED (ImmVibeOpenDevice (0, &self->device)))
-        return NULL;
+        goto failed;
 
     if ((self->patterns = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free)) == NULL)
-        return NULL;
+        goto failed;
 
     if ((self->vibrator_data = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free)) == NULL)
-        return NULL;
+        goto failed;
 
     return self;
+
+failed:
+    ngf_vibrator_destroy (self);
+    return NULL;
 }
 
 void
