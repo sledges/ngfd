@@ -93,6 +93,7 @@ _parse_group_name (const char *group)
 
     result = g_strdup (split[0]);
     g_strfreev (split);
+    g_free (name);
     return result;
 }
 
