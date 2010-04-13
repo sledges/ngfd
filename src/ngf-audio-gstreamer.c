@@ -91,8 +91,10 @@ _new_decoded_pad_cb (GstElement *element,
     GstPad       *sink_pad     = NULL;
 
     caps = gst_pad_get_caps (pad);
-    if (gst_caps_is_empty (caps) || gst_caps_is_any (caps))
+    if (gst_caps_is_empty (caps) || gst_caps_is_any (caps)) {
+        gst_caps_unref (caps);
         return;
+    }
 
     structure = gst_caps_get_structure (caps, 0);
     if (g_str_has_prefix (gst_structure_get_name (structure), "audio")) {
