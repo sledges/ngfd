@@ -159,11 +159,12 @@ _gst_prepare (NgfAudioInterface *iface,
 {
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
-    GstElement *element   = NULL;
-    GstElement *source    = NULL;
-    GstElement *decodebin = NULL;
-    GstElement *sink      = NULL;
-    GstBus     *bus       = NULL;
+    GstElement  *element   = NULL;
+    GstElement  *source    = NULL;
+    GstElement  *decodebin = NULL;
+    GstElement  *sink      = NULL;
+    GstBus      *bus       = NULL;
+    pa_proplist *proplist  = NULL;
 
     element = gst_pipeline_new (NULL);
 
@@ -181,12 +182,16 @@ _gst_prepare (NgfAudioInterface *iface,
 
     g_object_set (G_OBJECT (source), "location", stream->source, NULL);
 
+    proplist = pa_proplist_copy (stream->properties);
+    pa_proplist_sets (proplist, PA_PROP_MEDIA_FILENAME, stream->source);
+
     if (g_object_class_find_property (G_OBJECT_GET_CLASS (sink), "proplist") != NULL) {
         LOG_DEBUG ("Setting property list for pulsesink.");
-        g_object_set (G_OBJECT (sink), "proplist", pa_proplist_copy (stream->properties), NULL);
+        g_object_set (G_OBJECT (sink), "proplist", proplist, NULL);
     }
     else {
         LOG_DEBUG ("No 'proplist' property on pulsesink, ignoring property list.");
+        pa_proplist_free (proplist);
     }
 
     g_signal_connect (G_OBJECT (decodebin), "new-decoded-pad", G_CALLBACK (_new_decoded_pad_cb), sink);

@@ -210,6 +210,7 @@ _pulse_play (NgfAudioInterface *iface,
     PulseStream     *pulse_stream = NULL;
     pa_sample_spec   ss;
     SF_INFO          sf_info;
+    pa_proplist     *proplist;
 
     NgfPulseContext *context = (NgfPulseContext*) iface->data;
     pa_context      *c       = ngf_pulse_context_get_context (context);
@@ -240,10 +241,16 @@ _pulse_play (NgfAudioInterface *iface,
     if (ss.format == PA_SAMPLE_INVALID)
         goto failed;
 
-    pulse_stream->stream = pa_stream_new_with_proplist (c, PULSE_BACKEND_NAME, &ss, NULL, stream->properties);
+    proplist = pa_proplist_copy (stream->properties);
+    pa_proplist_sets (proplist, PA_PROP_MEDIA_FILENAME, stream->source);
+
+    pulse_stream->stream = pa_stream_new_with_proplist (c, PULSE_BACKEND_NAME, &ss, NULL, proplist);
     if (pulse_stream->stream == NULL) {
+        pa_proplist_free (proplist);
         goto failed;
     }
+
+    pa_proplist_free (proplist);
 
     pa_stream_set_state_callback (pulse_stream->stream, _stream_state_cb, stream);
     pa_stream_set_write_callback (pulse_stream->stream, _stream_write_cb, stream);
