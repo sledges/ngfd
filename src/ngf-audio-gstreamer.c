@@ -180,7 +180,14 @@ _gst_prepare (NgfAudioInterface *iface,
         goto failed_link;
 
     g_object_set (G_OBJECT (source), "location", stream->source, NULL);
-    g_object_set (G_OBJECT (sink), "proplist", pa_proplist_copy (stream->properties), NULL);
+
+    if (g_object_class_find_property (G_OBJECT_GET_CLASS (sink), "proplist") != NULL) {
+        LOG_DEBUG ("Setting property list for pulsesink.");
+        g_object_set (G_OBJECT (sink), "proplist", pa_proplist_copy (stream->properties), NULL);
+    }
+    else {
+        LOG_DEBUG ("No 'proplist' property on pulsesink, ignoring property list.");
+    }
 
     g_signal_connect (G_OBJECT (decodebin), "new-decoded-pad", G_CALLBACK (_new_decoded_pad_cb), sink);
 
