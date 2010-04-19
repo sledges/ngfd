@@ -34,13 +34,13 @@ AC_ARG_ENABLE([debug],
 AM_CONDITIONAL([DEBUG], [test x$debug = xtrue])
 
 AC_ARG_ENABLE([tonemapper],
-	AS_HELP_STRING([--enable-tonemapper],[Enable tonemapper @<:@default=false@:>@]),
+	AS_HELP_STRING([--disable-tonemapper],[Disable tonemapper @<:@default=false@:>@]),
 	[case "${enableval}" in
-		yes) tonemapper=true ;;
-		no)  tonemapper=false ;;
-		*) AC_MSG_ERROR([bad value ${enableval} for --enable-tonemapper]) ;;
+		yes) tonemapper=false ;;
+		no)  tonemapper=true ;;
+		*) AC_MSG_ERROR([bad value ${enableval} for --disable-tonemapper]) ;;
 	esac],
-	[tonemapper=false])
+	[tonemapper=true])
 AM_CONDITIONAL([TONEMAPPER], [test x$tonemapper = xtrue])
 
 AC_ARG_ENABLE([vibrator],
