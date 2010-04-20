@@ -1,4 +1,4 @@
-AC_INIT([ngfd], [0.5])
+AC_INIT([ngfd], [0.10])
 AC_CANONICAL_SYSTEM
 AC_CONFIG_MACRO_DIR([m4])
 
