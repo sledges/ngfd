@@ -24,7 +24,6 @@
 #define GROUP_GENERAL    "general"
 #define GROUP_VIBRATOR   "vibra"
 #define GROUP_VOLUME     "volume_pattern"
-#define GROUP_BACKLIGHT  "backlight_pattern"
 #define GROUP_DEFINITION "event"
 #define GROUP_PROTOTYPE  "prototype"
 
@@ -232,40 +231,6 @@ _parse_volume_patterns (SettingsData *data, GKeyFile *k)
         LOG_DEBUG ("<new volume pattern: %s (pattern=%s, repeat=%s)>", name, pattern, repeat ? "TRUE" : "FALSE");
 
         ngf_audio_register_controller (self->context.audio, name, pattern, repeat);
-
-        g_free (pattern);
-        g_free (name);
-    }
-
-    g_strfreev (group_list);
-}
-
-static void
-_parse_backlight_patterns (SettingsData *data, GKeyFile *k)
-{
-    NgfDaemon *self = data->self;
-
-    gchar    **group_list = NULL;
-    gchar    **group      = NULL;
-    gchar     *name       = NULL;
-    gchar     *pattern    = NULL;
-    gboolean   repeat     = FALSE;
-
-    group_list = g_key_file_get_groups (k, NULL);
-    for (group = group_list; *group != NULL; ++group) {
-        if (!g_str_has_prefix (*group, GROUP_BACKLIGHT))
-            continue;
-
-        name = _parse_group_name (*group);
-        if (name == NULL)
-            continue;
-
-        pattern = g_key_file_get_string (k, *group, "pattern", NULL);
-        repeat  = g_key_file_get_boolean (k, *group, "repeat", NULL);
-
-        LOG_DEBUG ("<new backlight pattern: %s (pattern=%s, repeat=%s)>", name, pattern, repeat ? "TRUE" : "FALSE");
-
-        ngf_backlight_register (self->context.backlight, name, pattern, repeat);
 
         g_free (pattern);
         g_free (name);
@@ -571,7 +536,6 @@ _parse_single_prototype (SettingsData *data, GKeyFile *k, GList **prototypes_don
     _add_property_string     (p, k, group, "led", NULL, set_default);
 
     _add_property_bool       (p, k, group, "backlight_enabled", FALSE, set_default);
-    _add_property_string     (p, k, group, "backlight_pattern", NULL, set_default);
 
     g_free (default_role);
 
@@ -682,7 +646,6 @@ ngf_daemon_settings_load (NgfDaemon *self)
     _parse_general            (data, key_file);
     _parse_vibra_patterns     (data, key_file);
     _parse_volume_patterns    (data, key_file);
-    _parse_backlight_patterns (data, key_file);
     _parse_definitions        (data, key_file);
     _parse_prototypes         (data, key_file);
 

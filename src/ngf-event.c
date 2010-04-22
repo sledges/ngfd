@@ -480,22 +480,17 @@ _shutdown_led (NgfEvent *self)
 static gboolean
 _setup_backlight (NgfEvent *self)
 {
-    const char *pattern = NULL;
-
     if ((self->resources & NGF_RESOURCE_BACKLIGHT) == 0)
         return FALSE;
-
-    if ((pattern = ngf_properties_get_string (self->properties, "backlight_pattern")) != NULL)
-        self->backlight_id = ngf_backlight_start (self->context->backlight, pattern);
-
-    return TRUE;
+    
+    return ngf_backlight_start (self->context->backlight, ngf_properties_get_bool (self->properties, "unlock_tklock"));
 }
 
 static void
 _shutdown_backlight (NgfEvent *self)
 {
-    if (self->backlight_id > 0)
-        ngf_backlight_stop (self->context->backlight, self->backlight_id);
+    if (self->context->backlight && (self->resources & NGF_RESOURCE_BACKLIGHT))
+        ngf_backlight_stop (self->context->backlight);
 }
 
 gboolean

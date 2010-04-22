@@ -71,7 +71,6 @@ struct _NgfEvent
     guint               vibra_id;
     guint               tonegen_id;
     guint               led_id;
-    guint               backlight_id;
     guint               vibra_poll_id;
 
     /* Startup timer for monitoring event length */
