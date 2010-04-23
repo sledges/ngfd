@@ -36,8 +36,8 @@ AM_CONDITIONAL([DEBUG], [test x$debug = xtrue])
 AC_ARG_ENABLE([tonemapper],
 	AS_HELP_STRING([--disable-tonemapper],[Disable tonemapper @<:@default=false@:>@]),
 	[case "${enableval}" in
-		yes) tonemapper=false ;;
-		no)  tonemapper=true ;;
+		yes) tonemapper=true ;;
+		no)  tonemapper=false ;;
 		*) AC_MSG_ERROR([bad value ${enableval} for --disable-tonemapper]) ;;
 	esac],
 	[tonemapper=true])
@@ -46,12 +46,32 @@ AM_CONDITIONAL([TONEMAPPER], [test x$tonemapper = xtrue])
 AC_ARG_ENABLE([vibrator],
 	AS_HELP_STRING([--disable-vibrator],[Disable vibrator @<:@default=false@:>@]),
 	[case "${enableval}" in
-		yes) vibrator=false ;;
-		no)  vibrator=true ;;
+		yes) vibrator=true ;;
+		no)  vibrator=false ;;
 		*) AC_MSG_ERROR([bad value ${enableval} for --disable-vibrator]) ;;
 	esac],
 	[vibrator=true])
 AM_CONDITIONAL([VIBRATOR], [test x$vibrator = xtrue])
+
+AC_ARG_ENABLE([backlight],
+	AS_HELP_STRING([--disable-backlight],[Disable backlight @<:@default=false@:>@]),
+	[case "${enableval}" in
+		yes) backlight=true ;;
+		no)  backlight=false ;;
+		*) AC_MSG_ERROR([bad value ${enableval} for --disable-backlight]) ;;
+	esac],
+	[backlight=true])
+AM_CONDITIONAL([BACKLIGHT], [test x$backlight = xtrue])
+
+AC_ARG_ENABLE([led],
+	AS_HELP_STRING([--disable-led],[Disable led @<:@default=false@:>@]),
+	[case "${enableval}" in
+		yes) led=true ;;
+		no)  led=false ;;
+		*) AC_MSG_ERROR([bad value ${enableval} for --disable-led]) ;;
+	esac],
+	[led=true])
+AM_CONDITIONAL([LED], [test x$led = xtrue])
 
 PKG_CHECK_MODULES(CHECK, check)
 AC_SUBST(CHECK_LIBS)
@@ -65,7 +85,6 @@ PKG_CHECK_MODULES(NGFD,
 		   dbus-glib-1
 		   libpulse
 		   libpulse-mainloop-glib
-		   profile
 		   sndfile])
            
 #### Gstreamer support (optional) ####
@@ -102,6 +121,60 @@ AC_SUBST(GST_LIBS)
 AC_SUBST(HAVE_GST)
 AM_CONDITIONAL([HAVE_GST], [test "x$HAVE_GST" = x1])
 
+#### Profile support (optional) ####
+
+AC_ARG_ENABLE([profile],
+    AS_HELP_STRING([--disable-profile],[Disable optional profile support]),
+        [
+            case "${enableval}" in
+                yes) profile=true ;;
+                no) profile=false ;;
+                *) AC_MSG_ERROR(bad value ${enableval} for --disable-profile) ;;
+            esac
+        ],
+        [profile=true])
+
+if test "x${profile}" != xfalse ; then
+    PKG_CHECK_MODULES(PROFILE, [profile],
+        [
+            HAVE_PROFILE=1
+            AC_DEFINE([HAVE_PROFILE], 1, [Have profile?])
+        ],
+        [
+            HAVE_PROFILE=0
+            if test "x$profile" = xtrue ; then
+                AC_MSG_ERROR([*** Needed Profile support not found])
+            fi
+        ])
+else
+    HAVE_PROFILE=0
+fi
+
+#### Stream restore support (optional) ####
+
+AC_ARG_ENABLE([streamrestore],
+    AS_HELP_STRING([--disable-streamrestore],[Disable optional stream-restore support]),
+        [
+            case "${enableval}" in
+                yes) streamrestore=true ;;
+                no) streamrestore=false ;;
+                *) AC_MSG_ERROR(bad value ${enableval} for --disable-streamrestore) ;;
+            esac
+        ],
+        [streamrestore=true])
+
+if test "x${streamrestore}" != xfalse ; then
+    HAVE_STREAMRESTORE=1
+    AC_DEFINE([HAVE_STREAMRESTORE], 1, [Have stream-restore?])
+else
+    HAVE_STREAMRESTORE=0
+fi
+
+AC_SUBST(PROFILE_CFLAGS)
+AC_SUBST(PROFILE_LIBS)
+AC_SUBST(HAVE_PROFILE)
+AM_CONDITIONAL([HAVE_PROFILE], [test "x$HAVE_PROFILE" = x1])
+
 AC_SUBST(NGFD_LIBS)
 AC_SUBST(NGFD_CFLAGS)
 
@@ -113,8 +186,12 @@ echo "
 
     Debug enabled:          ${debug}
     Vibrator enabled:       ${vibrator}
+    Backlight enabled:      ${backlight}
+    Led enabled:            ${led}
     Tone mapper enabled:    ${tonemapper}
-    Gstreamer enabled:	     ${gstreamer}
+    Stream restore enabled: ${streamrestore}
+    Gstreamer enabled:      ${gstreamer}
+    Profile support enabled:${profile}
 "
 
 AC_OUTPUT(Makefile src/Makefile tests/Makefile data/Makefile)

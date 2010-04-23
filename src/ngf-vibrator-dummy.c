@@ -69,3 +69,21 @@ ngf_vibrator_stop (NgfVibrator *self, gint id)
     (void) self;
     (void) id;
 }
+
+gboolean
+ngf_vibrator_is_completed (NgfVibrator *self, gint id)
+{
+    (void) self;
+    (void) id;
+
+    return TRUE;
+}
+
+gboolean
+ngf_vibrator_is_repeating (NgfVibrator *self, const char *name)
+{
+    (void) self;
+    (void) name;
+
+    return FALSE;
+}

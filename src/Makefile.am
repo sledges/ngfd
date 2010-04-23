@@ -11,7 +11,6 @@ ngfd_SOURCES = \
 	ngf-properties.h \
 	ngf-properties.c \
 	ngf-profile.h \
-	ngf-profile.c \
 	ngf-dbus.h \
 	ngf-dbus.c \
 	ngf-value.h \
@@ -34,9 +33,7 @@ ngfd_SOURCES = \
 	ngf-tonegen.h \
 	ngf-tonegen.c \
 	ngf-backlight.h \
-	ngf-backlight.c \
 	ngf-led.h \
-	ngf-led.c \
 	ngf-log.h \
 	ngf-log.c \
 	ngf-tone-mapper.h \
@@ -50,6 +47,14 @@ ngfd_SOURCES += ngf-audio-gstreamer.h \
 	ngf-audio-gstreamer.c 
 endif
 
+if HAVE_PROFILE
+ngfd_CFLAGS += $(PROFILE_CFLAGS)
+ngfd_LDFLAGS += $(PROFILE_LIBS)
+ngfd_SOURCES += ngf-profile.c
+else
+ngfd_SOURCES += ngf-profile-dummy.c
+endif
+
 if TONEMAPPER
 ngfd_SOURCES += ngf-tone-mapper.c
 else
@@ -61,4 +66,16 @@ ngfd_SOURCES += ngf-vibrator.c
 ngfd_LDFLAGS += -limmvibe
 else
 ngfd_SOURCES += ngf-vibrator-dummy.c
+endif
+
+if BACKLIGHT
+ngfd_SOURCES += ngf-backlight.c
+else
+ngfd_SOURCES += ngf-backlight-dummy.c
+endif
+
+if LED
+ngfd_SOURCES += ngf-led.c
+else
+ngfd_SOURCES += ngf-led-dummy.c
 endif

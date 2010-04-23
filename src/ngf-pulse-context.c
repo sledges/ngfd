@@ -20,10 +20,10 @@
 #include <pulse/ext-stream-restore.h>
 
 #define APPLICATION_NAME "ngf-pulse-context"
-#define PACKAGE_VERSION "0.1"
 
 #include "ngf-log.h"
 #include "ngf-pulse-context.h"
+#include "config.h"
 
 struct _NgfPulseContext
 {
@@ -206,6 +206,7 @@ ngf_pulse_context_set_volume (NgfPulseContext *self,
                               const char      *role,
                               gint             volume)
 {
+#ifdef HAVE_STREAMRESTORE
     pa_ext_stream_restore2_info *stream_restore_info[1], info;
 
     gdouble       v = 0.0;
@@ -240,4 +241,5 @@ ngf_pulse_context_set_volume (NgfPulseContext *self,
 			g_main_context_iteration (NULL,FALSE);
         pa_operation_unref (o);
 	}
+#endif
 }
