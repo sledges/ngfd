@@ -86,7 +86,7 @@ PKG_CHECK_MODULES(NGFD,
 		   libpulse
 		   libpulse-mainloop-glib
 		   sndfile])
-           
+
 #### Gstreamer support (optional) ####
 
 AC_ARG_ENABLE([gstreamer],
@@ -175,6 +175,40 @@ AC_SUBST(PROFILE_LIBS)
 AC_SUBST(HAVE_PROFILE)
 AM_CONDITIONAL([HAVE_PROFILE], [test "x$HAVE_PROFILE" = x1])
 
+#### Timestamp support (optional) ####
+
+AC_ARG_ENABLE([timestamp],
+    AS_HELP_STRING([--enable-timestamp],[Enable optional timestamping support]),
+        [
+            case "${enableval}" in
+                yes) timestamp=true ;;
+                no) timestamp=false ;;
+                *) AC_MSG_ERROR(bad value ${enableval} for --enable-timestamp) ;;
+            esac
+        ],
+        [timestamp=false])
+
+if test "x${timestamp}" != xfalse ; then
+    PKG_CHECK_MODULES(TIMESTAMP, [sp_timestamp],
+        [
+            HAVE_TIMESTAMP=1
+            AC_DEFINE([HAVE_TIMESTAMP], 1, [Have sp-timestamp?])
+        ],
+        [
+            HAVE_TIMESTAMP=0
+            if test "x$timestamp" = xtrue ; then
+                AC_MSG_ERROR([*** Needed sp-timestamp support not found])
+            fi
+        ])
+else
+    HAVE_TIMESTAMP=0
+fi
+
+AC_SUBST(TIMESTAMP_CFLAGS)
+AC_SUBST(TIMESTAMP_LIBS)
+AC_SUBST(HAVE_TIMESTAMP)
+AM_CONDITIONAL([HAVE_TIMESTAMP], [test "x$HAVE_TIMESTAMP" = x1])
+
 AC_SUBST(NGFD_LIBS)
 AC_SUBST(NGFD_CFLAGS)
 
@@ -185,13 +219,14 @@ echo "
     CFLAGS:                 ${CFLAGS}
 
     Debug enabled:          ${debug}
+    Timestamping enabled:   ${timestamp}
     Vibrator enabled:       ${vibrator}
     Backlight enabled:      ${backlight}
     Led enabled:            ${led}
     Tone mapper enabled:    ${tonemapper}
     Stream restore enabled: ${streamrestore}
     Gstreamer enabled:      ${gstreamer}
-    Profile support enabled:${profile}
+    Profile enabled:        ${profile}
 "
 
 AC_OUTPUT(Makefile src/Makefile tests/Makefile data/Makefile)

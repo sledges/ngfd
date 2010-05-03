@@ -38,13 +38,14 @@ ngfd_SOURCES = \
 	ngf-log.c \
 	ngf-tone-mapper.h \
 	ngf-pulse-context.h \
-	ngf-pulse-context.c
-	
+	ngf-pulse-context.c \
+	ngf-timestamp.h
+
 if HAVE_GST
 ngfd_CFLAGS += $(GST_CFLAGS)
 ngfd_LDFLAGS += $(GST_LIBS)
 ngfd_SOURCES += ngf-audio-gstreamer.h \
-	ngf-audio-gstreamer.c 
+	ngf-audio-gstreamer.c
 endif
 
 if HAVE_PROFILE
@@ -53,6 +54,11 @@ ngfd_LDFLAGS += $(PROFILE_LIBS)
 ngfd_SOURCES += ngf-profile.c
 else
 ngfd_SOURCES += ngf-profile-dummy.c
+endif
+
+if HAVE_TIMESTAMP
+ngfd_CFLAGS += $(TIMESTAMP_CFLAGS)
+ngfd_LDFLAGS += $(TIMESTAMP_LIBS)
 endif
 
 if TONEMAPPER

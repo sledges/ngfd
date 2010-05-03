@@ -17,6 +17,7 @@
 #include "ngf-log.h"
 #include "ngf-value.h"
 #include "ngf-daemon.h"
+#include "ngf-timestamp.h"
 
 static gboolean     _event_manager_create         (NgfDaemon *self);
 static void         _event_manager_destroy        (NgfDaemon *self);
@@ -311,6 +312,7 @@ _event_state_cb (NgfEvent *event, NgfEventState state, gpointer userdata)
 
     switch (state) {
         case NGF_EVENT_STARTED:
+            NGF_TIMESTAMP ("Event started");
             LOG_DEBUG ("EVENT STARTED (id=%d): Time: %f s", event->policy_id, g_timer_elapsed(event->start_timer,NULL));
             break;
 
@@ -348,6 +350,8 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
     guint policy_id = 0, play_timeout = 0;
     gint resources = 0, play_mode = 0;
     const char *proto_name = NULL;
+    
+    NGF_TIMESTAMP ("Event request received");
 
     /* First, look for the event definition that defines the prototypes for long and
        short events. If not found, then it is an unrecognized event. */
@@ -392,6 +396,7 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
     LOG_EVENT ("event_name=%s, proto_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d (%s))",
         event_name, proto_name, policy_id, play_timeout, resources, play_mode, play_mode == NGF_PLAY_MODE_LONG ? "LONG" : "SHORT");
 
+    NGF_TIMESTAMP ("Event parsing completed");
     /* Create a new event based on the prototype and feed the properties
        to it. */
 
