@@ -349,7 +349,9 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
 
     guint policy_id = 0, play_timeout = 0;
     gint resources = 0, play_mode = 0;
-    const char *proto_name = NULL;
+
+    const char *proto_name      = NULL;
+    const char *current_profile = NULL;
     
     NGF_TIMESTAMP ("Event request received");
 
@@ -371,10 +373,17 @@ ngf_daemon_event_play (NgfDaemon *self, const char *event_name, GHashTable *prop
         return 0;
     }
 
-    /* Lookup the prototype based on the play mode. If not found, we have the definition,
-       but no actions specified for the play mode. */
+    /* If the current profile is meeting and meeting profile prototype is set in the
+       definition, use that. Otherwise, lookup the prototype based on the play mode.
+       If not found, we have the definition, but no actions specified for the play mode. */
 
-    proto_name = (play_mode == NGF_PLAY_MODE_LONG) ? def->long_proto : def->short_proto;
+    current_profile = ngf_profile_get_current (self->context.profile);
+    if (def->meeting_proto && current_profile && g_str_equal (current_profile, NGF_PROFILE_MEETING)) {
+        proto_name = def->meeting_proto;
+    }
+    else {
+        proto_name = (play_mode == NGF_PLAY_MODE_LONG) ? def->long_proto : def->short_proto;
+    }
 
     if ((proto = ngf_daemon_get_prototype (self, proto_name)) == 0) {
         LOG_ERROR ("Failed to get event prototype %s for event %s", proto_name, event_name);

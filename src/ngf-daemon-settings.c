@@ -272,10 +272,11 @@ _parse_definitions (SettingsData *data, GKeyFile *k)
             continue;
 
         def = ngf_event_definition_new ();
-        def->long_proto = g_key_file_get_string (k, *group, "long", NULL);
-        def->short_proto = g_key_file_get_string (k, *group, "short", NULL);
+        def->long_proto    = g_key_file_get_string (k, *group, "long", NULL);
+        def->short_proto   = g_key_file_get_string (k, *group, "short", NULL);
+        def->meeting_proto = g_key_file_get_string (k, *group, "meeting", NULL);
 
-        LOG_DEBUG ("<new definition> %s (long=%s, short=%s)", name, def->long_proto, def->short_proto);
+        LOG_DEBUG ("<new definition> %s (long=%s, short=%s, meeting=%s)", name, def->long_proto, def->short_proto, def->meeting_proto);
         ngf_daemon_register_definition (self, name, def);
     }
 

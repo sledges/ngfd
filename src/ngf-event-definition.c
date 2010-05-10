@@ -30,5 +30,6 @@ ngf_event_definition_free (NgfEventDefinition *self)
 
     g_free (self->long_proto);
     g_free (self->short_proto);
+    g_free (self->meeting_proto);
     g_free (self);
 }

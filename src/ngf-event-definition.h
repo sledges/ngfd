@@ -25,6 +25,7 @@ struct _NgfEventDefinition
 {
     gchar   *long_proto;
     gchar   *short_proto;
+    gchar   *meeting_proto;
 };
 
 NgfEventDefinition* ngf_event_definition_new ();
