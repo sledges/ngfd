@@ -538,6 +538,8 @@ _parse_single_prototype (SettingsData *data, GKeyFile *k, GList **prototypes_don
 
     _add_property_bool       (p, k, group, "backlight_enabled", FALSE, set_default);
 
+    _add_property_bool       (p, k, group, "disallow_override", FALSE, set_default);
+
     g_free (default_role);
 
     /* Parse the stream properties (all properties beginning with "stream.") */

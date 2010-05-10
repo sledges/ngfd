@@ -498,11 +498,17 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
 {
     NgfEventPrototype *p = self->proto;
 
-    /* Make a copy of the prototype's property hash table and merge our
+    /* If override is allowed, make a copy of the prototype's property hash table and merge our
        custom allowed properties in. */
 
     self->properties = ngf_properties_copy (p->properties);
-    ngf_properties_merge_allowed (self->properties, properties, p->allowed_keys);
+    if (!ngf_properties_get_bool (self->properties, "disallow_override")) {
+        LOG_DEBUG ("Override allowed, merging properties.");
+        ngf_properties_merge_allowed (self->properties, properties, p->allowed_keys);
+    }
+    else {
+        LOG_DEBUG ("Override is not allowed.");
+    }
 
     LOG_DEBUG ("<event properties>");
     ngf_properties_dump (self->properties);
