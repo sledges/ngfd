@@ -171,6 +171,26 @@ ngf_vibrator_register (NgfVibrator *self, const char *name, const char *filename
 }
 
 guint
+ngf_vibrator_start_file (NgfVibrator *self, const char *filename, gint pattern)
+{
+    gint id = 0;
+    VibeUInt8 *effects = NULL;
+
+    if (self == NULL)
+        return 0;
+    
+    effects=_load_ivt (filename);
+    if (!effects)
+        return 0;
+    
+    ImmVibePlayIVTEffect (self->device, effects, pattern, &id);
+    
+    g_free (effects);
+    
+    return id;
+}
+
+guint
 ngf_vibrator_start (NgfVibrator *self, const char *name)
 {
     gint id = 0;

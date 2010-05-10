@@ -531,6 +531,7 @@ _parse_single_prototype (SettingsData *data, GKeyFile *k, GList **prototypes_don
     _add_property_int        (p, k, group, "audio_tonegen_pattern", -1, set_default);
 
     _add_property_bool       (p, k, group, "vibra_enabled", FALSE, set_default);
+    _add_property_bool       (p, k, group, "vibrator_custom_patterns", FALSE, set_default);
     _add_property_string     (p, k, group, "vibra", NULL, set_default);
 
     _add_property_bool       (p, k, group, "led_enabled", FALSE, set_default);

@@ -30,5 +30,6 @@ guint           ngf_vibrator_start    (NgfVibrator *self, const char *name);
 void            ngf_vibrator_stop     (NgfVibrator *self, gint id);
 gboolean        ngf_vibrator_is_completed     (NgfVibrator *self, gint id);
 gboolean        ngf_vibrator_is_repeating    (NgfVibrator *self, const char *name);
+guint           ngf_vibrator_start_file (NgfVibrator *self, const char *filename, gint pattern);
 
 #endif /* NGF_VIBRATOR_H */

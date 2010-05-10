@@ -63,6 +63,7 @@ struct _NgfEvent
     guint               audio_volume_id;
     gboolean            audio_volume_set;
     gboolean            audio_use_fallback;
+    const gchar         *audio_filename;
 
     gboolean            audio_repeat_enabled;
     gint                audio_repeat_count;

@@ -13,6 +13,8 @@
  * information which may not be disclosed to others without the prior
  * written consent of Nokia.
  */
+ 
+#include <string.h>
 
 #include "ngf-log.h"
 #include "ngf-value.h"
@@ -334,13 +336,8 @@ _audio_playback_start (NgfEvent *self)
 
         self->audio_volume_set = TRUE;
     }
-
-    /* Get the sound file for the event, if such exists. If no sound file,
-       try to get the fallback. If no fallback, we won't play anything. */
-
-    source = self->audio_use_fallback ?
-        _get_audio_filename (self, "audio_fallback_filename", "audio_fallback_profile") :
-        _get_audio_filename (self, "audio", "audio_tone_profile");
+    
+    source = self->audio_filename;
 
     /* If we tried to get fallback and it did not exist, nothing to
        play here. */
@@ -423,20 +420,55 @@ _poll_vibrator (gpointer userdata)
     return FALSE;
 }
 
+static gchar* 
+_get_ivt_filename (const char *source)
+{
+    gchar *separator = NULL;
+    gchar *output = NULL;
+    size_t size;
+    
+    separator = g_strrstr (source, ".");
+    size = (separator != NULL) ? (size_t) (separator - source) : strlen (source);
+    
+    output = g_try_malloc (size + 5);
+    if (output == NULL)
+        return NULL;
+    
+    strncpy (output, source, size);
+    strncat (output, ".ivt", 4);
+    
+    return output;
+}
+
 static gboolean
 _setup_vibrator (NgfEvent *self)
 {
     const char *vibra = NULL;
+    gchar   *ivtfile = NULL;
 
     if (self->resources & NGF_RESOURCE_VIBRATION && ngf_profile_is_vibra_enabled (self->context->profile)) {
-
-        if ((vibra = ngf_properties_get_string (self->properties, "vibra")) != NULL) {
-            self->vibra_id = ngf_vibrator_start (self->context->vibrator, vibra);
-            if (self->vibra_id && ngf_profile_is_silent (self->context->profile) && 
-                !ngf_vibrator_is_repeating (self->context->vibrator, vibra)) {
-                /* If we are in silent mode, set callback to monitor when pattern is complete, if pattern is non-repeating one */
-                self->vibra_poll_id = g_timeout_add (NGF_VIBRA_POLL_TIMEOUT, _poll_vibrator, self);
+        /* If vibrator_custom_patterns property is sent and with current ringtone file exists file with same
+            name, but with .ivt extension, use that file as vibration pattern.
+        */
+        if (ngf_properties_get_bool (self->properties, "vibrator_custom_patterns") && self->audio_filename) {
+            ivtfile = _get_ivt_filename (self->audio_filename);
+            if (g_file_test (ivtfile, G_FILE_TEST_EXISTS)) {
+                self->vibra_id = ngf_vibrator_start_file (self->context->vibrator, ivtfile, 0);
             }
+            g_free (ivtfile);
+            ivtfile = NULL;
+        }
+        
+        if (!self->vibra_id) { 
+            vibra = ngf_properties_get_string (self->properties, "vibra");
+            if (vibra != NULL)
+                self->vibra_id = ngf_vibrator_start (self->context->vibrator, vibra);
+        }
+        
+        if (self->vibra_id && ngf_profile_is_silent (self->context->profile) && 
+            !ngf_vibrator_is_repeating (self->context->vibrator, vibra)) {
+            /* If we are in silent mode, set callback to monitor when pattern is complete, if pattern is non-repeating one */
+            self->vibra_poll_id = g_timeout_add (NGF_VIBRA_POLL_TIMEOUT, _poll_vibrator, self);
         }
 
         return TRUE;
@@ -517,6 +549,13 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
 
     self->audio_repeat_enabled = ngf_properties_get_bool (self->properties, "audio_repeat");
     self->audio_max_repeats    = ngf_properties_get_int  (self->properties, "audio_max_repeats");
+    
+    /* Get the sound file for the event, if such exists. If no sound file,
+       try to get the fallback. If no fallback, return NULL. */
+
+    self->audio_filename=self->audio_use_fallback ?
+        _get_audio_filename (self, "audio_fallback_filename", "audio_fallback_profile") :
+        _get_audio_filename (self, "audio", "audio_tone_profile");
 
     /* Check the resources and start the backends if we have the proper resources,
        profile allows us to and valid data is provided. */
