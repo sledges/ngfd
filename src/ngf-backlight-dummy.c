@@ -47,25 +47,18 @@ ngf_backlight_destroy (NgfBacklight *self)
     g_free (self);
 }
 
-void
-ngf_backlight_register (NgfBacklight *self,
-                        const char   *name,
-                        const char   *pattern,
-                        gboolean      repeat)
-{
-    return;
-}
-
-guint
+gboolean
 ngf_backlight_start (NgfBacklight *self,
-                     const char   *name)
+                     gboolean      unlock)
 {
-    return 1;
+    (void) self;
+    (void) unlock;
+
+    return TRUE;
 }
 
 void
-ngf_backlight_stop (NgfBacklight *self,
-                    guint         id)
+ngf_backlight_stop (NgfBacklight *self)
 {
-    return;
+    (void) self;
 }
