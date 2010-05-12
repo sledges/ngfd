@@ -337,6 +337,9 @@ _audio_playback_start (NgfEvent *self)
         self->audio_volume_set = TRUE;
     }
     
+    if (self->audio_use_fallback)
+        self->audio_filename = _get_audio_filename (self, "audio_fallback_filename", "audio_fallback_profile");
+
     source = self->audio_filename;
 
     /* If we tried to get fallback and it did not exist, nothing to
@@ -549,13 +552,7 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
 
     self->audio_repeat_enabled = ngf_properties_get_bool (self->properties, "audio_repeat");
     self->audio_max_repeats    = ngf_properties_get_int  (self->properties, "audio_max_repeats");
-    
-    /* Get the sound file for the event, if such exists. If no sound file,
-       try to get the fallback. If no fallback, return NULL. */
-
-    self->audio_filename=self->audio_use_fallback ?
-        _get_audio_filename (self, "audio_fallback_filename", "audio_fallback_profile") :
-        _get_audio_filename (self, "audio", "audio_tone_profile");
+    self->audio_filename       = _get_audio_filename (self, "audio", "audio_tone_profile");
 
     /* Check the resources and start the backends if we have the proper resources,
        profile allows us to and valid data is provided. */
