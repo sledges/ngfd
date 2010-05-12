@@ -429,17 +429,23 @@ _get_ivt_filename (const char *source)
     gchar *separator = NULL;
     gchar *output = NULL;
     size_t size;
+
+    if (source == NULL)
+        return NULL;
     
     separator = g_strrstr (source, ".");
     size = (separator != NULL) ? (size_t) (separator - source) : strlen (source);
-    
-    output = g_try_malloc (size + 5);
+
+    if (size == 0)
+        return NULL;
+
+    output = g_try_malloc0 (size + 5);
     if (output == NULL)
         return NULL;
     
     strncpy (output, source, size);
     strncat (output, ".ivt", 4);
-    
+
     return output;
 }
 
@@ -450,14 +456,20 @@ _setup_vibrator (NgfEvent *self)
     gchar   *ivtfile = NULL;
 
     if (self->resources & NGF_RESOURCE_VIBRATION && ngf_profile_is_vibra_enabled (self->context->profile)) {
+
         /* If vibrator_custom_patterns property is sent and with current ringtone file exists file with same
-            name, but with .ivt extension, use that file as vibration pattern.
-        */
+           name, but with .ivt extension, use that file as vibration pattern. */
+
         if (ngf_properties_get_bool (self->properties, "vibrator_custom_patterns") && self->audio_filename) {
+
+            LOG_DEBUG ("Custom vibration patterns are enabled.");
+
             ivtfile = _get_ivt_filename (self->audio_filename);
-            if (g_file_test (ivtfile, G_FILE_TEST_EXISTS)) {
+            if (ivtfile && g_file_test (ivtfile, G_FILE_TEST_EXISTS)) {
+                LOG_DEBUG ("%s: Starting vibration with custom pattern file %s.", __FUNCTION__, ivtfile);
                 self->vibra_id = ngf_vibrator_start_file (self->context->vibrator, ivtfile, 0);
             }
+
             g_free (ivtfile);
             ivtfile = NULL;
         }
