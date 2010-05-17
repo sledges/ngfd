@@ -114,6 +114,7 @@ _gst_element_preload (gchar * name)
 
 	if (!(element = gst_element_factory_make (name, NULL))) {
 		LOG_WARNING ("Preloading element %s failed", name);
+		return;
 	}
 	
 	g_object_unref(element);
@@ -137,7 +138,7 @@ _gst_initialize (NgfAudioInterface * iface, NgfPulseContext * context)
 	_gst_element_preload ("nokiamp3dec");
 	_gst_element_preload ("wavparse");
 	_gst_element_preload ("oggdemux");
-	_gst_element_preload ("tremor");
+	_gst_element_preload ("ivorbisdec");
 	_gst_element_preload ("filesrc");
 	_gst_element_preload ("decodebin2");
 	_gst_element_preload ("pulsesink");
