@@ -20,6 +20,7 @@
 
 #include "ngf-log.h"
 #include "ngf-audio-gstreamer.h"
+#include "ngf-interface.h"
 
 static gboolean _gst_initialize (NgfAudioInterface *iface, NgfPulseContext *context);
 static void     _gst_shutdown   (NgfAudioInterface *iface);
@@ -53,6 +54,11 @@ _bus_cb (GstBus     *bus,
 
             GstState old_state, new_state, pending_state;
             gst_message_parse_state_changed (msg, &old_state, &new_state, &pending_state);
+            
+            if (new_state == GST_STATE_PAUSED) {
+                if (stream->iface_callback)
+                    stream->iface_callback (NGF_INTERFACE_AUDIO, TRUE, stream->userdata);
+            }
 
             if (old_state == GST_STATE_PAUSED && new_state == GST_STATE_PLAYING) {
                 if (stream->callback)

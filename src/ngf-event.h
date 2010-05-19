@@ -73,6 +73,9 @@ struct _NgfEvent
     guint               tonegen_id;
     guint               led_id;
     guint               vibra_poll_id;
+    
+    gboolean            audio_ready;
+    gpointer            vibra_data;
 
     /* Startup timer for monitoring event length */
     GTimer              *start_timer;
@@ -81,6 +84,7 @@ struct _NgfEvent
     NgfContext          *context;
 
     /* User supplied callback and userdata */
+    NgfInterfaceReadyCallback  iface_callback;
     NgfEventCallback    callback;
     gpointer            userdata;
 };

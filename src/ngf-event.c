@@ -27,6 +27,7 @@ static inline void  _trigger_event_callback (NgfEvent *event, NgfEventState  sta
 static gboolean     _max_timeout_triggered_cb (gpointer userdata);
 
 static void         _stream_state_cb (NgfAudioStream *stream, NgfAudioStreamState state, gpointer userdata);
+static void         _interface_ready_cb (NgfInterfaceType type, gboolean success, gpointer userdata);
 static const char*  _get_mapped_tone (NgfToneMapper *mapper, const char *tone);
 
 static gboolean     _tone_generator_start (NgfEvent *self);
@@ -39,6 +40,7 @@ static gboolean     _audio_playback_start (NgfEvent *self);
 static void         _audio_playback_stop (NgfEvent *self);
 
 static gboolean     _setup_vibrator (NgfEvent *self);
+static gboolean     _poll_vibrator (gpointer userdata);
 static gboolean     _setup_led (NgfEvent *self);
 static gboolean     _setup_backlight (NgfEvent *self);
 static void         _shutdown_vibrator (NgfEvent *self);
@@ -79,6 +81,11 @@ ngf_event_free (NgfEvent *self)
     if (self->properties) {
         g_hash_table_destroy (self->properties);
         self->properties = NULL;
+    }
+    
+    if (self->vibra_data) {
+        g_free (self->vibra_data);
+        self->vibra_data = NULL;
     }
 
     g_free (self);
@@ -144,6 +151,69 @@ _trigger_event_callback (NgfEvent      *event,
 {
     if (event->callback)
         event->callback (event, state, event->userdata);
+}
+
+/**
+ * Interface ready callback is called when backend is ready to start
+ * the event. Used to synchronize starting of backends at the same 
+ * time.
+ *
+ * @param type NgfInterfaceType
+ * @param success gboolean
+ * @param userdata Userdata
+ */
+
+static void
+_interface_ready_cb (NgfInterfaceType type, gboolean success, gpointer userdata)
+{
+    NgfEvent *self = (NgfEvent*) userdata;
+    const char *vibra = NULL;
+    
+    switch (type) {
+        case NGF_INTERFACE_AUDIO:
+            if (success) {
+                LOG_DEBUG ("Audio backend ready");
+                self->audio_ready = TRUE;
+            } else {
+                _stream_state_cb (self->audio_stream, NGF_AUDIO_STREAM_STATE_FAILED, self);
+            }
+            break;
+        default:
+            break;
+    }
+    
+    if (ngf_properties_get_bool (self->properties, "audio_enabled")) {
+        if (!self->audio_ready)
+            return;
+    }
+    
+    LOG_DEBUG ("All backends ready, starting event");
+    if (ngf_properties_get_bool (self->properties, "audio_enabled")) {
+        if (!ngf_audio_play (self->context->audio, self->audio_stream))
+            ngf_audio_destroy_stream (self->context->audio, self->audio_stream);
+    }
+    
+    if (self->resources & NGF_RESOURCE_VIBRATION && ngf_profile_is_vibra_enabled (self->context->profile)) {
+        if (self->vibra_data) { 
+            self->vibra_id = ngf_vibrator_start (self->context->vibrator, NULL, self->vibra_data);
+        } else {
+            vibra = ngf_properties_get_string (self->properties, "vibra");
+            if (vibra != NULL)
+                self->vibra_id = ngf_vibrator_start (self->context->vibrator, vibra, NULL);
+        }
+        
+        if (self->vibra_id && ngf_profile_is_silent (self->context->profile) && 
+            !ngf_vibrator_is_repeating (self->context->vibrator, vibra)) {
+            /* If we are in silent mode, set callback to monitor when pattern is complete, if pattern is non-repeating one */
+            self->vibra_poll_id = g_timeout_add (NGF_VIBRA_POLL_TIMEOUT, _poll_vibrator, self);
+        }
+    }
+
+    if (ngf_properties_get_bool (self->properties, "led_enabled"))
+        _setup_led (self);
+
+    if (ngf_properties_get_bool (self->properties, "backlight_enabled"))
+        _setup_backlight (self);
 }
 
 /**
@@ -393,17 +463,13 @@ _audio_playback_start (NgfEvent *self)
     stream = ngf_audio_create_stream (self->context->audio, stream_type);
     stream->source     = g_strdup (source);
     stream->properties = pa_proplist_copy (prototype->stream_properties);
+    stream->iface_callback = _interface_ready_cb;
     stream->callback   = _stream_state_cb;
     stream->userdata   = self;
 
     /* Prepare the stream and start it's playback. */
 
     if (!ngf_audio_prepare (self->context->audio, stream)) {
-        ngf_audio_destroy_stream (self->context->audio, stream);
-        return FALSE;
-    }
-
-    if (!ngf_audio_play (self->context->audio, stream)) {
         ngf_audio_destroy_stream (self->context->audio, stream);
         return FALSE;
     }
@@ -472,39 +538,23 @@ _get_ivt_filename (const char *source)
 static gboolean
 _setup_vibrator (NgfEvent *self)
 {
-    const char *vibra = NULL;
     gchar   *ivtfile = NULL;
 
     if (self->resources & NGF_RESOURCE_VIBRATION && ngf_profile_is_vibra_enabled (self->context->profile)) {
-
         /* If vibrator_custom_patterns property is sent and with current ringtone file exists file with same
            name, but with .ivt extension, use that file as vibration pattern. */
 
         if (ngf_properties_get_bool (self->properties, "vibrator_custom_patterns") && self->audio_filename) {
-
             LOG_DEBUG ("Custom vibration patterns are enabled.");
-
             ivtfile = _get_ivt_filename (self->audio_filename);
             if (ivtfile && g_file_test (ivtfile, G_FILE_TEST_EXISTS)) {
-                LOG_DEBUG ("%s: Starting vibration with custom pattern file %s.", __FUNCTION__, ivtfile);
-                self->vibra_id = ngf_vibrator_start_file (self->context->vibrator, ivtfile, 0);
+                LOG_DEBUG ("%s: Loading vibration with custom pattern file %s.", __FUNCTION__, ivtfile);
+                self->vibra_data = ngf_vibrator_load (ivtfile);
             }
 
             g_free (ivtfile);
             ivtfile = NULL;
-        }
-        
-        if (!self->vibra_id) { 
-            vibra = ngf_properties_get_string (self->properties, "vibra");
-            if (vibra != NULL)
-                self->vibra_id = ngf_vibrator_start (self->context->vibrator, vibra);
-        }
-        
-        if (self->vibra_id && ngf_profile_is_silent (self->context->profile) && 
-            !ngf_vibrator_is_repeating (self->context->vibrator, vibra)) {
-            /* If we are in silent mode, set callback to monitor when pattern is complete, if pattern is non-repeating one */
-            self->vibra_poll_id = g_timeout_add (NGF_VIBRA_POLL_TIMEOUT, _poll_vibrator, self);
-        }
+        }       
 
         return TRUE;
     }
@@ -596,12 +646,6 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
 
     if (ngf_properties_get_bool (self->properties, "vibra_enabled"))
         _setup_vibrator (self);
-
-    if (ngf_properties_get_bool (self->properties, "led_enabled"))
-        _setup_led (self);
-
-    if (ngf_properties_get_bool (self->properties, "backlight_enabled"))
-        _setup_backlight (self);
 
     /* Timeout callback for maximum length of the event. Once triggered we will
        stop the event ourselves. */

@@ -20,6 +20,8 @@
 #include <glib.h>
 #include <pulse/proplist.h>
 
+#include "ngf-interface.h"
+
 typedef struct _NgfAudioStream      NgfAudioStream;
 typedef enum   _NgfAudioStreamState NgfAudioStreamState;
 typedef enum   _NgfAudioStreamType  NgfAudioStreamType;
@@ -46,6 +48,7 @@ struct _NgfAudioStream
     gchar                  *source;
     pa_proplist            *properties;
     NgfAudioStreamCallback  callback;
+    NgfInterfaceReadyCallback  iface_callback;
     gpointer                userdata;
 
     /** Private implementation data */

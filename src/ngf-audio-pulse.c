@@ -30,6 +30,7 @@
 
 #include "ngf-log.h"
 #include "ngf-audio-pulse.h"
+#include "ngf-interface.h"
 
 #define PULSE_BACKEND_NAME "NGF Pulse backend"
 #define MAX_BUFFER_SIZE    65536
@@ -110,13 +111,15 @@ _stream_state_cb (pa_stream *s,
 {
     NgfAudioStream *stream       = (NgfAudioStream*) userdata;
     PulseStream    *pulse_stream = (PulseStream*) stream->data;
+    
+    LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
     switch (pa_stream_get_state (s)) {
         case PA_STREAM_READY:
 	        pulse_stream->stream_index = pa_stream_get_index (s);
 
-            if (stream->callback)
-                stream->callback (stream, NGF_AUDIO_STREAM_STATE_STARTED, stream->userdata);
+            if (stream->iface_callback)
+                stream->iface_callback (NGF_INTERFACE_AUDIO, TRUE, stream->userdata);
 
             break;
 
@@ -190,19 +193,30 @@ _pulse_shutdown (NgfAudioInterface *iface)
 }
 
 static gboolean
-_pulse_prepare (NgfAudioInterface *iface,
+_pulse_play (NgfAudioInterface *iface,
                 NgfAudioStream    *stream)
 {
+    pa_operation *o = NULL;
+    PulseStream     *pulse_stream = stream->data;
+    
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
     (void) iface;
-    (void) stream;
+    
+    if (pulse_stream->stream) {
+        o = pa_stream_cork (pulse_stream->stream, 0, NULL, NULL);
+        if (o)
+            pa_operation_unref (o);
+    }
+    
+    if (stream->callback)
+        stream->callback (stream, NGF_AUDIO_STREAM_STATE_STARTED, stream->userdata);
 
     return TRUE;
 }
 
 static gboolean
-_pulse_play (NgfAudioInterface *iface,
+_pulse_prepare (NgfAudioInterface *iface,
              NgfAudioStream    *stream)
 {
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
@@ -255,7 +269,7 @@ _pulse_play (NgfAudioInterface *iface,
     pa_stream_set_state_callback (pulse_stream->stream, _stream_state_cb, stream);
     pa_stream_set_write_callback (pulse_stream->stream, _stream_write_cb, stream);
 
-    if (pa_stream_connect_playback (pulse_stream->stream, NULL, NULL, 0, NULL, NULL) < 0)
+    if (pa_stream_connect_playback (pulse_stream->stream, NULL, NULL, PA_STREAM_START_CORKED, NULL, NULL) < 0)
         goto failed;
 
     return TRUE;

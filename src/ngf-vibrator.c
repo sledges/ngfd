@@ -19,6 +19,7 @@
 #include <ImmVibeCore.h>
 
 #include "ngf-vibrator.h"
+#include "ngf-interface.h"
 
 typedef struct _Pattern Pattern;
 
@@ -88,8 +89,8 @@ ngf_vibrator_destroy (NgfVibrator *self)
     g_free (self);
 }
 
-VibeUInt8*
-_load_ivt (const char *filename)
+gpointer
+ngf_vibrator_load (const char *filename)
 {
     FILE *fp = NULL;
     long pattern_size = 0;
@@ -113,7 +114,7 @@ _load_ivt (const char *filename)
 
         fclose (fp);
 
-        return data;
+        return (gpointer)data;
     }
 
 failed:
@@ -150,7 +151,7 @@ ngf_vibrator_register (NgfVibrator *self, const char *name, const char *filename
 
     if (filename) {
         if ((data = (VibeUInt8*) g_hash_table_lookup (self->vibrator_data, filename)) == NULL) {
-            if ((data = _load_ivt (filename)) == NULL)
+            if ((data = (VibeUInt8*) ngf_vibrator_load (filename)) == NULL)
                 return FALSE;
 
             g_hash_table_replace (self->vibrator_data, g_strdup (filename), data);
@@ -171,27 +172,7 @@ ngf_vibrator_register (NgfVibrator *self, const char *name, const char *filename
 }
 
 guint
-ngf_vibrator_start_file (NgfVibrator *self, const char *filename, gint pattern)
-{
-    gint id = 0;
-    VibeUInt8 *effects = NULL;
-
-    if (self == NULL)
-        return 0;
-    
-    effects=_load_ivt (filename);
-    if (!effects)
-        return 0;
-    
-    ImmVibePlayIVTEffect (self->device, effects, pattern, &id);
-    
-    g_free (effects);
-    
-    return id;
-}
-
-guint
-ngf_vibrator_start (NgfVibrator *self, const char *name)
+ngf_vibrator_start (NgfVibrator *self, const char *name, gpointer data)
 {
     gint id = 0;
     VibeUInt8 *effects = NULL;
@@ -199,17 +180,22 @@ ngf_vibrator_start (NgfVibrator *self, const char *name)
 
     if (self == NULL)
         return 0;
-
-    if ((p = (Pattern*) g_hash_table_lookup (self->patterns, name)) == NULL)
-        return 0;
-
-    if (p->data)
-        effects = p->data;
-    else
-        effects = g_pVibeIVTBuiltInEffects;
-
-    ImmVibePlayIVTEffect (self->device, effects, p->pattern_id, &id);
     
+    if (data) {
+        effects = (VibeUInt8*) data;
+        ImmVibePlayIVTEffect (self->device, effects, 0, &id);
+    } else {
+        if ((p = (Pattern*) g_hash_table_lookup (self->patterns, name)) == NULL)
+            return 0;
+
+        if (p->data)
+            effects = p->data;
+        else
+            effects = g_pVibeIVTBuiltInEffects;
+
+        ImmVibePlayIVTEffect (self->device, effects, p->pattern_id, &id);
+    }
+        
     return id;
 }
 
