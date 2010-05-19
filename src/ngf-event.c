@@ -32,6 +32,9 @@ static const char*  _get_mapped_tone (NgfToneMapper *mapper, const char *tone);
 static gboolean     _tone_generator_start (NgfEvent *self);
 static void         _tone_generator_stop (NgfEvent *self);
 
+static void         _set_stream_volume  (NgfEvent *self);
+static void         _clear_stream_volume (NgfEvent *self);
+
 static gboolean     _audio_playback_start (NgfEvent *self);
 static void         _audio_playback_stop (NgfEvent *self);
 
@@ -302,6 +305,41 @@ _get_audio_volume (NgfEvent   *self,
     return -1;
 }
 
+static void
+_set_stream_volume (NgfEvent *self)
+{
+    const char *pattern = NULL;
+    gint        volume  = 0;
+
+    if (self->audio_volume_set)
+        return;
+
+    pattern = ngf_properties_get_string (self->properties, "audio_volume_pattern");
+    volume  = _get_audio_volume (self, "audio_volume_value", "audio_volume_profile");
+
+    if (pattern != NULL) {
+        self->audio_volume_controller = ngf_audio_get_controller (self->context->audio, pattern);
+        self->audio_volume_id = ngf_controller_start (self->audio_volume_controller, _volume_controller_cb, self);
+    }
+    else if (volume >= 0) {
+        ngf_audio_set_volume (self->context->audio, ngf_properties_get_string (self->properties, "audio_stream_role"), volume);
+    }
+
+    self->audio_volume_set = TRUE;
+ }
+
+static void
+_clear_stream_volume (NgfEvent *self)
+{
+    if (self->audio_volume_id > 0) {
+        ngf_controller_stop (self->audio_volume_controller, self->audio_volume_id);
+        self->audio_volume_controller = NULL;
+        self->audio_volume_id = 0;
+    }
+
+    self->audio_volume_set = FALSE;
+}
+
 static gboolean
 _audio_playback_start (NgfEvent *self)
 {
@@ -322,25 +360,13 @@ _audio_playback_start (NgfEvent *self)
     if (ngf_profile_is_silent (self->context->profile) && !ngf_properties_get_bool (self->properties, "audio_silent"))
         return FALSE;
 
-    if (!self->audio_volume_set) {
-
-        if ((pattern = ngf_properties_get_string (self->properties, "audio_volume_pattern")) != NULL) {
-            self->audio_volume_controller = ngf_audio_get_controller (self->context->audio, pattern);
-            self->audio_volume_id = ngf_controller_start (self->audio_volume_controller, _volume_controller_cb, self);
-        }
-        else {
-            volume = _get_audio_volume (self, "audio_volume_value", "audio_volume_profile");
-            if (volume >= 0)
-                ngf_audio_set_volume (self->context->audio, ngf_properties_get_string (self->properties, "audio_stream_role"), volume);
-        }
-
-        self->audio_volume_set = TRUE;
-    }
-    
     if (self->audio_use_fallback)
         self->audio_filename = _get_audio_filename (self, "audio_fallback_filename", "audio_fallback_profile");
 
     source = self->audio_filename;
+
+    /* set the stream volume */
+    _set_stream_volume (self);
 
     /* If we tried to get fallback and it did not exist, nothing to
        play here. */
@@ -391,11 +417,7 @@ _audio_playback_start (NgfEvent *self)
 static void
 _audio_playback_stop (NgfEvent *self)
 {
-    if (self->audio_volume_id > 0) {
-        ngf_controller_stop (self->audio_volume_controller, self->audio_volume_id);
-        self->audio_volume_controller = NULL;
-        self->audio_volume_id = 0;
-    }
+    _clear_stream_volume (self);
 
     if (self->audio_stream != NULL) {
         ngf_audio_stop (self->context->audio, self->audio_stream);
