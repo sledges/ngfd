@@ -348,8 +348,6 @@ _audio_playback_start (NgfEvent *self)
     const char         *source      = NULL;
     NgfAudioStreamType  stream_type = 0;
     NgfAudioStream     *stream      = NULL;
-    const char         *pattern     = NULL;
-    gint                volume      = -1;
 
     if ((self->resources & NGF_RESOURCE_AUDIO) == 0)
         return FALSE;
