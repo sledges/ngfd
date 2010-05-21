@@ -50,18 +50,18 @@ static void         _shutdown_backlight (Request *request);
 
 
 Request*
-request_new (Context *context, EventPrototype *proto)
+request_new (Context *context, Event *event)
 {
     Request *request = NULL;
 
-    if (context == NULL || proto == NULL)
+    if (context == NULL || event == NULL)
         return NULL;
 
     if ((request = g_new0 (Request, 1)) == NULL)
         return NULL;
 
     request->context     = context;
-    request->proto       = proto;
+    request->event       = event;
     request->start_timer = g_timer_new ();
 
     return request;
@@ -415,7 +415,7 @@ _clear_stream_volume (Request *request)
 static gboolean
 _audio_playback_start (Request *request, gboolean set_volume)
 {
-    EventPrototype  *prototype   = request->proto;
+    Event  *eventtype   = request->event;
     const char         *mapped      = NULL;
     const char         *source      = NULL;
     AudioStreamType  stream_type = 0;
@@ -424,7 +424,7 @@ _audio_playback_start (Request *request, gboolean set_volume)
     if ((request->resources & RESOURCE_AUDIO) == 0)
         return FALSE;
 
-    /* If we are in the silent mode and the prototype's audio_silent
+    /* If we are in the silent mode and the eventtype's audio_silent
        flag has not been set, nothing to do here. */
 
     if (profile_is_silent (request->context->profile) && !properties_get_bool (request->properties, "audio_silent"))
@@ -465,7 +465,7 @@ _audio_playback_start (Request *request, gboolean set_volume)
 
     stream = audio_create_stream (request->context->audio, stream_type);
     stream->source     = g_strdup (source);
-    stream->properties = pa_proplist_copy (prototype->stream_properties);
+    stream->properties = pa_proplist_copy (eventtype->stream_properties);
     stream->iface_callback = _interface_ready_cb;
     stream->callback   = _stream_state_cb;
     stream->userdata   = request;
@@ -616,9 +616,9 @@ _shutdown_backlight (Request *request)
 gboolean
 request_start (Request *request, GHashTable *properties)
 {
-    EventPrototype *p = request->proto;
+    Event *p = request->event;
 
-    /* If override is allowed, make a copy of the prototype's property hash table and merge our
+    /* If override is allowed, make a copy of the eventtype's property hash table and merge our
        custom allowed properties in. */
 
     request->properties = properties_copy (p->properties);

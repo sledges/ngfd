@@ -20,16 +20,17 @@
 #include <glib.h>
 #include "context.h"
 
-Context*        daemon_create ();
-void            daemon_destroy (Context *context);
-void            daemon_run (Context *context);
-guint           daemon_request_play (Context *context, const char *event_name, GHashTable *properties);
-void            daemon_request_stop (Context *context, guint id);
+Context* daemon_create ();
+void     daemon_destroy (Context *context);
+void     daemon_run (Context *context);
 
-void            daemon_register_definition (Context *context, const char *name, Definition *def);
-void            daemon_register_prototype (Context *context, const char *name, EventPrototype *proto);
-EventPrototype* daemon_get_prototype (Context *context, const char *name);
+guint    daemon_request_play (Context *context, const char *event_name, GHashTable *properties);
+void     daemon_request_stop (Context *context, guint id);
 
-gboolean        daemon_settings_load (Context *context);
+void     daemon_register_definition (Context *context, const char *name, Definition *def);
+void     daemon_register_event (Context *context, const char *name, Event *event);
+Event*   daemon_get_event (Context *context, const char *name);
+
+gboolean daemon_settings_load (Context *context);
 
 #endif /* DAEMON_H */

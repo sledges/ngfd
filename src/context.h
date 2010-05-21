@@ -25,7 +25,7 @@
 typedef struct _Context Context;
 
 #include "definition.h"
-#include "event-prototype.h"
+#include "event.h"
 #include "request.h"
 
 #include "profile.h"
@@ -41,7 +41,7 @@ struct _Context
     GMainLoop     *loop;
 
     GHashTable    *definitions;
-    GHashTable    *prototypes;
+    GHashTable    *events;
     GList         *request_list;
 
     Profile       *profile;

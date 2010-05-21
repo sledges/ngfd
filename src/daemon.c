@@ -19,15 +19,15 @@
 #include "timestamp.h"
 #include "daemon.h"
 
-static gboolean     _request_manager_create         (Context *context);
-static void         _request_manager_destroy        (Context *context);
-Definition*    _request_manager_get_definition (Context *context, const char *name);
-static void         _request_state_cb               (Request *request, guint state, gpointer userdata);
-static gboolean     _properties_get_boolean         (GHashTable *properties, const char *key);
-static guint        _properties_get_policy_id       (GHashTable *properties);
-static guint        _properties_get_play_timeout    (GHashTable *properties);
-static gint         _properties_get_play_mode       (GHashTable *properties);
-static gint         _properties_get_resources       (GHashTable *properties);
+static gboolean _request_manager_create         (Context *context);
+static void     _request_manager_destroy        (Context *context);
+Definition*     _request_manager_get_definition (Context *context, const char *name);
+static void     _request_state_cb               (Request *request, guint state, gpointer userdata);
+static gboolean _properties_get_boolean         (GHashTable *properties, const char *key);
+static guint    _properties_get_policy_id       (GHashTable *properties);
+static guint    _properties_get_play_timeout    (GHashTable *properties);
+static gint     _properties_get_play_mode       (GHashTable *properties);
+static gint     _properties_get_resources       (GHashTable *properties);
 
 static DBusConnection*
 _get_dbus_connection (DBusBusType bus_type)
@@ -200,8 +200,8 @@ _request_manager_create (Context *context)
     if (context->definitions == NULL)
         return FALSE;
 
-    context->prototypes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) event_prototype_free);
-    if (context->prototypes == NULL)
+    context->events = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) event_free);
+    if (context->events == NULL)
         return FALSE;
 
     return TRUE;
@@ -210,9 +210,9 @@ _request_manager_create (Context *context)
 static void
 _request_manager_destroy (Context *context)
 {
-    if (context->prototypes) {
-        g_hash_table_destroy (context->prototypes);
-        context->prototypes = NULL;
+    if (context->events) {
+        g_hash_table_destroy (context->events);
+        context->events = NULL;
     }
 
     if (context->definitions) {
@@ -240,21 +240,21 @@ _request_manager_get_definition (Context *context, const char *name)
 }
 
 void
-daemon_register_prototype (Context *context, const char *name, EventPrototype *proto)
+daemon_register_event (Context *context, const char *name, Event *event)
 {
-    if (context == NULL || name == NULL || proto == NULL)
+    if (context == NULL || name == NULL || event == NULL)
         return;
 
-    g_hash_table_replace (context->prototypes, g_strdup (name), proto);
+    g_hash_table_replace (context->events, g_strdup (name), event);
 }
 
-EventPrototype*
-daemon_get_prototype (Context *context, const char *name)
+Event*
+daemon_get_event (Context *context, const char *name)
 {
     if (context == NULL || name == NULL)
         return NULL;
 
-    return (EventPrototype*) g_hash_table_lookup (context->prototypes, name);
+    return (Event*) g_hash_table_lookup (context->events, name);
 }
 
 static gboolean
@@ -380,18 +380,18 @@ guint
 daemon_request_play (Context *context, const char *request_name, GHashTable *properties)
 {
     Definition *def = NULL;
-    EventPrototype *proto = NULL;
+    Event *event = NULL;
     Request *request = NULL;
 
     guint policy_id = 0, play_timeout = 0;
     gint resources = 0, play_mode = 0;
 
-    const char *proto_name      = NULL;
+    const char *event_name      = NULL;
     const char *current_profile = NULL;
 
     TIMESTAMP ("Request request received");
 
-    /* First, look for the request definition that defines the prototypes for long and
+    /* First, look for the request definition that defines the events for long and
        short requests. If not found, then it is an unrecognized request. */
 
     if ((def = _request_manager_get_definition (context, request_name)) == NULL) {
@@ -400,7 +400,7 @@ daemon_request_play (Context *context, const char *request_name, GHashTable *pro
     }
 
     /* Then, get the play mode from the passed properties. The play mode is either "long"
-       or "short" and we have a corresponding prototypes defined in the request definition.
+       or "short" and we have a corresponding events defined in the request definition.
 
        If no play mode then this is an invalid request. */
 
@@ -409,20 +409,20 @@ daemon_request_play (Context *context, const char *request_name, GHashTable *pro
         return 0;
     }
 
-    /* If the current profile is meeting and meeting profile prototype is set in the
-       definition, use that. Otherwise, lookup the prototype based on the play mode.
+    /* If the current profile is meeting and meeting profile event is set in the
+       definition, use that. Otherwise, lookup the event based on the play mode.
        If not found, we have the definition, but no actions specified for the play mode. */
 
     current_profile = profile_get_current (context->profile);
-    if (def->meeting_proto && current_profile && g_str_equal (current_profile, PROFILE_MEETING)) {
-        proto_name = def->meeting_proto;
+    if (def->meeting_event && current_profile && g_str_equal (current_profile, PROFILE_MEETING)) {
+        event_name = def->meeting_event;
     }
     else {
-        proto_name = (play_mode == PLAY_MODE_LONG) ? def->long_proto : def->short_proto;
+        event_name = (play_mode == PLAY_MODE_LONG) ? def->long_event : def->short_event;
     }
 
-    if ((proto = daemon_get_prototype (context, proto_name)) == 0) {
-        LOG_ERROR ("Failed to get request prototype %s for request %s", proto_name, request_name);
+    if ((event = daemon_get_event (context, event_name)) == 0) {
+        LOG_ERROR ("Failed to get request event %s for request %s", event_name, request_name);
         return 0;
     }
 
@@ -438,14 +438,14 @@ daemon_request_play (Context *context, const char *request_name, GHashTable *pro
         return 0;
     }
 
-    LOG_REQUEST ("request_name=%s, proto_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d (%s))",
-        request_name, proto_name, policy_id, play_timeout, resources, play_mode, play_mode == PLAY_MODE_LONG ? "LONG" : "SHORT");
+    LOG_REQUEST ("request_name=%s, event_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d (%s))",
+        request_name, event_name, policy_id, play_timeout, resources, play_mode, play_mode == PLAY_MODE_LONG ? "LONG" : "SHORT");
 
     TIMESTAMP ("Request parsing completed");
-    /* Create a new request based on the prototype and feed the properties
+    /* Create a new request based on the event and feed the properties
        to it. */
 
-    if ((request = request_new (context, proto)) == NULL) {
+    if ((request = request_new (context, event)) == NULL) {
         LOG_ERROR ("Failed to create request %s", request_name);
         return 0;
     }

@@ -20,13 +20,13 @@
 #include "daemon.h"
 #include "property.h"
 #include "properties.h"
-#include "event-prototype.h"
+#include "event.h"
 
 #define GROUP_GENERAL    "general"
 #define GROUP_VIBRATOR   "vibra"
 #define GROUP_VOLUME     "volume_pattern"
-#define GROUP_DEFINITION "event"
-#define GROUP_PROTOTYPE  "prototype"
+#define GROUP_DEFINITION "definition"
+#define GROUP_EVENT      "event"
 
 #define STREAM_RESTORE_ID "module-stream-restore.id"
 
@@ -38,7 +38,7 @@ typedef struct _SettingsData
 } SettingsData;
 
 /**
- * Strip the group type (event, prototype) from the group name.
+ * Strip the group type (event, event) from the group name.
  *
  * @param group Group name
  * @returns Newly allocated string without the group type or NULL.
@@ -242,7 +242,7 @@ _parse_volume_patterns (SettingsData *data, GKeyFile *k)
 
 /**
  * Parse event definitions. Event definition contains a reference to
- * long and short prototypes.
+ * long and short events.
  *
  * @param data SettingsData
  * @param k GKeyFile
@@ -261,7 +261,7 @@ _parse_definitions (SettingsData *data, GKeyFile *k)
     Definition *def = NULL;
 
     /* For each group that begins with GROUP_DEFINITION, get the values for long and
-       short prototypes. */
+       short events. */
 
     group_list = g_key_file_get_groups (k, NULL);
     for (group = group_list; *group != NULL; ++group) {
@@ -273,11 +273,11 @@ _parse_definitions (SettingsData *data, GKeyFile *k)
             continue;
 
         def = definition_new ();
-        def->long_proto    = g_key_file_get_string (k, *group, "long", NULL);
-        def->short_proto   = g_key_file_get_string (k, *group, "short", NULL);
-        def->meeting_proto = g_key_file_get_string (k, *group, "meeting", NULL);
+        def->long_event    = g_key_file_get_string (k, *group, "long", NULL);
+        def->short_event   = g_key_file_get_string (k, *group, "short", NULL);
+        def->meeting_event = g_key_file_get_string (k, *group, "meeting", NULL);
 
-        LOG_DEBUG ("<new definition> %s (long=%s, short=%s, meeting=%s)", name, def->long_proto, def->short_proto, def->meeting_proto);
+        LOG_DEBUG ("<new definition> %s (long=%s, short=%s, meeting=%s)", name, def->long_event, def->short_event, def->meeting_event);
         daemon_register_definition (self, name, def);
     }
 
@@ -287,13 +287,13 @@ _parse_definitions (SettingsData *data, GKeyFile *k)
 /**
  * Iterate the done list and check if the list contains a name.
  *
- * @param done_list GList of strings containing prototype names.
- * @param name Name of prototype to look for.
+ * @param done_list GList of strings containing event names.
+ * @param name Name of event to look for.
  * @returns TRUE if found, else FALSE.
  */
 
 static gboolean
-_prototype_is_done (GList *done_list, const char *name)
+_event_is_done (GList *done_list, const char *name)
 {
     GList *iter = NULL;
 
@@ -306,7 +306,7 @@ _prototype_is_done (GList *done_list, const char *name)
 }
 
 static void
-_add_property_int (EventPrototype *prototype,
+_add_property_int (Event *event,
                    GKeyFile          *k,
                    const char        *group,
                    const char        *key,
@@ -332,11 +332,11 @@ _add_property_int (EventPrototype *prototype,
     value = property_new ();
     property_set_int (value, result);
 
-    g_hash_table_insert (prototype->properties, g_strdup (key), value);
+    g_hash_table_insert (event->properties, g_strdup (key), value);
 }
 
 static void
-_add_property_bool (EventPrototype *prototype,
+_add_property_bool (Event *event,
                     GKeyFile          *k,
                     const char        *group,
                     const char        *key,
@@ -362,11 +362,11 @@ _add_property_bool (EventPrototype *prototype,
     value = property_new ();
     property_set_boolean (value, result);
 
-    g_hash_table_insert (prototype->properties, g_strdup (key), value);
+    g_hash_table_insert (event->properties, g_strdup (key), value);
 }
 
 static void
-_add_property_string (EventPrototype *prototype,
+_add_property_string (Event *event,
                       GKeyFile          *k,
                       const char        *group,
                       const char        *key,
@@ -392,7 +392,7 @@ _add_property_string (EventPrototype *prototype,
     value = property_new ();
     property_set_string (value, result);
 
-    g_hash_table_insert (prototype->properties, g_strdup (key), value);
+    g_hash_table_insert (event->properties, g_strdup (key), value);
     g_free (result);
 }
 
@@ -418,16 +418,16 @@ _strip_prefix (const gchar *str, const gchar *prefix)
  * Parse all stream properties and create a Pulseaudio property
  * list out of them.
  *
- * @param prototype EventPrototype
+ * @param event Event
  * @param k GKeyFile
  * @param group Group name
  * @param prefix Prefix to match the properties
  * @param default_role Default audio stream role
- * @post New pa_proplist set to the EventPrototype.
+ * @post New pa_proplist set to the Event.
  */
 
 static void
-_parse_stream_properties (EventPrototype *prototype,
+_parse_stream_properties (Event *event,
                           GKeyFile          *k,
                           const char        *group,
                           const char        *prefix,
@@ -459,55 +459,55 @@ _parse_stream_properties (EventPrototype *prototype,
     if (default_role != NULL)
         pa_proplist_sets (p, STREAM_RESTORE_ID, default_role);
 
-    prototype->stream_properties = p;
+    event->stream_properties = p;
 }
 
 /**
- * Parse a single prototype. If the prototype has a parent, make sure that
- * we parse it first. Once done, merge the parent's and new prototypes
- * properties and add the prototype to the prototypes_done list to ensure
+ * Parse a single event. If the event has a parent, make sure that
+ * we parse it first. Once done, merge the parent's and new events
+ * properties and add the event to the events_done list to ensure
  * that we don't parse it again.
  *
  * @param self Context
  * @param k GKeyFile
- * @param prototypes_done GList of strings containing parsed prototypes.
- * @param prototypes GHashTable of mapping of prototype name to group.
- * @param name Name of prototype.
- * @post New prototype registered to the daemon.
+ * @param events_done GList of strings containing parsed events.
+ * @param events GHashTable of mapping of event name to group.
+ * @param name Name of event.
+ * @post New event registered to the daemon.
  */
 
 static void
-_parse_single_prototype (SettingsData *data, GKeyFile *k, GList **prototypes_done, GHashTable *prototypes, const char *name)
+_parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, GHashTable *events, const char *name)
 {
     Context *self = data->self;
 
     const gchar       *group        = NULL;
     gchar             *parent       = NULL;
-    EventPrototype *p            = NULL;
-    EventPrototype *copy         = NULL;
+    Event *p            = NULL;
+    Event *copy         = NULL;
     gchar             *default_role = NULL;
     gboolean           set_default  = FALSE;
 
-    if (_prototype_is_done (*prototypes_done, name))
+    if (_event_is_done (*events_done, name))
         return;
 
-    if ((group = g_hash_table_lookup (prototypes, name)) == NULL)
+    if ((group = g_hash_table_lookup (events, name)) == NULL)
         return;
 
     if ((parent = _parse_group_parent (group)) != NULL)
-        _parse_single_prototype (data, k, prototypes_done, prototypes, parent);
+        _parse_single_event (data, k, events_done, events, parent);
 
     if (name == NULL)
         return;
 
-    /* set_default flag is set if the prototype does not have a parent element (ie. it is a parent
+    /* set_default flag is set if the event does not have a parent element (ie. it is a parent
        element by itself). */
 
     set_default = (parent == NULL) ? TRUE : FALSE;
 
-    p = event_prototype_new ();
+    p = event_new ();
 
-    /* Begin parsing of prototype */
+    /* Begin parsing of event */
 
     default_role = g_strdup_printf ("x-maemo-%s", name);
 
@@ -547,79 +547,79 @@ _parse_single_prototype (SettingsData *data, GKeyFile *k, GList **prototypes_don
     /* Parse the stream properties (all properties beginning with "stream.") */
     _parse_stream_properties (p, k, group, "stream.", properties_get_string (p->properties, "audio_stream_role"));
 
-    /* If we have a parent prototype, make a copy of it and merge our new prototype
+    /* If we have a parent event, make a copy of it and merge our new event
        to the copy. */
 
     if (parent != NULL) {
-        copy = event_prototype_copy (daemon_get_prototype (self, parent));
+        copy = event_copy (daemon_get_event (self, parent));
 
         if (copy != NULL) {
-            event_prototype_merge (copy, p);
-            event_prototype_free (p);
+            event_merge (copy, p);
+            event_free (p);
             p = copy;
         }
     }
 
-    /* Make a copy of the list of allowed keys for this prototype. */
+    /* Make a copy of the list of allowed keys for this event. */
     p->allowed_keys = g_strdupv (data->allowed_keys);
 
-    /* We're done, let's register the new prototype. */
-    daemon_register_prototype (self, name, p);
+    /* We're done, let's register the new event. */
+    daemon_register_event (self, name, p);
 
-    LOG_DEBUG ("<new prototype %s>", name);
-    event_prototype_dump (p);
+    LOG_DEBUG ("<new event %s>", name);
+    event_dump (p);
 
-    *prototypes_done = g_list_append (*prototypes_done, g_strdup (name));
+    *events_done = g_list_append (*events_done, g_strdup (name));
     g_free (parent);
 }
 
 /**
- * Parse all prototypes. Get a list of available groups and make a mapping
- * of prototype name to group name. Once done, iterate through the list
- * and parse every prototype.
+ * Parse all events. Get a list of available groups and make a mapping
+ * of event name to group name. Once done, iterate through the list
+ * and parse every event.
  *
  * @param self Context
  * @param k GKeyFile
- * @post All available and valid prototypes registered to daemon.
+ * @post All available and valid events registered to daemon.
  */
 
 static void
-_parse_prototypes (SettingsData *data, GKeyFile *k)
+_parse_events (SettingsData *data, GKeyFile *k)
 {
     gchar         **group_list = NULL;
     gchar         **group      = NULL;
     gchar          *name       = NULL;
-    GHashTable *prototypes = NULL;
+    GHashTable *events = NULL;
 
-    prototypes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+    events = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
 
-    /* Get the available prototypes and map name to group */
+    /* Get the available events and map name to group */
 
     group_list = g_key_file_get_groups (k, NULL);
     for (group = group_list; *group != NULL; ++group) {
-        if (!g_str_has_prefix (*group, GROUP_PROTOTYPE))
+        if (!g_str_has_prefix (*group, GROUP_EVENT))
             continue;
 
         if ((name = _parse_group_name (*group)) != NULL)
-            g_hash_table_insert (prototypes, name, g_strdup (*group));
+            g_hash_table_insert (events, name, g_strdup (*group));
     }
 
     g_strfreev (group_list);
 
-    /* For each entry in the map of prototypes ... */
+    /* For each entry in the map of events ... */
 
     GHashTableIter iter;
     gchar *key, *value;
-    GList *prototypes_done = NULL;
+    GList *events_done = NULL;
 
-    g_hash_table_iter_init (&iter, prototypes);
+    g_hash_table_iter_init (&iter, events);
     while (g_hash_table_iter_next (&iter, (gpointer) &key, (gpointer) &value))
-        _parse_single_prototype (data, k, &prototypes_done, prototypes, key);
+        _parse_single_event (data, k, &events_done, events, key);
 
-    g_list_foreach (prototypes_done, (GFunc) g_free, NULL);
-    g_list_free (prototypes_done);
+    g_list_foreach (events_done, (GFunc) g_free, NULL);
+    g_list_free (events_done);
 
-    g_hash_table_destroy (prototypes);
+    g_hash_table_destroy (events);
 }
 
 gboolean
@@ -652,7 +652,7 @@ daemon_settings_load (Context *self)
     _parse_vibra_patterns     (data, key_file);
     _parse_volume_patterns    (data, key_file);
     _parse_definitions        (data, key_file);
-    _parse_prototypes         (data, key_file);
+    _parse_events         (data, key_file);
 
     g_strfreev (data->allowed_keys);
     g_free (data);

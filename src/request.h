@@ -21,7 +21,7 @@
 #include "context.h"
 #include "controller.h"
 #include "audio-stream.h"
-#include "event-prototype.h"
+#include "event.h"
 
 /* Resource flags */
 #define RESOURCE_AUDIO      (1 << 1)
@@ -46,7 +46,7 @@ typedef void (*RequestCallback) (Request *request, guint state, gpointer userdat
 
 struct _Request
 {
-    EventPrototype *proto;
+    Event          *event;
     GHashTable     *properties;
 
     guint           policy_id;
@@ -83,7 +83,7 @@ struct _Request
     gpointer               userdata;
 };
 
-Request* request_new          (Context *context, EventPrototype *proto);
+Request* request_new          (Context *context, Event *event);
 void     request_free         (Request *request);
 void     request_set_callback (Request *request, RequestCallback callback, gpointer userdata);
 gboolean request_start        (Request *request, GHashTable *properties);

@@ -23,9 +23,9 @@ typedef struct _Definition Definition;
 
 struct _Definition
 {
-    gchar   *long_proto;
-    gchar   *short_proto;
-    gchar   *meeting_proto;
+    gchar   *long_event;
+    gchar   *short_event;
+    gchar   *meeting_event;
 };
 
 Definition* definition_new  ();

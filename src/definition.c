@@ -28,8 +28,8 @@ definition_free (Definition *self)
     if (self == NULL)
         return;
 
-    g_free (self->long_proto);
-    g_free (self->short_proto);
-    g_free (self->meeting_proto);
+    g_free (self->long_event);
+    g_free (self->short_event);
+    g_free (self->meeting_event);
     g_free (self);
 }

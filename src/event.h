@@ -14,25 +14,25 @@
  * written consent of Nokia.
  */
 
-#ifndef EVENT_PROTOTYPE_H
-#define EVENT_PROTOTYPE_H
+#ifndef EVENT_H
+#define EVENT_H
 
 #include <glib.h>
 #include <pulse/proplist.h>
 
-typedef struct _EventPrototype EventPrototype;
+typedef struct _Event Event;
 
-struct _EventPrototype
+struct _Event
 {
     gchar       **allowed_keys;         /* NULL terminated array of keys that user can override. */
     GHashTable   *properties;           /* Collection of properties. */
     pa_proplist  *stream_properties;    /* Stream properties. */
 };
 
-EventPrototype* event_prototype_new   ();
-EventPrototype* event_prototype_copy  (EventPrototype *source);
-void            event_prototype_merge (EventPrototype *target, EventPrototype *source);
-void            event_prototype_free  (EventPrototype *proto);
-void            event_prototype_dump  (EventPrototype *proto);
+Event* event_new   ();
+Event* event_copy  (Event *source);
+void   event_merge (Event *target, Event *source);
+void   event_free  (Event *event);
+void   event_dump  (Event *event);
 
-#endif /* EVENT_PROTOTYPE_H */
+#endif /* EVENT_H */
