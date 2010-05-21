@@ -23,7 +23,7 @@
 typedef enum _LogCategory
 {
     LOG_CATEGORY_NONE    = 0,
-    LOG_CATEGORY_EVENT   = (1 << 0),
+    LOG_CATEGORY_REQUEST = (1 << 0),
     LOG_CATEGORY_MESSAGE = (1 << 1),
     LOG_CATEGORY_DEBUG   = (1 << 2),
     LOG_CATEGORY_WARNING = (1 << 3),
@@ -34,8 +34,8 @@ void log_message (LogCategory category, const char *function, int line, const ch
 
 #ifdef ENABLE_DEBUG
 
-#define LOG_EVENT(...) \
-    { log_message (LOG_CATEGORY_EVENT, __FUNCTION__, __LINE__, __VA_ARGS__); }
+#define LOG_REQUEST(...) \
+    { log_message (LOG_CATEGORY_REQUEST, __FUNCTION__, __LINE__, __VA_ARGS__); }
 #define LOG_MESSAGE(...) \
     { log_message (LOG_CATEGORY_MESSAGE, __FUNCTION__, __LINE__, __VA_ARGS__); }
 #define LOG_DEBUG(...) \
@@ -47,7 +47,7 @@ void log_message (LogCategory category, const char *function, int line, const ch
 
 #else
 
-#define LOG_EVENT(...)   do { } while (0)
+#define LOG_REQUEST(...)   do { } while (0)
 #define LOG_MESSAGE(...) do { } while (0)
 #define LOG_DEBUG(...)   do { } while (0)
 #define LOG_WARNING(...) do { } while (0)

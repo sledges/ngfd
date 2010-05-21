@@ -22,8 +22,8 @@ static const char*
 category_to_string (LogCategory category)
 {
     switch (category) {
-        case LOG_CATEGORY_EVENT:
-            return "EVENT";
+        case LOG_CATEGORY_REQUEST:
+            return "REQUEST";
 
         case LOG_CATEGORY_MESSAGE:
             return "MESSAGE";

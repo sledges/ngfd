@@ -19,15 +19,15 @@
 #include "timestamp.h"
 #include "daemon.h"
 
-static gboolean     _event_manager_create         (Context *context);
-static void         _event_manager_destroy        (Context *context);
-EventDefinition*    _event_manager_get_definition (Context *context, const char *name);
-static void         _event_state_cb               (Event *event, EventState state, gpointer userdata);
-static gboolean     _properties_get_boolean       (GHashTable *properties, const char *key);
-static guint        _properties_get_policy_id     (GHashTable *properties);
-static guint        _properties_get_play_timeout  (GHashTable *properties);
-static gint         _properties_get_play_mode     (GHashTable *properties);
-static gint         _properties_get_resources     (GHashTable *properties);
+static gboolean     _request_manager_create         (Context *context);
+static void         _request_manager_destroy        (Context *context);
+EventDefinition*    _request_manager_get_definition (Context *context, const char *name);
+static void         _request_state_cb               (Request *request, guint state, gpointer userdata);
+static gboolean     _properties_get_boolean         (GHashTable *properties, const char *key);
+static guint        _properties_get_policy_id       (GHashTable *properties);
+static guint        _properties_get_play_timeout    (GHashTable *properties);
+static gint         _properties_get_play_mode       (GHashTable *properties);
+static gint         _properties_get_resources       (GHashTable *properties);
 
 static DBusConnection*
 _get_dbus_connection (DBusBusType bus_type)
@@ -114,8 +114,8 @@ daemon_create ()
         return NULL;
     }
 
-    if (!_event_manager_create (context)) {
-        LOG_ERROR ("Failed to create event manager!");
+    if (!_request_manager_create (context)) {
+        LOG_ERROR ("Failed to create request manager!");
         return NULL;
     }
 
@@ -177,7 +177,7 @@ daemon_destroy (Context *context)
         context->profile = NULL;
     }
 
-    _event_manager_destroy (context);
+    _request_manager_destroy (context);
 
     if (context->loop) {
         g_main_loop_unref (context->loop);
@@ -194,7 +194,7 @@ daemon_run (Context *context)
 }
 
 static gboolean
-_event_manager_create (Context *context)
+_request_manager_create (Context *context)
 {
     context->definitions = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) event_definition_free);
     if (context->definitions == NULL)
@@ -208,7 +208,7 @@ _event_manager_create (Context *context)
 }
 
 static void
-_event_manager_destroy (Context *context)
+_request_manager_destroy (Context *context)
 {
     if (context->prototypes) {
         g_hash_table_destroy (context->prototypes);
@@ -231,7 +231,7 @@ daemon_register_definition (Context *context, const char *name, EventDefinition 
 }
 
 EventDefinition*
-_event_manager_get_definition (Context *context, const char *name)
+_request_manager_get_definition (Context *context, const char *name)
 {
     if (context == NULL || name == NULL)
         return NULL;
@@ -341,47 +341,47 @@ _properties_get_resources (GHashTable *properties)
 }
 
 static void
-_event_state_cb (Event *event, EventState state, gpointer userdata)
+_request_state_cb (Request *request, guint state, gpointer userdata)
 {
     Context *context = (Context*) userdata;
-    gboolean remove_event = FALSE;
+    gboolean remove_request = FALSE;
 
     switch (state) {
-        case EVENT_STARTED:
-            TIMESTAMP ("Event started");
-            LOG_DEBUG ("EVENT STARTED (id=%d): Time: %f s", event->policy_id, g_timer_elapsed(event->start_timer,NULL));
+        case REQUEST_STATE_STARTED:
+            TIMESTAMP ("REQUEST started");
+            LOG_DEBUG ("REQUEST STARTED (id=%d): Time: %f s", request->policy_id, g_timer_elapsed (request->start_timer,NULL));
             break;
 
-        case EVENT_FAILED:
-            LOG_DEBUG ("EVENT FAILED (id=%d)", event->policy_id);
-            dbus_if_send_status (context, event->policy_id, 0);
-            remove_event = TRUE;
+        case REQUEST_STATE_FAILED:
+            LOG_DEBUG ("REQUEST FAILED (id=%d)", request->policy_id);
+            dbus_if_send_status (context, request->policy_id, 0);
+            remove_request = TRUE;
             break;
 
-        case EVENT_COMPLETED:
-            LOG_DEBUG ("EVENT COMPLETED (id=%d)", event->policy_id);
-            dbus_if_send_status (context, event->policy_id, 0);
-            remove_event = TRUE;
+        case REQUEST_STATE_COMPLETED:
+            LOG_DEBUG ("REQUEST COMPLETED (id=%d)", request->policy_id);
+            dbus_if_send_status (context, request->policy_id, 0);
+            remove_request = TRUE;
             break;
 
         default:
             break;
     }
 
-    if (remove_event) {
-        LOG_DEBUG ("EVENT REMOVED (id=%d)", event->policy_id);
-        context->event_list = g_list_remove (context->event_list, event);
-        event_stop (event);
-        event_free (event);
+    if (remove_request) {
+        LOG_DEBUG ("REQUEST REMOVED (id=%d)", request->policy_id);
+        context->request_list = g_list_remove (context->request_list, request);
+        request_stop (request);
+        request_free (request);
     }
 }
 
 guint
-daemon_event_play (Context *context, const char *event_name, GHashTable *properties)
+daemon_request_play (Context *context, const char *request_name, GHashTable *properties)
 {
     EventDefinition *def = NULL;
     EventPrototype *proto = NULL;
-    Event *event = NULL;
+    Request *request = NULL;
 
     guint policy_id = 0, play_timeout = 0;
     gint resources = 0, play_mode = 0;
@@ -389,23 +389,23 @@ daemon_event_play (Context *context, const char *event_name, GHashTable *propert
     const char *proto_name      = NULL;
     const char *current_profile = NULL;
 
-    TIMESTAMP ("Event request received");
+    TIMESTAMP ("Request request received");
 
-    /* First, look for the event definition that defines the prototypes for long and
-       short events. If not found, then it is an unrecognized event. */
+    /* First, look for the request definition that defines the prototypes for long and
+       short requests. If not found, then it is an unrecognized request. */
 
-    if ((def = _event_manager_get_definition (context, event_name)) == NULL) {
-        LOG_ERROR ("No event definition for event %s", event_name);
+    if ((def = _request_manager_get_definition (context, request_name)) == NULL) {
+        LOG_ERROR ("No request definition for request %s", request_name);
         return 0;
     }
 
     /* Then, get the play mode from the passed properties. The play mode is either "long"
-       or "short" and we have a corresponding prototypes defined in the event definition.
+       or "short" and we have a corresponding prototypes defined in the request definition.
 
-       If no play mode then this is an invalid event. */
+       If no play mode then this is an invalid request. */
 
     if ((play_mode = _properties_get_play_mode (properties)) == 0) {
-        LOG_ERROR ("No play.mode property for event %s", event_name);
+        LOG_ERROR ("No play.mode property for request %s", request_name);
         return 0;
     }
 
@@ -422,50 +422,50 @@ daemon_event_play (Context *context, const char *event_name, GHashTable *propert
     }
 
     if ((proto = daemon_get_prototype (context, proto_name)) == 0) {
-        LOG_ERROR ("Failed to get event prototype %s for event %s", proto_name, event_name);
+        LOG_ERROR ("Failed to get request prototype %s for request %s", proto_name, request_name);
         return 0;
     }
 
     /* Get the policy identifier, allowed resources and play mode and timeout
-       for our event. */
+       for our request. */
 
     policy_id    = _properties_get_policy_id (properties);
     play_timeout = _properties_get_play_timeout (properties);
     resources    = _properties_get_resources (properties);
 
     if (policy_id == 0 || resources == 0) {
-        LOG_ERROR ("No policy.id or resources defined for event %s", event_name);
+        LOG_ERROR ("No policy.id or resources defined for request %s", request_name);
         return 0;
     }
 
-    LOG_EVENT ("event_name=%s, proto_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d (%s))",
-        event_name, proto_name, policy_id, play_timeout, resources, play_mode, play_mode == PLAY_MODE_LONG ? "LONG" : "SHORT");
+    LOG_REQUEST ("request_name=%s, proto_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d (%s))",
+        request_name, proto_name, policy_id, play_timeout, resources, play_mode, play_mode == PLAY_MODE_LONG ? "LONG" : "SHORT");
 
-    TIMESTAMP ("Event parsing completed");
-    /* Create a new event based on the prototype and feed the properties
+    TIMESTAMP ("Request parsing completed");
+    /* Create a new request based on the prototype and feed the properties
        to it. */
 
-    if ((event = event_new (context, proto)) == NULL) {
-        LOG_ERROR ("Failed to create event %s", event_name);
+    if ((request = request_new (context, proto)) == NULL) {
+        LOG_ERROR ("Failed to create request %s", request_name);
         return 0;
     }
 
-    event->policy_id    = policy_id;
-    event->resources    = resources;
-    event->play_mode    = play_mode;
-    event->play_timeout = play_timeout;
+    request->policy_id    = policy_id;
+    request->resources    = resources;
+    request->play_mode    = play_mode;
+    request->play_timeout = play_timeout;
 
-    /* Setup the event callback to monitor events progress. */
+    /* Setup the request callback to monitor requests progress. */
 
-    event_set_callback (event, _event_state_cb, context);
+    request_set_callback (request, _request_state_cb, context);
 
-    /* Start the event immediately. */
+    /* Start the request immediately. */
 
-    context->event_list = g_list_append (context->event_list, event);
-    if (!event_start (event, properties)) {
-        LOG_ERROR ("Failed to start event %s", event_name);
-        context->event_list = g_list_remove (context->event_list, event);
-        event_free (event);
+    context->request_list = g_list_append (context->request_list, request);
+    if (!request_start (request, properties)) {
+        LOG_ERROR ("Failed to start request %s", request_name);
+        context->request_list = g_list_remove (context->request_list, request);
+        request_free (request);
         return 0;
     }
 
@@ -473,22 +473,22 @@ daemon_event_play (Context *context, const char *event_name, GHashTable *propert
 }
 
 void
-daemon_event_stop (Context *context, guint id)
+daemon_request_stop (Context *context, guint id)
 {
-    Event *event = NULL;
+    Request *request = NULL;
     GList *iter = NULL;
 
-    if (context->event_list == NULL)
+    if (context->request_list == NULL)
         return;
 
-    for (iter = g_list_first (context->event_list); iter; iter = g_list_next (context->event_list)) {
-        event = (Event*) iter->data;
-        if (event->policy_id == id) {
-            LOG_DEBUG ("EVENT STOP (id=%d)\n", id);
-            context->event_list = g_list_remove (context->event_list, event);
-            event_stop (event);
-            dbus_if_send_status (context, event->policy_id, 0);
-            event_free (event);
+    for (iter = g_list_first (context->request_list); iter; iter = g_list_next (context->request_list)) {
+        request = (Request*) iter->data;
+        if (request->policy_id == id) {
+            LOG_DEBUG ("request STOP (id=%d)\n", id);
+            context->request_list = g_list_remove (context->request_list, request);
+            request_stop (request);
+            dbus_if_send_status (context, request->policy_id, 0);
+            request_free (request);
             break;
         }
     }

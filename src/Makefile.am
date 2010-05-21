@@ -21,8 +21,8 @@ ngfd_SOURCES = \
 	event-definition.c \
 	event-prototype.h \
 	event-prototype.c \
-	event.h \
-	event.c \
+	request.h \
+	request.c \
 	audio.h \
 	audio.c \
 	audio-interface.h \

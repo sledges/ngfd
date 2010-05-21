@@ -26,7 +26,7 @@ typedef struct _Context Context;
 
 #include "event-definition.h"
 #include "event-prototype.h"
-#include "event.h"
+#include "request.h"
 
 #include "profile.h"
 #include "tone-mapper.h"
@@ -42,7 +42,7 @@ struct _Context
 
     GHashTable    *definitions;
     GHashTable    *prototypes;
-    GList         *event_list;
+    GList         *request_list;
 
     Profile       *profile;
     ToneMapper    *tone_mapper;
