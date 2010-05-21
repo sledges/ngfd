@@ -39,10 +39,8 @@ static void         _audio_playback_stop (Request *request);
 
 static gboolean     _setup_vibrator (Request *request);
 static gboolean     _poll_vibrator (gpointer userdata);
-static gboolean     _setup_led (Request *request);
 static gboolean     _setup_backlight (Request *request);
 static void         _shutdown_vibrator (Request *request);
-static void         _shutdown_led (Request *request);
 static void         _shutdown_backlight (Request *request);
 
 
@@ -207,8 +205,10 @@ _interface_ready_cb (InterfaceType type, gboolean success, gpointer userdata)
         }
     }
 
-    if (properties_get_bool (request->properties, "led_enabled"))
-        _setup_led (request);
+    if ((request->resources & RESOURCE_LED) && properties_get_bool (request->properties, "led_enabled")) {
+        led_activate_pattern (request->context->system_bus, properties_get_string (request->properties, "led"));
+        request->led_pattern_active = TRUE;
+    }
 
     if (properties_get_bool (request->properties, "backlight_enabled"))
         _setup_backlight (request);
@@ -553,29 +553,6 @@ _shutdown_vibrator (Request *request)
 }
 
 static gboolean
-_setup_led (Request *request)
-{
-    const char *led = NULL;
-
-    if ((request->resources & RESOURCE_LED) == 0)
-        return FALSE;
-
-    if ((led = properties_get_string (request->properties, "led")) != NULL)
-        request->led_id = led_start (request->context->led, led);
-
-    return TRUE;
-}
-
-static void
-_shutdown_led (Request *request)
-{
-    if (request->led_id > 0) {
-        led_stop (request->context->led, request->led_id);
-        request->led_id = 0;
-    }
-}
-
-static gboolean
 _setup_backlight (Request *request)
 {
     if ((request->resources & RESOURCE_BACKLIGHT) == 0)
@@ -664,8 +641,12 @@ request_stop (Request *request)
         request->tone_generator_active = FALSE;
     }
 
+    if (request->led_pattern_active) {
+        led_deactivate_pattern (request->context->system_bus, properties_get_string (request->properties, "led"));
+        request->led_pattern_active = FALSE;
+    }
+
     _audio_playback_stop (request);
     _shutdown_vibrator (request);
-    _shutdown_led (request);
     _shutdown_backlight (request);
 }

@@ -14,41 +14,26 @@
  * written consent of Nokia.
  */
 
+#include <dbus/dbus.h>
+#include <mce/dbus-names.h>
+
+#include "log.h"
 #include "led.h"
 
-struct _Led
+gboolean
+led_activate_pattern (DBusConnection *system_bus, const char *pattern)
 {
-    int dummy;
-};
+    (void) system_bus;
+    (void) pattern;
 
-Led*
-led_create ()
-{
-    Led *self = NULL;
-
-    if ((self = g_new0 (Led, 1)) == NULL)
-        return NULL;
-
-    return self;
+    return TRUE;
 }
 
-void
-led_destroy (Led *self)
+gboolean
+led_deactivate_pattern (DBusConnection *system_bus, const char *pattern)
 {
-    if (self == NULL)
-        return;
+    (void) system_bus;
+    (void) pattern;
 
-    g_free (self);
-}
-
-guint
-led_start (Led *self, const char *pattern)
-{
-    return 1;
-}
-
-void
-led_stop (Led *self, guint id)
-{
-    return;
+    return TRUE;
 }

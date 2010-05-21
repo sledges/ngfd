@@ -68,9 +68,9 @@ struct _Request
     gint            audio_max_repeats;
 
     gboolean        tone_generator_active;
+    gboolean        led_pattern_active;
 
     guint           vibra_id;
-    guint           led_id;
     guint           vibra_poll_id;
 
     gboolean        audio_ready;

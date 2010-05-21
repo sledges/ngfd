@@ -18,12 +18,9 @@
 #define LED_H
 
 #include <glib.h>
+#include <dbus/dbus.h>
 
-typedef struct _Led Led;
-
-Led*  led_create  ();
-void  led_destroy (Led *self);
-guint led_start   (Led *self, const gchar *pattern);
-void  led_stop    (Led *self, guint id);
+gboolean led_activate_pattern (DBusConnection *system_bus, const char *pattern);
+gboolean led_deactive_pattern (DBusConnection *system_bus, const char *pattern);
 
 #endif /* LED_H */

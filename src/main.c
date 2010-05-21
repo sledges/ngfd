@@ -96,11 +96,6 @@ context_create (Context **context)
         return FALSE;
     }
 
-    if ((c->led = led_create ()) == NULL) {
-        LOG_ERROR ("Failed to create LED backend!");
-        return FALSE;
-    }
-
     if ((c->backlight = backlight_create ()) == NULL) {
         LOG_ERROR ("Failed to create backlight backend!");
         return FALSE;
@@ -142,11 +137,6 @@ context_destroy (Context *context)
     if (context->backlight) {
         backlight_destroy (context->backlight);
 	    context->backlight = NULL;
-    }
-
-    if (context->led) {
-        led_destroy (context->led);
-        context->led = NULL;
     }
 
     if (context->vibrator) {

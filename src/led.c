@@ -16,117 +16,54 @@
 
 #include <dbus/dbus.h>
 #include <mce/dbus-names.h>
+
+#include "log.h"
 #include "led.h"
 
-typedef struct _Pattern
+static gboolean
+call_dbus_method (DBusConnection *bus, DBusMessage *msg)
 {
-    guint   id;
-    gchar   *pattern;
-} Pattern;
-
-struct _Led
-{
-    DBusConnection *connection;
-    guint           pattern_count;
-    GList           *active_patterns;
-};
-
-Led*
-led_create ()
-{
-    Led *self = NULL;
-    DBusError error;
-
-    if ((self = g_new0 (Led, 1)) == NULL)
-        return NULL;
-
-    dbus_error_init (&error);
-    if ((self->connection = dbus_bus_get (DBUS_BUS_SYSTEM, &error)) == NULL) {
-        if (dbus_error_is_set (&error))
-            dbus_error_free (&error);
-
-        g_free (self);
-        return NULL;
+    if (!dbus_connection_send (bus, msg, 0)) {
+        LOG_WARNING ("Failed to send DBus message %s to interface %s", dbus_message_get_member (msg), dbus_message_get_interface (msg));
+        return FALSE;
     }
 
-    return self;
+    return TRUE;
 }
 
-void
-led_destroy (Led *self)
-{
-    if (self == NULL)
-        return;
-
-    if (self->connection) {
-        dbus_connection_unref (self->connection);
-        self->connection = NULL;
-    }
-
-    g_free (self);
-}
-
-static void
-_toggle_pattern (Led *self, const char *pattern, gboolean activate)
+static gboolean
+toggle_pattern (DBusConnection *bus, const char *pattern, gboolean activate)
 {
     DBusMessage *msg = NULL;
+    gboolean     ret = FALSE;
 
-    if (self->connection == NULL)
-        return;
+    if (bus == NULL || pattern == NULL)
+        return FALSE;
 
     msg = dbus_message_new_method_call (MCE_SERVICE, MCE_REQUEST_PATH, MCE_REQUEST_IF,
         activate ? MCE_ACTIVATE_LED_PATTERN : MCE_DEACTIVATE_LED_PATTERN);
 
     if (msg == NULL)
-        return;
+        return FALSE;
 
     if (!dbus_message_append_args (msg, DBUS_TYPE_STRING, &pattern, DBUS_TYPE_INVALID)) {
         dbus_message_unref (msg);
-        return;
+        return FALSE;
     }
 
-    dbus_connection_send (self->connection, msg, NULL);
+    ret = call_dbus_method (bus, msg);
     dbus_message_unref (msg);
+    return ret;
 }
 
-guint
-led_start (Led *self, const char *pattern)
+gboolean
+led_activate_pattern (DBusConnection *system_bus, const char *pattern)
 {
-    Pattern *p = NULL;
-
-    if (self == NULL || pattern == NULL)
-        return 0;
-
-    if ((p = g_new0 (Pattern, 1)) == NULL)
-        return 0;
-
-    p->id = ++self->pattern_count;
-    p->pattern = g_strdup (pattern);
-
-    self->active_patterns = g_list_append (self->active_patterns, p);
-    _toggle_pattern (self, p->pattern, TRUE);
-
-    return p->id;
+    return toggle_pattern (system_bus, pattern, TRUE);
 }
 
-void
-led_stop (Led *self, guint id)
+gboolean
+led_deactivate_pattern (DBusConnection *system_bus, const char *pattern)
 {
-    GList *iter = NULL;
-    Pattern *p = NULL;
-
-    if (self == NULL || id == 0)
-        return;
-
-    for (iter = g_list_first (self->active_patterns); iter; iter = g_list_next (iter)) {
-        p = (Pattern*) iter->data;
-        if (p->id == id) {
-            self->active_patterns = g_list_remove (self->active_patterns, p);
-            _toggle_pattern (self, p->pattern, FALSE);
-
-            g_free (p->pattern);
-            g_free (p);
-            break;
-        }
-    }
+    return toggle_pattern (system_bus, pattern, FALSE);
 }
