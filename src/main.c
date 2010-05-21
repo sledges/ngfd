@@ -20,13 +20,13 @@
 int
 main (int argc, char *argv[])
 {
-    Daemon *daemon = NULL;
+    Context *context = NULL;
 
-    if ((daemon = daemon_create ()) == NULL)
+    if ((context = daemon_create ()) == NULL)
         return 1;
 
-    daemon_run (daemon);
-    daemon_destroy (daemon);
+    daemon_run (context);
+    daemon_destroy (context);
 
     return 0;
 }

@@ -33,7 +33,7 @@
 /** Temporary structure when configuration is being parsed */
 typedef struct _SettingsData
 {
-    Daemon  *self;
+    Context  *self;
     gchar     **allowed_keys;
 } SettingsData;
 
@@ -175,7 +175,7 @@ _parse_general (SettingsData *data, GKeyFile *k)
 static void
 _parse_vibra_patterns (SettingsData *data, GKeyFile *k)
 {
-    Daemon *self = data->self;
+    Context *self = data->self;
 
     gchar **group_list = NULL;
     gchar **group      = NULL;
@@ -197,7 +197,7 @@ _parse_vibra_patterns (SettingsData *data, GKeyFile *k)
 
         LOG_DEBUG ("<new vibrator pattern: %s (filename=%s, pattern_id=%d)>", name, filename, pattern_id);
 
-        vibrator_register (self->context.vibrator, name, filename, pattern_id);
+        vibrator_register (self->vibrator, name, filename, pattern_id);
 
         g_free (filename);
         g_free (name);
@@ -209,7 +209,7 @@ _parse_vibra_patterns (SettingsData *data, GKeyFile *k)
 static void
 _parse_volume_patterns (SettingsData *data, GKeyFile *k)
 {
-    Daemon *self = data->self;
+    Context *self = data->self;
 
     gchar    **group_list = NULL;
     gchar    **group      = NULL;
@@ -231,7 +231,7 @@ _parse_volume_patterns (SettingsData *data, GKeyFile *k)
 
         LOG_DEBUG ("<new volume pattern: %s (pattern=%s, repeat=%s)>", name, pattern, repeat ? "TRUE" : "FALSE");
 
-        audio_register_controller (self->context.audio, name, pattern, repeat);
+        audio_register_controller (self->audio, name, pattern, repeat);
 
         g_free (pattern);
         g_free (name);
@@ -252,7 +252,7 @@ _parse_volume_patterns (SettingsData *data, GKeyFile *k)
 static void
 _parse_definitions (SettingsData *data, GKeyFile *k)
 {
-    Daemon *self = data->self;
+    Context *self = data->self;
 
     gchar **group_list = NULL;
     gchar **group      = NULL;
@@ -468,7 +468,7 @@ _parse_stream_properties (EventPrototype *prototype,
  * properties and add the prototype to the prototypes_done list to ensure
  * that we don't parse it again.
  *
- * @param self Daemon
+ * @param self Context
  * @param k GKeyFile
  * @param prototypes_done GList of strings containing parsed prototypes.
  * @param prototypes GHashTable of mapping of prototype name to group.
@@ -479,7 +479,7 @@ _parse_stream_properties (EventPrototype *prototype,
 static void
 _parse_single_prototype (SettingsData *data, GKeyFile *k, GList **prototypes_done, GHashTable *prototypes, const char *name)
 {
-    Daemon *self = data->self;
+    Context *self = data->self;
 
     const gchar       *group        = NULL;
     gchar             *parent       = NULL;
@@ -578,7 +578,7 @@ _parse_single_prototype (SettingsData *data, GKeyFile *k, GList **prototypes_don
  * of prototype name to group name. Once done, iterate through the list
  * and parse every prototype.
  *
- * @param self Daemon
+ * @param self Context
  * @param k GKeyFile
  * @post All available and valid prototypes registered to daemon.
  */
@@ -623,7 +623,7 @@ _parse_prototypes (SettingsData *data, GKeyFile *k)
 }
 
 gboolean
-daemon_settings_load (Daemon *self)
+daemon_settings_load (Context *self)
 {
     static const char *conf_files[] = { "/etc/ngf/ngf.ini", "./ngf.ini", NULL };
 

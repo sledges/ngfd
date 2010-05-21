@@ -19,9 +19,9 @@
 #include "timestamp.h"
 #include "daemon.h"
 
-static gboolean     _event_manager_create         (Daemon *self);
-static void         _event_manager_destroy        (Daemon *self);
-EventDefinition* _event_manager_get_definition (Daemon *self, const char *name);
+static gboolean     _event_manager_create         (Context *self);
+static void         _event_manager_destroy        (Context *self);
+EventDefinition* _event_manager_get_definition (Context *self, const char *name);
 static void         _event_state_cb               (Event *event, EventState state, gpointer userdata);
 static gboolean     _properties_get_boolean       (GHashTable *properties, const char *key);
 static guint        _properties_get_policy_id     (GHashTable *properties);
@@ -31,13 +31,13 @@ static gint         _properties_get_resources     (GHashTable *properties);
 static guint        _handle_play_cb               (DBusIf *dbus, const char *event, GHashTable *properties, gpointer userdata);
 static void         _handle_stop_cb               (DBusIf *dbus, guint id, gpointer userdata);
 
-Daemon*
+Context*
 daemon_create ()
 {
-    Daemon *self = NULL;
+    Context *self = NULL;
 
-    if ((self = g_new0 (Daemon, 1)) == NULL) {
-        LOG_ERROR ("Failed to allocate memory for Daemon instance!");
+    if ((self = g_new0 (Context, 1)) == NULL) {
+        LOG_ERROR ("Failed to allocate memory for Context instance!");
         return NULL;
     }
 
@@ -51,36 +51,36 @@ daemon_create ()
         return NULL;
     }
 
-    if ((self->context.profile = profile_create ()) == NULL) {
+    if ((self->profile = profile_create ()) == NULL) {
         LOG_ERROR ("Failed to create profile tracking!");
         return NULL;
     }
 
-    if ((self->context.tone_mapper = tone_mapper_create ()) == NULL) {
+    if ((self->tone_mapper = tone_mapper_create ()) == NULL) {
         LOG_WARNING ("Failed to create tone mapper!");
     }
 
-    if ((self->context.audio = audio_create ()) == NULL) {
+    if ((self->audio = audio_create ()) == NULL) {
         LOG_ERROR ("Failed to create Pulseaudio backend!");
         return NULL;
     }
 
-    if ((self->context.vibrator = vibrator_create ()) == NULL) {
+    if ((self->vibrator = vibrator_create ()) == NULL) {
         LOG_ERROR ("Failed to create Immersion backend!");
         return NULL;
     }
 
-    if ((self->context.tonegen = tone_generator_create ()) == NULL) {
+    if ((self->tonegen = tone_generator_create ()) == NULL) {
         LOG_ERROR ("Failed to create tone generator backend!");
         return NULL;
     }
 
-    if ((self->context.led = led_create ()) == NULL) {
+    if ((self->led = led_create ()) == NULL) {
         LOG_ERROR ("Failed to create LED backend!");
         return NULL;
     }
 
-    if ((self->context.backlight = backlight_create ()) == NULL) {
+    if ((self->backlight = backlight_create ()) == NULL) {
         LOG_ERROR ("Failed to create backlight backend!");
         return NULL;
     }
@@ -99,46 +99,46 @@ daemon_create ()
 }
 
 void
-daemon_destroy (Daemon *self)
+daemon_destroy (Context *self)
 {
     if (self->dbus) {
         dbus_if_destroy (self->dbus);
         self->dbus = NULL;
     }
 
-    if (self->context.backlight) {
-        backlight_destroy (self->context.backlight);
-	    self->context.backlight = NULL;
+    if (self->backlight) {
+        backlight_destroy (self->backlight);
+	    self->backlight = NULL;
     }
 
-    if (self->context.led) {
-        led_destroy (self->context.led);
-        self->context.led = NULL;
+    if (self->led) {
+        led_destroy (self->led);
+        self->led = NULL;
     }
 
-    if (self->context.tonegen) {
-        tone_generator_destroy (self->context.tonegen);
-        self->context.tonegen = NULL;
+    if (self->tonegen) {
+        tone_generator_destroy (self->tonegen);
+        self->tonegen = NULL;
     }
 
-    if (self->context.vibrator) {
-        vibrator_destroy (self->context.vibrator);
-        self->context.vibrator = NULL;
+    if (self->vibrator) {
+        vibrator_destroy (self->vibrator);
+        self->vibrator = NULL;
     }
 
-    if (self->context.audio) {
-        audio_destroy (self->context.audio);
-        self->context.audio = NULL;
+    if (self->audio) {
+        audio_destroy (self->audio);
+        self->audio = NULL;
     }
 
-    if (self->context.tone_mapper) {
-        tone_mapper_destroy (self->context.tone_mapper);
-        self->context.tone_mapper = NULL;
+    if (self->tone_mapper) {
+        tone_mapper_destroy (self->tone_mapper);
+        self->tone_mapper = NULL;
     }
 
-    if (self->context.profile) {
-        profile_destroy (self->context.profile);
-        self->context.profile = NULL;
+    if (self->profile) {
+        profile_destroy (self->profile);
+        self->profile = NULL;
     }
 
     _event_manager_destroy (self);
@@ -152,13 +152,13 @@ daemon_destroy (Daemon *self)
 }
 
 void
-daemon_run (Daemon *self)
+daemon_run (Context *self)
 {
     g_main_loop_run (self->loop);
 }
 
 static gboolean
-_event_manager_create (Daemon *self)
+_event_manager_create (Context *self)
 {
     self->definitions = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) event_definition_free);
     if (self->definitions == NULL)
@@ -172,7 +172,7 @@ _event_manager_create (Daemon *self)
 }
 
 static void
-_event_manager_destroy (Daemon *self)
+_event_manager_destroy (Context *self)
 {
     if (self->prototypes) {
         g_hash_table_destroy (self->prototypes);
@@ -186,7 +186,7 @@ _event_manager_destroy (Daemon *self)
 }
 
 void
-daemon_register_definition (Daemon *self, const char *name, EventDefinition *def)
+daemon_register_definition (Context *self, const char *name, EventDefinition *def)
 {
     if (self == NULL || name == NULL || def == NULL)
         return;
@@ -195,7 +195,7 @@ daemon_register_definition (Daemon *self, const char *name, EventDefinition *def
 }
 
 EventDefinition*
-_event_manager_get_definition (Daemon *self, const char *name)
+_event_manager_get_definition (Context *self, const char *name)
 {
     if (self == NULL || name == NULL)
         return NULL;
@@ -204,7 +204,7 @@ _event_manager_get_definition (Daemon *self, const char *name)
 }
 
 void
-daemon_register_prototype (Daemon *self, const char *name, EventPrototype *proto)
+daemon_register_prototype (Context *self, const char *name, EventPrototype *proto)
 {
     if (self == NULL || name == NULL || proto == NULL)
         return;
@@ -213,7 +213,7 @@ daemon_register_prototype (Daemon *self, const char *name, EventPrototype *proto
 }
 
 EventPrototype*
-daemon_get_prototype (Daemon *self, const char *name)
+daemon_get_prototype (Context *self, const char *name)
 {
     if (self == NULL || name == NULL)
         return NULL;
@@ -307,7 +307,7 @@ _properties_get_resources (GHashTable *properties)
 static void
 _event_state_cb (Event *event, EventState state, gpointer userdata)
 {
-    Daemon *self = (Daemon*) userdata;
+    Context *self = (Context*) userdata;
     gboolean remove_event = FALSE;
 
     switch (state) {
@@ -341,7 +341,7 @@ _event_state_cb (Event *event, EventState state, gpointer userdata)
 }
 
 guint
-daemon_event_play (Daemon *self, const char *event_name, GHashTable *properties)
+daemon_event_play (Context *self, const char *event_name, GHashTable *properties)
 {
     EventDefinition *def = NULL;
     EventPrototype *proto = NULL;
@@ -377,7 +377,7 @@ daemon_event_play (Daemon *self, const char *event_name, GHashTable *properties)
        definition, use that. Otherwise, lookup the prototype based on the play mode.
        If not found, we have the definition, but no actions specified for the play mode. */
 
-    current_profile = profile_get_current (self->context.profile);
+    current_profile = profile_get_current (self->profile);
     if (def->meeting_proto && current_profile && g_str_equal (current_profile, PROFILE_MEETING)) {
         proto_name = def->meeting_proto;
     }
@@ -409,7 +409,7 @@ daemon_event_play (Daemon *self, const char *event_name, GHashTable *properties)
     /* Create a new event based on the prototype and feed the properties
        to it. */
 
-    if ((event = event_new (&self->context, proto)) == NULL) {
+    if ((event = event_new (self, proto)) == NULL) {
         LOG_ERROR ("Failed to create event %s", event_name);
         return 0;
     }
@@ -437,7 +437,7 @@ daemon_event_play (Daemon *self, const char *event_name, GHashTable *properties)
 }
 
 void
-daemon_event_stop (Daemon *self, guint id)
+daemon_event_stop (Context *self, guint id)
 {
     Event *event = NULL;
     GList *iter = NULL;
@@ -461,13 +461,13 @@ daemon_event_stop (Daemon *self, guint id)
 static guint
 _handle_play_cb (DBusIf *dbus, const char *event, GHashTable *properties, gpointer userdata)
 {
-    Daemon *self = (Daemon*) userdata;
+    Context *self = (Context*) userdata;
     return daemon_event_play (self, event, properties);
 }
 
 static void
 _handle_stop_cb (DBusIf *dbus, guint id, gpointer userdata)
 {
-    Daemon *self = (Daemon*) userdata;
+    Context *self = (Context*) userdata;
     daemon_event_stop (self, id);
 }

@@ -18,42 +18,18 @@
 #define DAEMON_H
 
 #include <glib.h>
-
-#include "event-definition.h"
-#include "event-prototype.h"
-#include "event.h"
-
 #include "context.h"
-#include "dbus-if.h"
 
-typedef struct _Daemon Daemon;
+Context*        daemon_create ();
+void            daemon_destroy (Context *self);
+void            daemon_run (Context *self);
+guint           daemon_event_play (Context *self, const char *event_name, GHashTable *properties);
+void            daemon_event_stop (Context *self, guint id);
 
-struct _Daemon
-{
-    GMainLoop       *loop;
+void            daemon_register_definition (Context *self, const char *name, EventDefinition *def);
+void            daemon_register_prototype (Context *self, const char *name, EventPrototype *proto);
+EventPrototype* daemon_get_prototype (Context *self, const char *name);
 
-    /* Event handling */
-    GHashTable      *definitions;
-    GHashTable      *prototypes;
-    GList           *event_list;
-
-    /* D-Bus interface */
-    DBusIf          *dbus;
-
-    /* Context containing the backends. */
-    Context          context;
-};
-
-Daemon*         daemon_create ();
-void            daemon_destroy (Daemon *self);
-void            daemon_run (Daemon *self);
-guint           daemon_event_play (Daemon *self, const char *event_name, GHashTable *properties);
-void            daemon_event_stop (Daemon *self, guint id);
-
-void            daemon_register_definition (Daemon *self, const char *name, EventDefinition *def);
-void            daemon_register_prototype (Daemon *self, const char *name, EventPrototype *proto);
-EventPrototype* daemon_get_prototype (Daemon *self, const char *name);
-
-gboolean        daemon_settings_load (Daemon *self);
+gboolean        daemon_settings_load (Context *self);
 
 #endif /* DAEMON_H */
