@@ -21,15 +21,15 @@
 #include "context.h"
 
 Context*        daemon_create ();
-void            daemon_destroy (Context *self);
-void            daemon_run (Context *self);
-guint           daemon_event_play (Context *self, const char *event_name, GHashTable *properties);
-void            daemon_event_stop (Context *self, guint id);
+void            daemon_destroy (Context *context);
+void            daemon_run (Context *context);
+guint           daemon_event_play (Context *context, const char *event_name, GHashTable *properties);
+void            daemon_event_stop (Context *context, guint id);
 
-void            daemon_register_definition (Context *self, const char *name, EventDefinition *def);
-void            daemon_register_prototype (Context *self, const char *name, EventPrototype *proto);
-EventPrototype* daemon_get_prototype (Context *self, const char *name);
+void            daemon_register_definition (Context *context, const char *name, EventDefinition *def);
+void            daemon_register_prototype (Context *context, const char *name, EventPrototype *proto);
+EventPrototype* daemon_get_prototype (Context *context, const char *name);
 
-gboolean        daemon_settings_load (Context *self);
+gboolean        daemon_settings_load (Context *context);
 
 #endif /* DAEMON_H */

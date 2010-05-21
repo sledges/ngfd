@@ -19,9 +19,9 @@
 #include "timestamp.h"
 #include "daemon.h"
 
-static gboolean     _event_manager_create         (Context *self);
-static void         _event_manager_destroy        (Context *self);
-EventDefinition* _event_manager_get_definition (Context *self, const char *name);
+static gboolean     _event_manager_create         (Context *context);
+static void         _event_manager_destroy        (Context *context);
+EventDefinition* _event_manager_get_definition (Context *context, const char *name);
 static void         _event_state_cb               (Event *event, EventState state, gpointer userdata);
 static gboolean     _properties_get_boolean       (GHashTable *properties, const char *key);
 static guint        _properties_get_policy_id     (GHashTable *properties);
@@ -34,191 +34,191 @@ static void         _handle_stop_cb               (DBusIf *dbus, guint id, gpoin
 Context*
 daemon_create ()
 {
-    Context *self = NULL;
+    Context *context = NULL;
 
-    if ((self = g_new0 (Context, 1)) == NULL) {
+    if ((context = g_new0 (Context, 1)) == NULL) {
         LOG_ERROR ("Failed to allocate memory for Context instance!");
         return NULL;
     }
 
-    if ((self->loop = g_main_loop_new (NULL, 0)) == NULL) {
+    if ((context->loop = g_main_loop_new (NULL, 0)) == NULL) {
         LOG_ERROR ("Failed to create the GLib mainloop!");
         return NULL;
     }
 
-    if ((self->dbus = dbus_if_create (_handle_play_cb, _handle_stop_cb, self)) == NULL) {
+    if ((context->dbus = dbus_if_create (_handle_play_cb, _handle_stop_cb, context)) == NULL) {
         LOG_ERROR ("Failed to create D-Bus interface!");
         return NULL;
     }
 
-    if ((self->profile = profile_create ()) == NULL) {
+    if ((context->profile = profile_create ()) == NULL) {
         LOG_ERROR ("Failed to create profile tracking!");
         return NULL;
     }
 
-    if ((self->tone_mapper = tone_mapper_create ()) == NULL) {
+    if ((context->tone_mapper = tone_mapper_create ()) == NULL) {
         LOG_WARNING ("Failed to create tone mapper!");
     }
 
-    if ((self->audio = audio_create ()) == NULL) {
+    if ((context->audio = audio_create ()) == NULL) {
         LOG_ERROR ("Failed to create Pulseaudio backend!");
         return NULL;
     }
 
-    if ((self->vibrator = vibrator_create ()) == NULL) {
+    if ((context->vibrator = vibrator_create ()) == NULL) {
         LOG_ERROR ("Failed to create Immersion backend!");
         return NULL;
     }
 
-    if ((self->tonegen = tone_generator_create ()) == NULL) {
+    if ((context->tonegen = tone_generator_create ()) == NULL) {
         LOG_ERROR ("Failed to create tone generator backend!");
         return NULL;
     }
 
-    if ((self->led = led_create ()) == NULL) {
+    if ((context->led = led_create ()) == NULL) {
         LOG_ERROR ("Failed to create LED backend!");
         return NULL;
     }
 
-    if ((self->backlight = backlight_create ()) == NULL) {
+    if ((context->backlight = backlight_create ()) == NULL) {
         LOG_ERROR ("Failed to create backlight backend!");
         return NULL;
     }
 
-    if (!_event_manager_create (self)) {
+    if (!_event_manager_create (context)) {
         LOG_ERROR ("Failed to create event manager!");
         return NULL;
     }
 
-    if (!daemon_settings_load (self)) {
+    if (!daemon_settings_load (context)) {
         LOG_ERROR ("Failed to load settings!");
         return NULL;
     }
 
-    return self;
+    return context;
 }
 
 void
-daemon_destroy (Context *self)
+daemon_destroy (Context *context)
 {
-    if (self->dbus) {
-        dbus_if_destroy (self->dbus);
-        self->dbus = NULL;
+    if (context->dbus) {
+        dbus_if_destroy (context->dbus);
+        context->dbus = NULL;
     }
 
-    if (self->backlight) {
-        backlight_destroy (self->backlight);
-	    self->backlight = NULL;
+    if (context->backlight) {
+        backlight_destroy (context->backlight);
+	    context->backlight = NULL;
     }
 
-    if (self->led) {
-        led_destroy (self->led);
-        self->led = NULL;
+    if (context->led) {
+        led_destroy (context->led);
+        context->led = NULL;
     }
 
-    if (self->tonegen) {
-        tone_generator_destroy (self->tonegen);
-        self->tonegen = NULL;
+    if (context->tonegen) {
+        tone_generator_destroy (context->tonegen);
+        context->tonegen = NULL;
     }
 
-    if (self->vibrator) {
-        vibrator_destroy (self->vibrator);
-        self->vibrator = NULL;
+    if (context->vibrator) {
+        vibrator_destroy (context->vibrator);
+        context->vibrator = NULL;
     }
 
-    if (self->audio) {
-        audio_destroy (self->audio);
-        self->audio = NULL;
+    if (context->audio) {
+        audio_destroy (context->audio);
+        context->audio = NULL;
     }
 
-    if (self->tone_mapper) {
-        tone_mapper_destroy (self->tone_mapper);
-        self->tone_mapper = NULL;
+    if (context->tone_mapper) {
+        tone_mapper_destroy (context->tone_mapper);
+        context->tone_mapper = NULL;
     }
 
-    if (self->profile) {
-        profile_destroy (self->profile);
-        self->profile = NULL;
+    if (context->profile) {
+        profile_destroy (context->profile);
+        context->profile = NULL;
     }
 
-    _event_manager_destroy (self);
+    _event_manager_destroy (context);
 
-    if (self->loop) {
-        g_main_loop_unref (self->loop);
-        self->loop = NULL;
+    if (context->loop) {
+        g_main_loop_unref (context->loop);
+        context->loop = NULL;
     }
 
-    g_free (self);
+    g_free (context);
 }
 
 void
-daemon_run (Context *self)
+daemon_run (Context *context)
 {
-    g_main_loop_run (self->loop);
+    g_main_loop_run (context->loop);
 }
 
 static gboolean
-_event_manager_create (Context *self)
+_event_manager_create (Context *context)
 {
-    self->definitions = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) event_definition_free);
-    if (self->definitions == NULL)
+    context->definitions = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) event_definition_free);
+    if (context->definitions == NULL)
         return FALSE;
 
-    self->prototypes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) event_prototype_free);
-    if (self->prototypes == NULL)
+    context->prototypes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) event_prototype_free);
+    if (context->prototypes == NULL)
         return FALSE;
 
     return TRUE;
 }
 
 static void
-_event_manager_destroy (Context *self)
+_event_manager_destroy (Context *context)
 {
-    if (self->prototypes) {
-        g_hash_table_destroy (self->prototypes);
-        self->prototypes = NULL;
+    if (context->prototypes) {
+        g_hash_table_destroy (context->prototypes);
+        context->prototypes = NULL;
     }
 
-    if (self->definitions) {
-        g_hash_table_destroy (self->definitions);
-        self->definitions = NULL;
+    if (context->definitions) {
+        g_hash_table_destroy (context->definitions);
+        context->definitions = NULL;
     }
 }
 
 void
-daemon_register_definition (Context *self, const char *name, EventDefinition *def)
+daemon_register_definition (Context *context, const char *name, EventDefinition *def)
 {
-    if (self == NULL || name == NULL || def == NULL)
+    if (context == NULL || name == NULL || def == NULL)
         return;
 
-    g_hash_table_replace (self->definitions, g_strdup (name), def);
+    g_hash_table_replace (context->definitions, g_strdup (name), def);
 }
 
 EventDefinition*
-_event_manager_get_definition (Context *self, const char *name)
+_event_manager_get_definition (Context *context, const char *name)
 {
-    if (self == NULL || name == NULL)
+    if (context == NULL || name == NULL)
         return NULL;
 
-    return (EventDefinition*) g_hash_table_lookup (self->definitions, name);
+    return (EventDefinition*) g_hash_table_lookup (context->definitions, name);
 }
 
 void
-daemon_register_prototype (Context *self, const char *name, EventPrototype *proto)
+daemon_register_prototype (Context *context, const char *name, EventPrototype *proto)
 {
-    if (self == NULL || name == NULL || proto == NULL)
+    if (context == NULL || name == NULL || proto == NULL)
         return;
 
-    g_hash_table_replace (self->prototypes, g_strdup (name), proto);
+    g_hash_table_replace (context->prototypes, g_strdup (name), proto);
 }
 
 EventPrototype*
-daemon_get_prototype (Context *self, const char *name)
+daemon_get_prototype (Context *context, const char *name)
 {
-    if (self == NULL || name == NULL)
+    if (context == NULL || name == NULL)
         return NULL;
 
-    return (EventPrototype*) g_hash_table_lookup (self->prototypes, name);
+    return (EventPrototype*) g_hash_table_lookup (context->prototypes, name);
 }
 
 static gboolean
@@ -307,7 +307,7 @@ _properties_get_resources (GHashTable *properties)
 static void
 _event_state_cb (Event *event, EventState state, gpointer userdata)
 {
-    Context *self = (Context*) userdata;
+    Context *context = (Context*) userdata;
     gboolean remove_event = FALSE;
 
     switch (state) {
@@ -318,13 +318,13 @@ _event_state_cb (Event *event, EventState state, gpointer userdata)
 
         case EVENT_FAILED:
             LOG_DEBUG ("EVENT FAILED (id=%d)", event->policy_id);
-            dbus_if_send_status (self->dbus, event->policy_id, 0);
+            dbus_if_send_status (context->dbus, event->policy_id, 0);
             remove_event = TRUE;
             break;
 
         case EVENT_COMPLETED:
             LOG_DEBUG ("EVENT COMPLETED (id=%d)", event->policy_id);
-            dbus_if_send_status (self->dbus, event->policy_id, 0);
+            dbus_if_send_status (context->dbus, event->policy_id, 0);
             remove_event = TRUE;
             break;
 
@@ -334,14 +334,14 @@ _event_state_cb (Event *event, EventState state, gpointer userdata)
 
     if (remove_event) {
         LOG_DEBUG ("EVENT REMOVED (id=%d)", event->policy_id);
-        self->event_list = g_list_remove (self->event_list, event);
+        context->event_list = g_list_remove (context->event_list, event);
         event_stop (event);
         event_free (event);
     }
 }
 
 guint
-daemon_event_play (Context *self, const char *event_name, GHashTable *properties)
+daemon_event_play (Context *context, const char *event_name, GHashTable *properties)
 {
     EventDefinition *def = NULL;
     EventPrototype *proto = NULL;
@@ -358,7 +358,7 @@ daemon_event_play (Context *self, const char *event_name, GHashTable *properties
     /* First, look for the event definition that defines the prototypes for long and
        short events. If not found, then it is an unrecognized event. */
 
-    if ((def = _event_manager_get_definition (self, event_name)) == NULL) {
+    if ((def = _event_manager_get_definition (context, event_name)) == NULL) {
         LOG_ERROR ("No event definition for event %s", event_name);
         return 0;
     }
@@ -377,7 +377,7 @@ daemon_event_play (Context *self, const char *event_name, GHashTable *properties
        definition, use that. Otherwise, lookup the prototype based on the play mode.
        If not found, we have the definition, but no actions specified for the play mode. */
 
-    current_profile = profile_get_current (self->profile);
+    current_profile = profile_get_current (context->profile);
     if (def->meeting_proto && current_profile && g_str_equal (current_profile, PROFILE_MEETING)) {
         proto_name = def->meeting_proto;
     }
@@ -385,7 +385,7 @@ daemon_event_play (Context *self, const char *event_name, GHashTable *properties
         proto_name = (play_mode == PLAY_MODE_LONG) ? def->long_proto : def->short_proto;
     }
 
-    if ((proto = daemon_get_prototype (self, proto_name)) == 0) {
+    if ((proto = daemon_get_prototype (context, proto_name)) == 0) {
         LOG_ERROR ("Failed to get event prototype %s for event %s", proto_name, event_name);
         return 0;
     }
@@ -409,7 +409,7 @@ daemon_event_play (Context *self, const char *event_name, GHashTable *properties
     /* Create a new event based on the prototype and feed the properties
        to it. */
 
-    if ((event = event_new (self, proto)) == NULL) {
+    if ((event = event_new (context, proto)) == NULL) {
         LOG_ERROR ("Failed to create event %s", event_name);
         return 0;
     }
@@ -421,14 +421,14 @@ daemon_event_play (Context *self, const char *event_name, GHashTable *properties
 
     /* Setup the event callback to monitor events progress. */
 
-    event_set_callback (event, _event_state_cb, self);
+    event_set_callback (event, _event_state_cb, context);
 
     /* Start the event immediately. */
 
-    self->event_list = g_list_append (self->event_list, event);
+    context->event_list = g_list_append (context->event_list, event);
     if (!event_start (event, properties)) {
         LOG_ERROR ("Failed to start event %s", event_name);
-        self->event_list = g_list_remove (self->event_list, event);
+        context->event_list = g_list_remove (context->event_list, event);
         event_free (event);
         return 0;
     }
@@ -437,21 +437,21 @@ daemon_event_play (Context *self, const char *event_name, GHashTable *properties
 }
 
 void
-daemon_event_stop (Context *self, guint id)
+daemon_event_stop (Context *context, guint id)
 {
     Event *event = NULL;
     GList *iter = NULL;
 
-    if (self->event_list == NULL)
+    if (context->event_list == NULL)
         return;
 
-    for (iter = g_list_first (self->event_list); iter; iter = g_list_next (self->event_list)) {
+    for (iter = g_list_first (context->event_list); iter; iter = g_list_next (context->event_list)) {
         event = (Event*) iter->data;
         if (event->policy_id == id) {
             LOG_DEBUG ("EVENT STOP (id=%d)\n", id);
-            self->event_list = g_list_remove (self->event_list, event);
+            context->event_list = g_list_remove (context->event_list, event);
             event_stop (event);
-            dbus_if_send_status (self->dbus, event->policy_id, 0);
+            dbus_if_send_status (context->dbus, event->policy_id, 0);
             event_free (event);
             break;
         }
@@ -461,13 +461,13 @@ daemon_event_stop (Context *self, guint id)
 static guint
 _handle_play_cb (DBusIf *dbus, const char *event, GHashTable *properties, gpointer userdata)
 {
-    Context *self = (Context*) userdata;
-    return daemon_event_play (self, event, properties);
+    Context *context = (Context*) userdata;
+    return daemon_event_play (context, event, properties);
 }
 
 static void
 _handle_stop_cb (DBusIf *dbus, guint id, gpointer userdata)
 {
-    Context *self = (Context*) userdata;
-    daemon_event_stop (self, id);
+    Context *context = (Context*) userdata;
+    daemon_event_stop (context, id);
 }
