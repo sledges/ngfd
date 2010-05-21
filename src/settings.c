@@ -17,10 +17,10 @@
 #include <string.h>
 
 #include "log.h"
-#include "daemon.h"
 #include "property.h"
 #include "properties.h"
 #include "event.h"
+#include "context.h"
 
 #define GROUP_GENERAL    "general"
 #define GROUP_VIBRATOR   "vibra"
@@ -623,7 +623,7 @@ _parse_events (SettingsData *data, GKeyFile *k)
 }
 
 gboolean
-daemon_settings_load (Context *context)
+load_settings (Context *context)
 {
     static const char *conf_files[] = { "/etc/ngf/ngf.ini", "./ngf.ini", NULL };
 

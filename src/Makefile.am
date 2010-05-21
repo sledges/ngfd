@@ -5,8 +5,6 @@ ngfd_LDFLAGS = $(NGFD_LIBS)
 
 ngfd_SOURCES = \
 	main.c \
-	daemon.h \
-	daemon.c \
 	settings.c \
 	properties.h \
 	properties.c \
