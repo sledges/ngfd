@@ -96,11 +96,6 @@ context_create (Context **context)
         return FALSE;
     }
 
-    if ((c->backlight = backlight_create ()) == NULL) {
-        LOG_ERROR ("Failed to create backlight backend!");
-        return FALSE;
-    }
-
     /* create the hash tables to hold definitions and events */
 
     if (!_request_manager_create (c)) {
@@ -132,11 +127,6 @@ context_destroy (Context *context)
     if (context->system_bus) {
         dbus_connection_unref (context->system_bus);
         context->system_bus = NULL;
-    }
-
-    if (context->backlight) {
-        backlight_destroy (context->backlight);
-	    context->backlight = NULL;
     }
 
     if (context->vibrator) {

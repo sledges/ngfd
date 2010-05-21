@@ -69,6 +69,7 @@ struct _Request
 
     gboolean        tone_generator_active;
     gboolean        led_pattern_active;
+    gboolean        backlight_active;
 
     guint           vibra_id;
     guint           vibra_poll_id;

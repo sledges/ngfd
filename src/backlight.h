@@ -18,12 +18,11 @@
 #define BACKLIGHT_H
 
 #include <glib.h>
+#include <dbus/dbus.h>
 
-typedef struct _Backlight Backlight;
-
-Backlight*      backlight_create   ();
-void            backlight_destroy  (Backlight *self);
-gboolean        backlight_start    (Backlight *self, gboolean unlock);
-void            backlight_stop     (Backlight *self);
+gboolean backlight_unlock_tklock        (DBusConnection *system_bus);
+gboolean backlight_display_on           (DBusConnection *system_bus);
+gboolean backlight_prevent_blank        (DBusConnection *system_bus);
+gboolean backlight_cancel_prevent_blank (DBusConnection *system_bus);
 
 #endif /* BACKLIGHT_H */

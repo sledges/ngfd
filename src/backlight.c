@@ -18,130 +18,117 @@
 #include <mce/dbus-names.h>
 #include <mce/mode-names.h>
 
-#include "controller.h"
+#include "log.h"
 #include "backlight.h"
 
-struct _Backlight
+#define DISPLAY_BLANK_TIMEOUT 50
+
+static guint prevent_display_blank_id = 0;
+
+static gboolean
+call_dbus_method (DBusConnection *bus, DBusMessage *msg)
 {
-    DBusConnection *connection;
-    guint blank_timeout;
-};
-
-Backlight*
-backlight_create ()
-{
-    Backlight *self = NULL;
-    DBusError error;
-
-    if ((self = g_new0 (Backlight, 1)) == NULL)
-        goto failed;
-
-    dbus_error_init (&error);
-    if ((self->connection = dbus_bus_get (DBUS_BUS_SYSTEM, &error)) == NULL) {
-        if (dbus_error_is_set (&error))
-            dbus_error_free (&error);
-
-        goto failed;
+    if (!dbus_connection_send (bus, msg, 0)) {
+        LOG_WARNING ("Failed to send DBus message %s to interface %s", dbus_message_get_member (msg), dbus_message_get_interface (msg));
+        return FALSE;
     }
 
-    self->blank_timeout = 0;
-
-    return self;
-
-failed:
-    backlight_destroy (self);
-    return NULL;
+    return TRUE;
 }
 
-void
-backlight_destroy (Backlight *self)
+static gboolean
+prevent_display_blank (gpointer userdata)
 {
-    if (self == NULL)
-        return;
-
-    if (self->connection) {
-        dbus_connection_unref (self->connection);
-        self->connection = NULL;
-    }
-
-    if (self->blank_timeout) {
-        g_source_remove (self->blank_timeout);
-        self->blank_timeout = 0;
-    }
-
-    g_free (self);
-}
-
-gboolean
-_prevent_display_blank (gpointer data)
-{
-    Backlight *self = (Backlight*) data;
-    DBusMessage *msg = NULL;
+    DBusConnection *bus = (DBusConnection*) userdata;
+    DBusMessage    *msg = NULL;
+    gboolean        ret = FALSE;
 
     msg = dbus_message_new_method_call (MCE_SERVICE, MCE_REQUEST_PATH, MCE_REQUEST_IF, MCE_PREVENT_BLANK_REQ);
     if (msg == NULL)
         return FALSE;
 
-    dbus_connection_send (self->connection, msg, NULL);
+    ret = call_dbus_method (bus, userdata);
     dbus_message_unref (msg);
 
-    return TRUE;
+    return ret;
 }
 
 gboolean
-backlight_start (Backlight *self, gboolean unlock)
+backlight_unlock_tklock (DBusConnection *system_bus)
 {
     DBusMessage *msg = NULL;
+    gboolean     ret = FALSE;
 
-    if (self == NULL)
+    if (system_bus == NULL)
         return FALSE;
 
-    if (unlock) {
-        msg = dbus_message_new_method_call (MCE_SERVICE, MCE_REQUEST_PATH, MCE_REQUEST_IF, MCE_TKLOCK_MODE_CHANGE_REQ);
-        if (msg == NULL)
-            return FALSE;
+    msg = dbus_message_new_method_call (MCE_SERVICE, MCE_REQUEST_PATH, MCE_REQUEST_IF, MCE_TKLOCK_MODE_CHANGE_REQ);
+    if (msg == NULL)
+        return FALSE;
 
-        if (!dbus_message_append_args (msg, DBUS_TYPE_STRING, MCE_TK_UNLOCKED, DBUS_TYPE_INVALID)) {
-            dbus_message_unref (msg);
-            return FALSE;
-        }
-
-        dbus_connection_send (self->connection, msg, NULL);
+    if (!dbus_message_append_args (msg, DBUS_TYPE_STRING, MCE_TK_UNLOCKED, DBUS_TYPE_INVALID)) {
         dbus_message_unref (msg);
-        msg = NULL;
+        return FALSE;
     }
+
+    ret = call_dbus_method (system_bus, msg);
+    dbus_message_unref (msg);
+    return ret;
+}
+
+gboolean
+backlight_display_on (DBusConnection *system_bus)
+{
+    DBusMessage *msg = NULL;
+    gboolean     ret = FALSE;
+
+    if (system_bus == NULL)
+        return FALSE;
 
     msg = dbus_message_new_method_call (MCE_SERVICE, MCE_REQUEST_PATH, MCE_REQUEST_IF, MCE_DISPLAY_ON_REQ);
     if (msg == NULL)
         return FALSE;
 
-    dbus_connection_send (self->connection, msg, NULL);
+    ret = call_dbus_method (system_bus, msg);
     dbus_message_unref (msg);
 
-    self->blank_timeout = g_timeout_add_seconds (50, _prevent_display_blank, self);
-
-    _prevent_display_blank (self);
-
-    return TRUE;
+    return ret;
 }
 
-void
-backlight_stop (Backlight *self)
+gboolean
+backlight_prevent_blank (DBusConnection *system_bus)
+{
+    if (system_bus == NULL)
+        return FALSE;
+
+    if (prevent_display_blank_id > 0)
+        g_source_remove (prevent_display_blank_id);
+
+    prevent_display_blank_id = g_timeout_add_seconds (DISPLAY_BLANK_TIMEOUT, prevent_display_blank, system_bus);
+
+    return (gboolean) prevent_display_blank_id;
+}
+
+gboolean
+backlight_cancel_prevent_blank (DBusConnection *system_bus)
 {
     DBusMessage *msg = NULL;
+    gboolean     ret = FALSE;
 
-    if (self == NULL)
-        return;
+    if (system_bus == NULL)
+        return FALSE;
 
-    if (self->blank_timeout) {
-        g_source_remove (self->blank_timeout);
-        self->blank_timeout = 0;
+    if (prevent_display_blank_id > 0) {
+        g_source_remove (prevent_display_blank_id);
+        prevent_display_blank_id = 0;
     }
 
     msg = dbus_message_new_method_call (MCE_SERVICE, MCE_REQUEST_PATH, MCE_REQUEST_IF, MCE_CANCEL_PREVENT_BLANK_REQ);
     if (msg == NULL)
-        return;
+        return FALSE;
 
-    dbus_connection_send (self->connection, msg, NULL);
+    ret = call_dbus_method (system_bus, msg);
     dbus_message_unref (msg);
+
+    return ret;
 }

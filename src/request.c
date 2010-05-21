@@ -39,9 +39,7 @@ static void         _audio_playback_stop (Request *request);
 
 static gboolean     _setup_vibrator (Request *request);
 static gboolean     _poll_vibrator (gpointer userdata);
-static gboolean     _setup_backlight (Request *request);
 static void         _shutdown_vibrator (Request *request);
-static void         _shutdown_backlight (Request *request);
 
 
 
@@ -210,8 +208,15 @@ _interface_ready_cb (InterfaceType type, gboolean success, gpointer userdata)
         request->led_pattern_active = TRUE;
     }
 
-    if (properties_get_bool (request->properties, "backlight_enabled"))
-        _setup_backlight (request);
+    if ((request->resources & RESOURCE_BACKLIGHT) && properties_get_bool (request->properties, "backlight_enabled")) {
+
+        if (properties_get_bool (request->properties, "unlock_tklock"))
+            backlight_unlock_tklock (request->context->system_bus);
+
+        backlight_display_on (request->context->system_bus);
+        backlight_prevent_blank (request->context->system_bus);
+        request->backlight_active = TRUE;
+    }
 }
 
 /**
@@ -552,22 +557,6 @@ _shutdown_vibrator (Request *request)
     }
 }
 
-static gboolean
-_setup_backlight (Request *request)
-{
-    if ((request->resources & RESOURCE_BACKLIGHT) == 0)
-        return FALSE;
-
-    return backlight_start (request->context->backlight, properties_get_bool (request->properties, "unlock_tklock"));
-}
-
-static void
-_shutdown_backlight (Request *request)
-{
-    if (request->context->backlight && (request->resources & RESOURCE_BACKLIGHT))
-        backlight_stop (request->context->backlight);
-}
-
 gboolean
 request_start (Request *request, GHashTable *properties)
 {
@@ -646,7 +635,11 @@ request_stop (Request *request)
         request->led_pattern_active = FALSE;
     }
 
+    if (request->backlight_active) {
+        backlight_cancel_prevent_blank (request->context->system_bus);
+        request->backlight_active = FALSE;
+    }
+
     _audio_playback_stop (request);
     _shutdown_vibrator (request);
-    _shutdown_backlight (request);
 }

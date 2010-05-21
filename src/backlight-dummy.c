@@ -14,51 +14,33 @@
  * written consent of Nokia.
  */
 
-#include "controller.h"
+#include "log.h"
 #include "backlight.h"
 
-struct _Backlight
-{
-    int dummy;
-};
-
-
-Backlight*
-backlight_create ()
-{
-    Backlight *self = NULL;
-
-    if ((self = g_new0 (Backlight, 1)) == NULL)
-        goto failed;
-
-    return self;
-
-failed:
-    backlight_destroy (self);
-    return NULL;
-}
-
-void
-backlight_destroy (Backlight *self)
-{
-    if (self == NULL)
-        return;
-
-    g_free (self);
-}
-
 gboolean
-backlight_start (Backlight *self,
-                     gboolean      unlock)
+backlight_unlock_tklock (DBusConnection *system_bus)
 {
-    (void) self;
-    (void) unlock;
-
+    (void) system_bus;
     return TRUE;
 }
 
-void
-backlight_stop (Backlight *self)
+gboolean
+backlight_display_on (DBusConnection *system_bus)
 {
-    (void) self;
+    (void) system_bus;
+    return TRUE;
+}
+
+gboolean
+backlight_prevent_blank (DBusConnection *system_bus)
+{
+    (void) system_bus;
+    return TRUE;
+}
+
+gboolean
+backlight_cancel_prevent_blank (DBusConnection *system_bus)
+{
+    (void) system_bus;
+    return TRUE;
 }
