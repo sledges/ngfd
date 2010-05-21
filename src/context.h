@@ -14,19 +14,28 @@
  * written consent of Nokia.
  */
 
+#ifndef CONTEXT_H
+#define CONTEXT_H
+
 #include <glib.h>
-#include "daemon.h"
 
-int
-main (int argc, char *argv[])
+#include "profile.h"
+#include "tone-mapper.h"
+#include "audio.h"
+#include "vibrator.h"
+#include "tone-generator.h"
+#include "led.h"
+#include "backlight.h"
+
+typedef struct _Context
 {
-    Daemon *daemon = NULL;
+    Profile      *profile;
+    ToneMapper   *tone_mapper;
+    Audio        *audio;
+    Vibrator     *vibrator;
+    ToneGenerator *tonegen;
+    Led          *led;
+    Backlight    *backlight;
+} Context;
 
-    if ((daemon = daemon_create ()) == NULL)
-        return 1;
-
-    daemon_run (daemon);
-    daemon_destroy (daemon);
-
-    return 0;
-}
+#endif /* CONTEXT_H */

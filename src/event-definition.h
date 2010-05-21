@@ -14,19 +14,21 @@
  * written consent of Nokia.
  */
 
+#ifndef EVENT_DEF_H
+#define EVENT_DEF_H
+
 #include <glib.h>
-#include "daemon.h"
 
-int
-main (int argc, char *argv[])
+typedef struct _EventDefinition EventDefinition;
+
+struct _EventDefinition
 {
-    Daemon *daemon = NULL;
+    gchar   *long_proto;
+    gchar   *short_proto;
+    gchar   *meeting_proto;
+};
 
-    if ((daemon = daemon_create ()) == NULL)
-        return 1;
+EventDefinition* event_definition_new  ();
+void             event_definition_free (EventDefinition *self);
 
-    daemon_run (daemon);
-    daemon_destroy (daemon);
-
-    return 0;
-}
+#endif /* EVENT_DEF */

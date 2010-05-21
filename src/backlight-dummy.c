@@ -14,19 +14,51 @@
  * written consent of Nokia.
  */
 
-#include <glib.h>
-#include "daemon.h"
+#include "controller.h"
+#include "backlight.h"
 
-int
-main (int argc, char *argv[])
+struct _Backlight
 {
-    Daemon *daemon = NULL;
+    int dummy;
+};
 
-    if ((daemon = daemon_create ()) == NULL)
-        return 1;
 
-    daemon_run (daemon);
-    daemon_destroy (daemon);
+Backlight*
+backlight_create ()
+{
+    Backlight *self = NULL;
 
-    return 0;
+    if ((self = g_new0 (Backlight, 1)) == NULL)
+        goto failed;
+
+    return self;
+
+failed:
+    backlight_destroy (self);
+    return NULL;
+}
+
+void
+backlight_destroy (Backlight *self)
+{
+    if (self == NULL)
+        return;
+
+    g_free (self);
+}
+
+gboolean
+backlight_start (Backlight *self,
+                     gboolean      unlock)
+{
+    (void) self;
+    (void) unlock;
+
+    return TRUE;
+}
+
+void
+backlight_stop (Backlight *self)
+{
+    (void) self;
 }

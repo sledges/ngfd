@@ -14,19 +14,16 @@
  * written consent of Nokia.
  */
 
+#ifndef LED_H
+#define LED_H
+
 #include <glib.h>
-#include "daemon.h"
 
-int
-main (int argc, char *argv[])
-{
-    Daemon *daemon = NULL;
+typedef struct _Led Led;
 
-    if ((daemon = daemon_create ()) == NULL)
-        return 1;
+Led*  led_create  ();
+void  led_destroy (Led *self);
+guint led_start   (Led *self, const gchar *pattern);
+void  led_stop    (Led *self, guint id);
 
-    daemon_run (daemon);
-    daemon_destroy (daemon);
-
-    return 0;
-}
+#endif /* LED_H */

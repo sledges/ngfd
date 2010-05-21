@@ -14,19 +14,15 @@
  * written consent of Nokia.
  */
 
+#ifndef TONE_MAPPER_H
+#define TONE_MAPPER_H
+
 #include <glib.h>
-#include "daemon.h"
 
-int
-main (int argc, char *argv[])
-{
-    Daemon *daemon = NULL;
+typedef struct _ToneMapper ToneMapper;
 
-    if ((daemon = daemon_create ()) == NULL)
-        return 1;
+ToneMapper* tone_mapper_create   ();
+void        tone_mapper_destroy  (ToneMapper *self);
+const char* tone_mapper_get_tone (ToneMapper *self, const char *uri);
 
-    daemon_run (daemon);
-    daemon_destroy (daemon);
-
-    return 0;
-}
+#endif /* TONE_MAPPER_H */

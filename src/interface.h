@@ -14,19 +14,17 @@
  * written consent of Nokia.
  */
 
-#include <glib.h>
-#include "daemon.h"
+#ifndef INTERFACE_H
+#define INTERFACE_H
 
-int
-main (int argc, char *argv[])
+typedef enum  _InterfaceType  InterfaceType;
+
+enum _InterfaceType
 {
-    Daemon *daemon = NULL;
+    INTERFACE_AUDIO,
+    INTERFACE_VIBRA
+};
 
-    if ((daemon = daemon_create ()) == NULL)
-        return 1;
+typedef void (*InterfaceReadyCallback) (InterfaceType type, gboolean success, gpointer userdata);
 
-    daemon_run (daemon);
-    daemon_destroy (daemon);
-
-    return 0;
-}
+#endif /* INTERFACE_H */

@@ -14,19 +14,16 @@
  * written consent of Nokia.
  */
 
+#ifndef BACKLIGHT_H
+#define BACKLIGHT_H
+
 #include <glib.h>
-#include "daemon.h"
 
-int
-main (int argc, char *argv[])
-{
-    Daemon *daemon = NULL;
+typedef struct _Backlight Backlight;
 
-    if ((daemon = daemon_create ()) == NULL)
-        return 1;
+Backlight*      backlight_create   ();
+void            backlight_destroy  (Backlight *self);
+gboolean        backlight_start    (Backlight *self, gboolean unlock);
+void            backlight_stop     (Backlight *self);
 
-    daemon_run (daemon);
-    daemon_destroy (daemon);
-
-    return 0;
-}
+#endif /* BACKLIGHT_H */

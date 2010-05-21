@@ -5,55 +5,55 @@ ngfd_LDFLAGS = $(NGFD_LIBS)
 
 ngfd_SOURCES = \
 	main.c \
-	ngf-daemon.h \
-	ngf-daemon.c \
-	ngf-daemon-settings.c \
-	ngf-properties.h \
-	ngf-properties.c \
-	ngf-profile.h \
-	ngf-dbus.h \
-	ngf-dbus.c \
-	ngf-value.h \
-	ngf-value.c \
-	ngf-event-definition.h \
-	ngf-event-definition.c \
-	ngf-event-prototype.h \
-	ngf-event-prototype.c \
-	ngf-event.h \
-	ngf-event.c \
-	ngf-audio.h \
-	ngf-audio.c \
-	ngf-audio-interface.h \
-	ngf-audio-interface.c \
-	ngf-audio-pulse.h \
-	ngf-audio-pulse.c \
-	ngf-controller.h \
-	ngf-controller.c \
-	ngf-vibrator.h \
-	ngf-tonegen.h \
-	ngf-tonegen.c \
-	ngf-backlight.h \
-	ngf-led.h \
-	ngf-log.h \
-	ngf-log.c \
-	ngf-tone-mapper.h \
-	ngf-pulse-context.h \
-	ngf-pulse-context.c \
-	ngf-timestamp.h
+	daemon.h \
+	daemon.c \
+	settings.c \
+	properties.h \
+	properties.c \
+	profile.h \
+	dbus-if.h \
+	dbus-if.c \
+	property.h \
+	property.c \
+	event-definition.h \
+	event-definition.c \
+	event-prototype.h \
+	event-prototype.c \
+	event.h \
+	event.c \
+	audio.h \
+	audio.c \
+	audio-interface.h \
+	audio-interface.c \
+	audio-pulse.h \
+	audio-pulse.c \
+	controller.h \
+	controller.c \
+	vibrator.h \
+	tone-generator.h \
+	tone-generator.c \
+	backlight.h \
+	led.h \
+	log.h \
+	log.c \
+	tone-mapper.h \
+	pulse-context.h \
+	pulse-context.c \
+	timestamp.h
 
 if HAVE_GST
 ngfd_CFLAGS += $(GST_CFLAGS)
 ngfd_LDFLAGS += $(GST_LIBS)
-ngfd_SOURCES += ngf-audio-gstreamer.h \
-	ngf-audio-gstreamer.c
+ngfd_SOURCES += audio-gstreamer.h \
+	audio-gstreamer.c
 endif
 
 if HAVE_PROFILE
 ngfd_CFLAGS += $(PROFILE_CFLAGS)
 ngfd_LDFLAGS += $(PROFILE_LIBS)
-ngfd_SOURCES += ngf-profile.c
+ngfd_SOURCES += profile.c
 else
-ngfd_SOURCES += ngf-profile-dummy.c
+ngfd_SOURCES += profile-dummy.c
 endif
 
 if HAVE_TIMESTAMP
@@ -62,26 +62,26 @@ ngfd_LDFLAGS += $(TIMESTAMP_LIBS)
 endif
 
 if TONEMAPPER
-ngfd_SOURCES += ngf-tone-mapper.c
+ngfd_SOURCES += tone-mapper.c
 else
-ngfd_SOURCES += ngf-tone-mapper-dummy.c
+ngfd_SOURCES += tone-mapper-dummy.c
 endif
 
 if VIBRATOR
-ngfd_SOURCES += ngf-vibrator.c
+ngfd_SOURCES += vibrator.c
 ngfd_LDFLAGS += -limmvibe
 else
-ngfd_SOURCES += ngf-vibrator-dummy.c
+ngfd_SOURCES += vibrator-dummy.c
 endif
 
 if BACKLIGHT
-ngfd_SOURCES += ngf-backlight.c
+ngfd_SOURCES += backlight.c
 else
-ngfd_SOURCES += ngf-backlight-dummy.c
+ngfd_SOURCES += backlight-dummy.c
 endif
 
 if LED
-ngfd_SOURCES += ngf-led.c
+ngfd_SOURCES += led.c
 else
-ngfd_SOURCES += ngf-led-dummy.c
+ngfd_SOURCES += led-dummy.c
 endif

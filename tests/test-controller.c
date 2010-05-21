@@ -3,7 +3,7 @@
 #include <check.h>
 #include <glib.h>
 
-#include "ngf-controller.h"
+#include "controller.h"
 
 typedef struct _StepData
 {
@@ -24,33 +24,33 @@ static const StepData step_data[] = {
 
 START_TEST (test_add_steps)
 {
-    NgfController *controller = NULL;
-    NgfControllerStep *step = NULL;
+    Controller *controller = NULL;
+    ControllerStep *step = NULL;
     GList *steps = NULL, *iter = NULL;
     int i;
 
-    controller = ngf_controller_new ();
+    controller = controller_new ();
     fail_unless (controller != NULL);
 
-    steps = ngf_controller_get_steps (controller);
+    steps = controller_get_steps (controller);
     fail_unless (steps == NULL);
 
     /* Verify that added steps are in order */
 
     for (i = 0; i < ARRAY_SIZE (step_data); i++)
-        ngf_controller_add_step (controller, step_data[i].step_time, step_data[i].step_value);
+        controller_add_step (controller, step_data[i].step_time, step_data[i].step_value);
 
-    steps = ngf_controller_get_steps (controller);
+    steps = controller_get_steps (controller);
     fail_unless (steps != NULL);
 
     for (iter = g_list_first (steps), i = 0; iter; iter = g_list_next (iter), i++) {
-        step = (NgfControllerStep*) iter->data;
+        step = (ControllerStep*) iter->data;
 
         fail_unless (step->time == step_data[i].step_time);
         fail_unless (step->value == step_data[i].step_value);
     }
 
-    ngf_controller_free (controller);
+    controller_free (controller);
     controller = NULL;
 }
 END_TEST
@@ -59,7 +59,7 @@ static gboolean test_execute_steps_loop_started = FALSE;
 static gint test_execute_steps_counter = 0;
 
 static gboolean
-_controller_cb (NgfController *controller, guint id, guint step_time, guint step_value, gpointer userdata)
+_controller_cb (Controller *controller, guint id, guint step_time, guint step_value, gpointer userdata)
 {
     GMainLoop *loop    = (GMainLoop*) userdata;
     gint       counter = test_execute_steps_counter++;
@@ -78,21 +78,21 @@ _controller_cb (NgfController *controller, guint id, guint step_time, guint step
 
 START_TEST (test_execute_steps)
 {
-    NgfController *controller = NULL;
+    Controller *controller = NULL;
     guint id;
     int i;
 
-    controller = ngf_controller_new ();
+    controller = controller_new ();
     fail_unless (controller != NULL);
 
     for (i = 0; i < ARRAY_SIZE (step_data); i++)
-        ngf_controller_add_step (controller, step_data[i].step_time, step_data[i].step_value);
+        controller_add_step (controller, step_data[i].step_time, step_data[i].step_value);
 
     /* Verify that the first step is executed immediately. */
-    id = ngf_controller_start (controller, _controller_cb, (gpointer) 0xB000BEEF);
+    id = controller_start (controller, _controller_cb, (gpointer) 0xB000BEEF);
     fail_unless (id > 0);
 
-    ngf_controller_free (controller);
+    controller_free (controller);
 }
 END_TEST
 

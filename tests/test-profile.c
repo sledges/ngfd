@@ -3,17 +3,17 @@
 #include <check.h>
 #include <glib.h>
 
-#include "ngf-profile.h"
+#include "profile.h"
 
 START_TEST (test_parse_profile_key)
 {
     gchar *out_profile = NULL, *out_key = NULL;
     gboolean ret;
 
-    ret = ngf_profile_parse_profile_key (NULL, &out_profile, &out_key);
+    ret = profile_parse_profile_key (NULL, &out_profile, &out_key);
     fail_unless (ret == FALSE);
 
-    ret = ngf_profile_parse_profile_key ("ringing.alert.tone", &out_profile, &out_key);
+    ret = profile_parse_profile_key ("ringing.alert.tone", &out_profile, &out_key);
     fail_unless (ret != FALSE);
     fail_unless (out_profile == NULL);
     fail_unless (strcmp (out_key, "ringing.alert.tone") == 0);
@@ -21,7 +21,7 @@ START_TEST (test_parse_profile_key)
     g_free (out_profile);
     out_profile = NULL;
 
-    ret = ngf_profile_parse_profile_key ("ringing.alert.tone@general", &out_profile, &out_key);
+    ret = profile_parse_profile_key ("ringing.alert.tone@general", &out_profile, &out_key);
     fail_unless (ret == TRUE);
     fail_unless (strcmp (out_profile, "general") == 0);
     fail_unless (strcmp (out_key, "ringing.alert.tone") == 0);
@@ -31,7 +31,7 @@ START_TEST (test_parse_profile_key)
     g_free (out_key);
     out_key = NULL;
 
-    ret = ngf_profile_parse_profile_key ("@random", &out_profile, &out_key);
+    ret = profile_parse_profile_key ("@random", &out_profile, &out_key);
     fail_unless (ret == FALSE);
 }
 END_TEST

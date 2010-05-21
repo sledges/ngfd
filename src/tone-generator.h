@@ -14,19 +14,17 @@
  * written consent of Nokia.
  */
 
+#ifndef TONEGEN_H
+#define TONEGEN_H
+
 #include <glib.h>
-#include "daemon.h"
 
-int
-main (int argc, char *argv[])
-{
-    Daemon *daemon = NULL;
+typedef struct _ToneGenerator ToneGenerator;
 
-    if ((daemon = daemon_create ()) == NULL)
-        return 1;
+ToneGenerator* tone_generator_create ();
+void           tone_generator_destroy (ToneGenerator *self);
 
-    daemon_run (daemon);
-    daemon_destroy (daemon);
+guint          tone_generator_start (ToneGenerator *self, guint pattern);
+void           tone_generator_stop (ToneGenerator *self, guint id);
 
-    return 0;
-}
+#endif /* TONEGEN_H */

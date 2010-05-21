@@ -14,19 +14,17 @@
  * written consent of Nokia.
  */
 
-#include <glib.h>
-#include "daemon.h"
+#ifndef TIMESTAMP_H
+#define TIMESTAMP_H
 
-int
-main (int argc, char *argv[])
-{
-    Daemon *daemon = NULL;
+#include "config.h"
 
-    if ((daemon = daemon_create ()) == NULL)
-        return 1;
+#ifdef HAVE_TIMESTAMP
+    #include <sp_timestamp.h>
+    #define TIMESTAMP(A)    sp_timestamp(A);
+#else
+    #define TIMESTAMP(A)
+#endif /* HAVE_TIMESTAMP */
 
-    daemon_run (daemon);
-    daemon_destroy (daemon);
 
-    return 0;
-}
+#endif /* TIMESTAMP_H */

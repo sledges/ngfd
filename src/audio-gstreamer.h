@@ -14,19 +14,11 @@
  * written consent of Nokia.
  */
 
-#include <glib.h>
-#include "daemon.h"
+#ifndef AUDIO_GSTREAMER_H
+#define AUDIO_GSTREAMER_H
 
-int
-main (int argc, char *argv[])
-{
-    Daemon *daemon = NULL;
+#include "audio-interface.h"
 
-    if ((daemon = daemon_create ()) == NULL)
-        return 1;
+AudioInterface* audio_gstreamer_create ();
 
-    daemon_run (daemon);
-    daemon_destroy (daemon);
-
-    return 0;
-}
+#endif /* AUDIO_GSTREAMER_H */
