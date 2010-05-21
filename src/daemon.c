@@ -21,7 +21,7 @@
 
 static gboolean     _request_manager_create         (Context *context);
 static void         _request_manager_destroy        (Context *context);
-EventDefinition*    _request_manager_get_definition (Context *context, const char *name);
+Definition*    _request_manager_get_definition (Context *context, const char *name);
 static void         _request_state_cb               (Request *request, guint state, gpointer userdata);
 static gboolean     _properties_get_boolean         (GHashTable *properties, const char *key);
 static guint        _properties_get_policy_id       (GHashTable *properties);
@@ -196,7 +196,7 @@ daemon_run (Context *context)
 static gboolean
 _request_manager_create (Context *context)
 {
-    context->definitions = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) event_definition_free);
+    context->definitions = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) definition_free);
     if (context->definitions == NULL)
         return FALSE;
 
@@ -222,7 +222,7 @@ _request_manager_destroy (Context *context)
 }
 
 void
-daemon_register_definition (Context *context, const char *name, EventDefinition *def)
+daemon_register_definition (Context *context, const char *name, Definition *def)
 {
     if (context == NULL || name == NULL || def == NULL)
         return;
@@ -230,13 +230,13 @@ daemon_register_definition (Context *context, const char *name, EventDefinition 
     g_hash_table_replace (context->definitions, g_strdup (name), def);
 }
 
-EventDefinition*
+Definition*
 _request_manager_get_definition (Context *context, const char *name)
 {
     if (context == NULL || name == NULL)
         return NULL;
 
-    return (EventDefinition*) g_hash_table_lookup (context->definitions, name);
+    return (Definition*) g_hash_table_lookup (context->definitions, name);
 }
 
 void
@@ -379,7 +379,7 @@ _request_state_cb (Request *request, guint state, gpointer userdata)
 guint
 daemon_request_play (Context *context, const char *request_name, GHashTable *properties)
 {
-    EventDefinition *def = NULL;
+    Definition *def = NULL;
     EventPrototype *proto = NULL;
     Request *request = NULL;
 

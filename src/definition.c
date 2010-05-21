@@ -14,16 +14,16 @@
  * written consent of Nokia.
  */
 
-#include "event-definition.h"
+#include "definition.h"
 
-EventDefinition*
-event_definition_new ()
+Definition*
+definition_new ()
 {
-    return (EventDefinition*) g_new0 (EventDefinition, 1);
+    return (Definition*) g_new0 (Definition, 1);
 }
 
 void
-event_definition_free (EventDefinition *self)
+definition_free (Definition *self)
 {
     if (self == NULL)
         return;

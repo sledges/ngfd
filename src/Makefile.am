@@ -17,8 +17,8 @@ ngfd_SOURCES = \
 	state.c \
 	property.h \
 	property.c \
-	event-definition.h \
-	event-definition.c \
+	definition.h \
+	definition.c \
 	event-prototype.h \
 	event-prototype.c \
 	request.h \

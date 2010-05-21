@@ -258,7 +258,7 @@ _parse_definitions (SettingsData *data, GKeyFile *k)
     gchar **group      = NULL;
     gchar  *name       = NULL;
 
-    EventDefinition *def = NULL;
+    Definition *def = NULL;
 
     /* For each group that begins with GROUP_DEFINITION, get the values for long and
        short prototypes. */
@@ -272,7 +272,7 @@ _parse_definitions (SettingsData *data, GKeyFile *k)
         if (name == NULL)
             continue;
 
-        def = event_definition_new ();
+        def = definition_new ();
         def->long_proto    = g_key_file_get_string (k, *group, "long", NULL);
         def->short_proto   = g_key_file_get_string (k, *group, "short", NULL);
         def->meeting_proto = g_key_file_get_string (k, *group, "meeting", NULL);

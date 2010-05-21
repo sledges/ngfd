@@ -24,7 +24,7 @@
 
 typedef struct _Context Context;
 
-#include "event-definition.h"
+#include "definition.h"
 #include "event-prototype.h"
 #include "request.h"
 

@@ -14,21 +14,21 @@
  * written consent of Nokia.
  */
 
-#ifndef EVENT_DEF_H
-#define EVENT_DEF_H
+#ifndef DEFINITION_H
+#define DEFINITION_H
 
 #include <glib.h>
 
-typedef struct _EventDefinition EventDefinition;
+typedef struct _Definition Definition;
 
-struct _EventDefinition
+struct _Definition
 {
     gchar   *long_proto;
     gchar   *short_proto;
     gchar   *meeting_proto;
 };
 
-EventDefinition* event_definition_new  ();
-void             event_definition_free (EventDefinition *self);
+Definition* definition_new  ();
+void        definition_free (Definition *self);
 
-#endif /* EVENT_DEF */
+#endif /* DEFINITION */
