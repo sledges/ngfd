@@ -1,6 +1,7 @@
 #ifndef STATE_H
 #define STATE_H
 
+#include <glib.h>
 #include "context.h"
 
 guint play_handler (Context *context, const char *event, GHashTable *properties);

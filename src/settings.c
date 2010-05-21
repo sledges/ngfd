@@ -33,7 +33,7 @@
 /** Temporary structure when configuration is being parsed */
 typedef struct _SettingsData
 {
-    Context  *self;
+    Context  *context;
     gchar     **allowed_keys;
 } SettingsData;
 
@@ -175,7 +175,7 @@ _parse_general (SettingsData *data, GKeyFile *k)
 static void
 _parse_vibra_patterns (SettingsData *data, GKeyFile *k)
 {
-    Context *self = data->self;
+    Context *context = data->context;
 
     gchar **group_list = NULL;
     gchar **group      = NULL;
@@ -197,7 +197,7 @@ _parse_vibra_patterns (SettingsData *data, GKeyFile *k)
 
         LOG_DEBUG ("<new vibrator pattern: %s (filename=%s, pattern_id=%d)>", name, filename, pattern_id);
 
-        vibrator_register (self->vibrator, name, filename, pattern_id);
+        vibrator_register (context->vibrator, name, filename, pattern_id);
 
         g_free (filename);
         g_free (name);
@@ -209,7 +209,7 @@ _parse_vibra_patterns (SettingsData *data, GKeyFile *k)
 static void
 _parse_volume_patterns (SettingsData *data, GKeyFile *k)
 {
-    Context *self = data->self;
+    Context *context = data->context;
 
     gchar    **group_list = NULL;
     gchar    **group      = NULL;
@@ -231,7 +231,7 @@ _parse_volume_patterns (SettingsData *data, GKeyFile *k)
 
         LOG_DEBUG ("<new volume pattern: %s (pattern=%s, repeat=%s)>", name, pattern, repeat ? "TRUE" : "FALSE");
 
-        audio_register_controller (self->audio, name, pattern, repeat);
+        audio_register_controller (context->audio, name, pattern, repeat);
 
         g_free (pattern);
         g_free (name);
@@ -252,7 +252,7 @@ _parse_volume_patterns (SettingsData *data, GKeyFile *k)
 static void
 _parse_definitions (SettingsData *data, GKeyFile *k)
 {
-    Context *self = data->self;
+    Context *context = data->context;
 
     gchar **group_list = NULL;
     gchar **group      = NULL;
@@ -278,7 +278,7 @@ _parse_definitions (SettingsData *data, GKeyFile *k)
         def->meeting_event = g_key_file_get_string (k, *group, "meeting", NULL);
 
         LOG_DEBUG ("<new definition> %s (long=%s, short=%s, meeting=%s)", name, def->long_event, def->short_event, def->meeting_event);
-        daemon_register_definition (self, name, def);
+        g_hash_table_replace (context->definitions, g_strdup (name), def);
     }
 
     g_strfreev (group_list);
@@ -468,7 +468,7 @@ _parse_stream_properties (Event *event,
  * properties and add the event to the events_done list to ensure
  * that we don't parse it again.
  *
- * @param self Context
+ * @param context Context
  * @param k GKeyFile
  * @param events_done GList of strings containing parsed events.
  * @param events GHashTable of mapping of event name to group.
@@ -479,7 +479,7 @@ _parse_stream_properties (Event *event,
 static void
 _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, GHashTable *events, const char *name)
 {
-    Context *self = data->self;
+    Context *context = data->context;
 
     const gchar       *group        = NULL;
     gchar             *parent       = NULL;
@@ -501,7 +501,7 @@ _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, GHash
         return;
 
     /* set_default flag is set if the event does not have a parent element (ie. it is a parent
-       element by itself). */
+       element by itcontext). */
 
     set_default = (parent == NULL) ? TRUE : FALSE;
 
@@ -551,7 +551,7 @@ _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, GHash
        to the copy. */
 
     if (parent != NULL) {
-        copy = event_copy (daemon_get_event (self, parent));
+        copy = event_copy (g_hash_table_lookup (context->events, parent));
 
         if (copy != NULL) {
             event_merge (copy, p);
@@ -564,7 +564,7 @@ _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, GHash
     p->allowed_keys = g_strdupv (data->allowed_keys);
 
     /* We're done, let's register the new event. */
-    daemon_register_event (self, name, p);
+    g_hash_table_replace (context->events, g_strdup (name), p);
 
     LOG_DEBUG ("<new event %s>", name);
     event_dump (p);
@@ -578,7 +578,7 @@ _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, GHash
  * of event name to group name. Once done, iterate through the list
  * and parse every event.
  *
- * @param self Context
+ * @param context Context
  * @param k GKeyFile
  * @post All available and valid events registered to daemon.
  */
@@ -623,7 +623,7 @@ _parse_events (SettingsData *data, GKeyFile *k)
 }
 
 gboolean
-daemon_settings_load (Context *self)
+daemon_settings_load (Context *context)
 {
     static const char *conf_files[] = { "/etc/ngf/ngf.ini", "./ngf.ini", NULL };
 
@@ -646,7 +646,7 @@ daemon_settings_load (Context *self)
         return FALSE;
 
     data = g_new0 (SettingsData, 1);
-    data->self = self;
+    data->context = context;
 
     _parse_general            (data, key_file);
     _parse_vibra_patterns     (data, key_file);
