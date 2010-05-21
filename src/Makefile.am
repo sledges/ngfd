@@ -13,6 +13,8 @@ ngfd_SOURCES = \
 	profile.h \
 	dbus-if.h \
 	dbus-if.c \
+	state.h \
+	state.c \
 	property.h \
 	property.c \
 	event-definition.h \

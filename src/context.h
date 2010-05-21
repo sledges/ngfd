@@ -35,12 +35,10 @@ typedef struct _Context Context;
 #include "tone-generator.h"
 #include "led.h"
 #include "backlight.h"
-#include "dbus-if.h"
 
 struct _Context
 {
     GMainLoop     *loop;
-    DBusIf        *dbus;
 
     GHashTable    *definitions;
     GHashTable    *prototypes;
@@ -53,6 +51,9 @@ struct _Context
     ToneGenerator *tonegen;
     Led           *led;
     Backlight     *backlight;
+
+    DBusConnection *system_bus;     /* system bus */
+    DBusConnection *session_bus;    /* session bus */
 };
 
 #endif /* CONTEXT_H */

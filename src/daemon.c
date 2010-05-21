@@ -21,15 +21,30 @@
 
 static gboolean     _event_manager_create         (Context *context);
 static void         _event_manager_destroy        (Context *context);
-EventDefinition* _event_manager_get_definition (Context *context, const char *name);
+EventDefinition*    _event_manager_get_definition (Context *context, const char *name);
 static void         _event_state_cb               (Event *event, EventState state, gpointer userdata);
 static gboolean     _properties_get_boolean       (GHashTable *properties, const char *key);
 static guint        _properties_get_policy_id     (GHashTable *properties);
 static guint        _properties_get_play_timeout  (GHashTable *properties);
 static gint         _properties_get_play_mode     (GHashTable *properties);
 static gint         _properties_get_resources     (GHashTable *properties);
-static guint        _handle_play_cb               (DBusIf *dbus, const char *event, GHashTable *properties, gpointer userdata);
-static void         _handle_stop_cb               (DBusIf *dbus, guint id, gpointer userdata);
+
+static DBusConnection*
+_get_dbus_connection (DBusBusType bus_type)
+{
+    DBusConnection *bus = NULL;
+    DBusError       error;
+
+    dbus_error_init (&error);
+    bus = dbus_bus_get (bus_type, &error);
+    if (bus == NULL) {
+        LOG_WARNING ("Failed to get %s bus: %s", bus_type == DBUS_BUS_SYSTEM ? "system" : "session", error.message);
+        dbus_error_free (&error);
+        return NULL;
+    }
+
+    return bus;
+}
 
 Context*
 daemon_create ()
@@ -46,7 +61,21 @@ daemon_create ()
         return NULL;
     }
 
-    if ((context->dbus = dbus_if_create (_handle_play_cb, _handle_stop_cb, context)) == NULL) {
+    /* setup the dbus connections. we will hook up to the session bus, but use
+       the system bus too for led, backlight and tone generator. */
+
+    context->system_bus  = _get_dbus_connection (DBUS_BUS_SYSTEM);
+    context->session_bus = _get_dbus_connection (DBUS_BUS_SESSION);
+
+    if (!context->system_bus || !context->session_bus) {
+        LOG_ERROR ("Failed to get system/session bus!");
+        return NULL;
+    }
+
+    dbus_connection_setup_with_g_main (context->system_bus, NULL);
+    dbus_connection_setup_with_g_main (context->session_bus, NULL);
+
+    if (!dbus_if_create (context)) {
         LOG_ERROR ("Failed to create D-Bus interface!");
         return NULL;
     }
@@ -101,9 +130,16 @@ daemon_create ()
 void
 daemon_destroy (Context *context)
 {
-    if (context->dbus) {
-        dbus_if_destroy (context->dbus);
-        context->dbus = NULL;
+    dbus_if_destroy (context);
+
+    if (context->session_bus) {
+        dbus_connection_unref (context->session_bus);
+        context->session_bus = NULL;
+    }
+
+    if (context->system_bus) {
+        dbus_connection_unref (context->system_bus);
+        context->system_bus = NULL;
     }
 
     if (context->backlight) {
@@ -318,13 +354,13 @@ _event_state_cb (Event *event, EventState state, gpointer userdata)
 
         case EVENT_FAILED:
             LOG_DEBUG ("EVENT FAILED (id=%d)", event->policy_id);
-            dbus_if_send_status (context->dbus, event->policy_id, 0);
+            dbus_if_send_status (context, event->policy_id, 0);
             remove_event = TRUE;
             break;
 
         case EVENT_COMPLETED:
             LOG_DEBUG ("EVENT COMPLETED (id=%d)", event->policy_id);
-            dbus_if_send_status (context->dbus, event->policy_id, 0);
+            dbus_if_send_status (context, event->policy_id, 0);
             remove_event = TRUE;
             break;
 
@@ -451,23 +487,9 @@ daemon_event_stop (Context *context, guint id)
             LOG_DEBUG ("EVENT STOP (id=%d)\n", id);
             context->event_list = g_list_remove (context->event_list, event);
             event_stop (event);
-            dbus_if_send_status (context->dbus, event->policy_id, 0);
+            dbus_if_send_status (context, event->policy_id, 0);
             event_free (event);
             break;
         }
     }
-}
-
-static guint
-_handle_play_cb (DBusIf *dbus, const char *event, GHashTable *properties, gpointer userdata)
-{
-    Context *context = (Context*) userdata;
-    return daemon_event_play (context, event, properties);
-}
-
-static void
-_handle_stop_cb (DBusIf *dbus, guint id, gpointer userdata)
-{
-    Context *context = (Context*) userdata;
-    daemon_event_stop (context, id);
 }

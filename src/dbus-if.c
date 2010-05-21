@@ -19,7 +19,18 @@
 
 #include "log.h"
 #include "property.h"
+#include "state.h"
 #include "dbus-if.h"
+
+#define NGF_DBUS_PROXY_NAME  "com.nokia.NonGraphicFeedback1"
+#define NGF_DBUS_NAME        "com.nokia.NonGraphicFeedback1.Backend"
+#define NGF_DBUS_PATH        "/com/nokia/NonGraphicFeedback1"
+#define NGF_DBUS_IFACE       "com.nokia.NonGraphicFeedback1"
+
+#define NGF_DBUS_STATUS      "Status"
+
+#define NGF_DBUS_METHOD_PLAY "Play"
+#define NGF_DBUS_METHOD_STOP "Stop"
 
 static gboolean
 _msg_parse_variant (DBusMessageIter *iter, Property **value)
@@ -132,16 +143,17 @@ _msg_get_properties (DBusMessageIter *iter, GHashTable **properties)
 
 static DBusHandlerResult
 _handle_play (DBusConnection *connection,
-              DBusMessage *msg,
-              void *userdata)
+              DBusMessage    *msg,
+              void           *userdata)
 {
-    DBusIf *self = (DBusIf*) userdata;
+    Context *context = (Context*) userdata;
 
-    DBusMessage *reply = NULL;
+    DBusMessage *reply      = NULL;
+    const char  *event      = NULL;
+    GHashTable  *properties = NULL;
+    guint        id         = 0;
+
     DBusMessageIter iter;
-    const char *event = NULL;
-    GHashTable *properties = NULL;
-    guint id = 0;
 
     dbus_message_iter_init (msg, &iter);
     if (dbus_message_iter_get_arg_type (&iter) != DBUS_TYPE_STRING)
@@ -153,10 +165,8 @@ _handle_play (DBusConnection *connection,
     if (!_msg_get_properties (&iter, &properties))
         goto invalid;
 
-    /* Call the play function handler */
-
-    if (self->play_function)
-        id = self->play_function (self, event, properties, self->userdata);
+    /* call the play handler */
+    id = play_handler (context, event, properties);
 
     if (properties != NULL)
         g_hash_table_destroy (properties);
@@ -177,14 +187,14 @@ _handle_stop (DBusConnection *connection,
               DBusMessage *msg,
               void *userdata)
 {
-    DBusIf *self = (DBusIf*) userdata;
+    Context *context = (Context*) userdata;
 
-    DBusMessage *reply = NULL;
-    dbus_uint32_t id = 0;
+    DBusMessage   *reply = NULL;
+    dbus_uint32_t  id    = 0;
 
     if (dbus_message_get_args (msg, NULL, DBUS_TYPE_UINT32, &id, DBUS_TYPE_INVALID)) {
-        if (self->stop_function)
-            self->stop_function (self, (guint) id, self->userdata);
+        /* call the stop handler */
+        stop_handler (context, id);
     }
 
     reply = dbus_message_new_method_return (msg);
@@ -206,93 +216,62 @@ _message_function (DBusConnection *connection,
     if (!dbus_message_has_interface (msg, NGF_DBUS_IFACE))
         return DBUS_HANDLER_RESULT_HANDLED;
 
-    if (g_str_equal (member, NGF_DBUS_BACKEND_PLAY))
+    if (g_str_equal (member, NGF_DBUS_METHOD_PLAY))
         return _handle_play (connection, msg, userdata);
 
-    else if (g_str_equal (member, NGF_DBUS_BACKEND_STOP))
+    else if (g_str_equal (member, NGF_DBUS_METHOD_STOP))
         return _handle_stop (connection, msg, userdata);
 
     return DBUS_HANDLER_RESULT_HANDLED;
 }
 
 gboolean
-_dbus_initialize (DBusIf *self, const char *name, const char *path)
+_dbus_initialize (Context *context, const char *name, const char *path)
 {
     static struct DBusObjectPathVTable method = {
         .message_function = _message_function
     };
 
     DBusError error;
-    int ret;
+    int       ret;
 
     dbus_error_init (&error);
-    self->connection = dbus_bus_get (DBUS_BUS_SESSION, &error);
-    if (self->connection == NULL) {
-        LOG_ERROR ("%s: Failed to get session bus!", __FUNCTION__);
-        if (dbus_error_is_set (&error)) {
-            LOG_ERROR ("%s: Failed to get DBus: %s", __FUNCTION__, error.message);
-            dbus_error_free (&error);
-        }
-        return FALSE;
-    }
-
-    dbus_connection_setup_with_g_main (self->connection, NULL);
-
-    ret = dbus_bus_request_name (self->connection, name, DBUS_NAME_FLAG_REPLACE_EXISTING, &error);
+    ret = dbus_bus_request_name (context->session_bus, name, DBUS_NAME_FLAG_REPLACE_EXISTING, &error);
     if (ret != DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER) {
         if (dbus_error_is_set (&error)) {
-            g_warning ("%s: Failed to get unique name: %s", __FUNCTION__, error.message);
+            LOG_WARNING ("Failed to get unique name: %s", error.message);
             dbus_error_free (&error);
         }
+
         return FALSE;
     }
 
-    if (!dbus_connection_register_object_path (self->connection, path, &method, self))
+    if (!dbus_connection_register_object_path (context->session_bus, path, &method, context))
         return FALSE;
 
     return TRUE;
 }
 
-DBusIf*
-dbus_if_create (DBusIfPlay play, DBusIfStop stop, gpointer userdata)
+int
+dbus_if_create (Context *context)
 {
-    DBusIf *self = NULL;
-
-    if ((self = g_new0 (DBusIf, 1)) == NULL)
-        return NULL;
-
-    if (!_dbus_initialize (self, NGF_DBUS_BACKEND_NAME, NGF_DBUS_PATH)) {
-        dbus_if_destroy (self);
-        return NULL;
+    if (!_dbus_initialize (context, NGF_DBUS_NAME, NGF_DBUS_PATH)) {
+        dbus_if_destroy (context);
+        return FALSE;
     }
 
-    self->play_function = play;
-    self->stop_function = stop;
-    self->userdata = userdata;
-
-    return self;
+    return TRUE;
 }
 
 void
-dbus_if_destroy (DBusIf *self)
+dbus_if_destroy (Context *context)
 {
-    if (self == NULL)
-        return;
-
-    if (self->connection) {
-        dbus_connection_unref (self->connection);
-        self->connection = NULL;
-    }
-
-    g_free (self);
+    (void) context;
 }
 
 void
-dbus_if_send_status (DBusIf *self, guint id, guint status)
+dbus_if_send_status (Context *context, guint id, guint status)
 {
-    if (self == NULL)
-        return;
-
     DBusMessage *msg = NULL;
 
     if ((msg = dbus_message_new_method_call (NGF_DBUS_PROXY_NAME, NGF_DBUS_PATH, NGF_DBUS_IFACE, NGF_DBUS_STATUS)) == NULL)
@@ -303,6 +282,6 @@ dbus_if_send_status (DBusIf *self, guint id, guint status)
         DBUS_TYPE_UINT32, &status,
         DBUS_TYPE_INVALID);
 
-    dbus_connection_send (self->connection, msg, NULL);
+    dbus_connection_send (context->session_bus, msg, NULL);
     dbus_message_unref (msg);
 }
