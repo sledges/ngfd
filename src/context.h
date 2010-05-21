@@ -32,7 +32,6 @@ typedef struct _Context Context;
 #include "tone-mapper.h"
 #include "audio.h"
 #include "vibrator.h"
-#include "tone-generator.h"
 #include "led.h"
 #include "backlight.h"
 
@@ -48,7 +47,6 @@ struct _Context
     ToneMapper    *tone_mapper;
     Audio         *audio;
     Vibrator      *vibrator;
-    ToneGenerator *tonegen;
     Led           *led;
     Backlight     *backlight;
 

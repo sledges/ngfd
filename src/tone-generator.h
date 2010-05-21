@@ -14,17 +14,13 @@
  * written consent of Nokia.
  */
 
-#ifndef TONEGEN_H
-#define TONEGEN_H
+#ifndef TONE_GENERATOR_H
+#define TONE_GENERATOR_H
 
 #include <glib.h>
+#include <dbus/dbus.h>
 
-typedef struct _ToneGenerator ToneGenerator;
+gboolean tone_generator_start (DBusConnection *system_bus, guint pattern);
+gboolean tone_generator_stop  (DBusConnection *system_bus, guint pattern);
 
-ToneGenerator* tone_generator_create ();
-void           tone_generator_destroy (ToneGenerator *self);
-
-guint          tone_generator_start (ToneGenerator *self, guint pattern);
-void           tone_generator_stop (ToneGenerator *self, guint id);
-
-#endif /* TONEGEN_H */
+#endif /* TONE_GENERATOR_H */

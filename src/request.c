@@ -21,6 +21,7 @@
 #include "properties.h"
 #include "tone-mapper.h"
 #include "controller.h"
+#include "tone-generator.h"
 #include "request.h"
 
 static inline void  _trigger_request_callback (Request *event, guint state);
@@ -29,9 +30,6 @@ static gboolean     _max_timeout_triggered_cb (gpointer userdata);
 static void         _stream_state_cb (AudioStream *stream, AudioStreamState state, gpointer userdata);
 static void         _interface_ready_cb (InterfaceType type, gboolean success, gpointer userdata);
 static const char*  _get_mapped_tone (ToneMapper *mapper, const char *tone);
-
-static gboolean     _tone_generator_start (Request *request);
-static void         _tone_generator_stop (Request *request);
 
 static void         _set_stream_volume  (Request *request);
 static void         _clear_stream_volume (Request *request);
@@ -284,26 +282,6 @@ _stream_state_cb (AudioStream *stream, AudioStreamState state, gpointer userdata
 
     if (callback_state != REQUEST_STATE_NONE)
         _trigger_request_callback (request, callback_state);
-}
-
-static gboolean
-_tone_generator_start (Request *request)
-{
-    if (properties_get_bool (request->properties, "audio_tone_generator_enabled")) {
-        request->tone_generator_id = tone_generator_start (request->context->tonegen, properties_get_int (request->properties, "audio_tone_generator_pattern"));
-        return TRUE;
-    }
-
-    return FALSE;
-}
-
-static void
-_tone_generator_stop (Request *request)
-{
-    if (request->tone_generator_id > 0) {
-        tone_generator_stop (request->context->tonegen, request->tone_generator_id);
-        request->tone_generator_id = 0;
-    }
 }
 
 static gboolean
@@ -642,10 +620,14 @@ request_start (Request *request, GHashTable *properties)
     /* Check the resources and start the backends if we have the proper resources,
        profile allows us to and valid data is provided. */
 
-    if (properties_get_bool (request->properties, "audio_enabled")) {
-        if (!_tone_generator_start (request))
-            _audio_playback_start (request, TRUE);
+    if (properties_get_bool (request->properties, "audio_tone_generator_enabled")) {
+        tone_generator_start (request->context->system_bus, properties_get_int (request->properties, "audio_tone_generator_pattern"));
+        request->tone_generator_active = TRUE;
+        return TRUE;
     }
+
+    if (properties_get_bool (request->properties, "audio_enabled"))
+        _audio_playback_start (request, TRUE);
 
     if (properties_get_bool (request->properties, "vibra_enabled"))
         _setup_vibrator (request);
@@ -677,9 +659,12 @@ request_stop (Request *request)
         request->vibra_poll_id = 0;
     }
 
-    _tone_generator_stop (request);
-    _audio_playback_stop (request);
+    if (request->tone_generator_active) {
+        tone_generator_stop (request->context->system_bus, properties_get_int (request->properties, "audio_tone_generator_pattern"));
+        request->tone_generator_active = FALSE;
+    }
 
+    _audio_playback_stop (request);
     _shutdown_vibrator (request);
     _shutdown_led (request);
     _shutdown_backlight (request);

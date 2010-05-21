@@ -14,104 +14,75 @@
  * written consent of Nokia.
  */
 
-#define DBUS_TONE_GENERATOR_NAME   "com.Nokia.Telephony.Tones"
-#define DBUS_TONE_GENERATOR_PATH   "/com/Nokia/Telephony/Tones"
-#define DBUS_TONE_GENERATOR_IFACE  "com.Nokia.Telephony.Tones"
-#define DBUS_TONE_GENERATOR_START  "StartEventTone"
-#define DBUS_TONE_GENERATOR_STOP   "StopTone"
+#define TONEGEN_NAME   "com.Nokia.Telephony.Tones"
+#define TONEGEN_PATH   "/com/Nokia/Telephony/Tones"
+#define TONEGEN_IFACE  "com.Nokia.Telephony.Tones"
+#define TONEGEN_START  "StartEventTone"
+#define TONEGEN_STOP   "StopTone"
 
-#define TONE_GENERATOR_VOLUME -5
+#define TONEGEN_VOLUME -5
 
 #include <dbus/dbus.h>
+
+#include "log.h"
 #include "tone-generator.h"
 
-struct _ToneGenerator
+static gboolean
+call_dbus_method (DBusConnection *bus, DBusMessage *msg)
 {
-    DBusConnection  *connection;
-};
-
-ToneGenerator*
-tone_generator_create ()
-{
-    ToneGenerator *self = NULL;
-    DBusError error;
-
-    if ((self = g_new0 (ToneGenerator, 1)) == NULL)
-        return NULL;
-
-    dbus_error_init (&error);
-    if ((self->connection = dbus_bus_get (DBUS_BUS_SYSTEM, &error)) == NULL) {
-        if (dbus_error_is_set (&error))
-            dbus_error_free (&error);
-
-        g_free (self);
-        return NULL;
+    if (!dbus_connection_send (bus, msg, 0)) {
+        LOG_WARNING ("Failed to send DBus message %s to interface %s", dbus_message_get_member (msg), dbus_message_get_interface (msg));
+        return FALSE;
     }
 
-    return self;
+    return TRUE;
 }
 
-void
-tone_generator_destroy (ToneGenerator *self)
+static gboolean
+tone_generator_toggle (DBusConnection *bus, guint pattern, gboolean activate)
 {
-    if (self == NULL)
-        return;
-
-    if (self->connection) {
-        dbus_connection_unref (self->connection);
-        self->connection = NULL;
-    }
-
-    g_free (self);
-}
-
-static void
-_tone_generator_toggle (ToneGenerator *self, guint pattern, guint play)
-{
-    DBusMessage *msg = NULL;
-
-    dbus_int32_t    volume  = TONE_GENERATOR_VOLUME;
+    DBusMessage    *msg     = NULL;
+    dbus_int32_t    volume  = TONEGEN_VOLUME;
     dbus_uint32_t   length  = 0;
-    gint            success = 0;
+    gboolean        ret     = FALSE;
 
-    if (self->connection == NULL)
-        return;
+    if (bus == NULL)
+        return FALSE;
 
-    msg = dbus_message_new_method_call (DBUS_TONE_GENERATOR_NAME,
-                                        DBUS_TONE_GENERATOR_PATH,
-                                        DBUS_TONE_GENERATOR_IFACE,
-                                        play ? DBUS_TONE_GENERATOR_START : DBUS_TONE_GENERATOR_STOP);
+    msg = dbus_message_new_method_call (TONEGEN_NAME,
+                                        TONEGEN_PATH,
+                                        TONEGEN_IFACE,
+                                        activate ? TONEGEN_START : TONEGEN_STOP);
 
     if (msg == NULL)
-        return;
+        return FALSE;
 
-    if (play) {
-        success = dbus_message_append_args (msg,
+    if (activate) {
+        ret = dbus_message_append_args (msg,
             DBUS_TYPE_UINT32, &pattern,
             DBUS_TYPE_INT32, &volume,
             DBUS_TYPE_UINT32, &length,
             DBUS_TYPE_INVALID);
 
-        if (!success) {
+        if (!ret) {
             dbus_message_unref (msg);
-            return;
+            return FALSE;
         }
     }
 
-    dbus_connection_send (self->connection, msg, NULL);
+    ret = call_dbus_method (bus, msg);
     dbus_message_unref (msg);
+    return ret;
 }
 
-guint
-tone_generator_start (ToneGenerator *self, guint pattern)
+gboolean
+tone_generator_start (DBusConnection *system_bus, guint pattern)
 {
-    _tone_generator_toggle (self, pattern, TRUE);
-    return 1;
+    return tone_generator_toggle (system_bus, pattern, TRUE);
 }
 
-void
-tone_generator_stop (ToneGenerator *self, guint id)
+gboolean
+tone_generator_stop (DBusConnection *system_bus, guint pattern)
 {
-    if (id > 0)
-        _tone_generator_toggle (self, 0, FALSE);
+    return tone_generator_toggle (system_bus, pattern, FALSE);
 }

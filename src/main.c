@@ -96,11 +96,6 @@ context_create (Context **context)
         return FALSE;
     }
 
-    if ((c->tonegen = tone_generator_create ()) == NULL) {
-        LOG_ERROR ("Failed to create tone generator backend!");
-        return FALSE;
-    }
-
     if ((c->led = led_create ()) == NULL) {
         LOG_ERROR ("Failed to create LED backend!");
         return FALSE;
@@ -152,11 +147,6 @@ context_destroy (Context *context)
     if (context->led) {
         led_destroy (context->led);
         context->led = NULL;
-    }
-
-    if (context->tonegen) {
-        tone_generator_destroy (context->tonegen);
-        context->tonegen = NULL;
     }
 
     if (context->vibrator) {
