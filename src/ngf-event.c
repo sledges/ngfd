@@ -36,7 +36,7 @@ static void         _tone_generator_stop (NgfEvent *self);
 static void         _set_stream_volume  (NgfEvent *self);
 static void         _clear_stream_volume (NgfEvent *self);
 
-static gboolean     _audio_playback_start (NgfEvent *self);
+static gboolean     _audio_playback_start (NgfEvent *self, gboolean set_volume);
 static void         _audio_playback_stop (NgfEvent *self);
 
 static gboolean     _setup_vibrator (NgfEvent *self);
@@ -232,6 +232,7 @@ _stream_state_cb (NgfAudioStream *stream, NgfAudioStreamState state, gpointer us
 
     NgfEventState callback_state = NGF_EVENT_NONE;
     gboolean      restart_stream = FALSE;
+    gboolean      set_volume     = FALSE;
 
     switch (state) {
         case NGF_AUDIO_STREAM_STATE_STARTED:
@@ -251,6 +252,7 @@ _stream_state_cb (NgfAudioStream *stream, NgfAudioStreamState state, gpointer us
             }
 
             self->audio_use_fallback = TRUE;
+            set_volume               = TRUE;
             restart_stream           = TRUE;
 
             break;
@@ -278,7 +280,7 @@ _stream_state_cb (NgfAudioStream *stream, NgfAudioStreamState state, gpointer us
     }
 
     if (restart_stream)
-        _audio_playback_start (self);
+        _audio_playback_start (self, set_volume);
 
     if (callback_state != NGF_EVENT_NONE)
         _trigger_event_callback (self, callback_state);
@@ -411,7 +413,7 @@ _clear_stream_volume (NgfEvent *self)
 }
 
 static gboolean
-_audio_playback_start (NgfEvent *self)
+_audio_playback_start (NgfEvent *self, gboolean set_volume)
 {
     NgfEventPrototype  *prototype   = self->proto;
     const char         *mapped      = NULL;
@@ -434,7 +436,8 @@ _audio_playback_start (NgfEvent *self)
     source = self->audio_filename;
 
     /* set the stream volume */
-    _set_stream_volume (self);
+    if (set_volume)
+        _set_stream_volume (self);
 
     /* If we tried to get fallback and it did not exist, nothing to
        play here. */
@@ -446,7 +449,7 @@ _audio_playback_start (NgfEvent *self)
 
     if (source == NULL && !self->audio_use_fallback) {
         self->audio_use_fallback = TRUE;
-        return _audio_playback_start (self);
+        return _audio_playback_start (self, FALSE);
     }
 
     /* Get the mapped (uncompressed) filename, if such thing exists and
@@ -641,7 +644,7 @@ ngf_event_start (NgfEvent *self, GHashTable *properties)
 
     if (ngf_properties_get_bool (self->properties, "audio_enabled")) {
         if (!_tone_generator_start (self))
-            _audio_playback_start (self);
+            _audio_playback_start (self, TRUE);
     }
 
     if (ngf_properties_get_bool (self->properties, "vibra_enabled"))
