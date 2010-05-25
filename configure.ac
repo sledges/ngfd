@@ -26,7 +26,7 @@ CFLAGS="${CFLAGS} -Werror"
 AC_ARG_ENABLE([debug],
 	AS_HELP_STRING([--enable-debug],[Enable debug @<:@default=false@:>@]),
 	[case "${enableval}" in
-		yes) debug=true ; CFLAGS="-DENABLE_DEBUG" ;;
+		yes) debug=true ; CFLAGS="${CFLAGS} -DENABLE_DEBUG" ;;
 		no)  debug=false ;;
 		*) AC_MSG_ERROR([bad value ${enableval} for --enable-debug]) ;;
 	esac],
