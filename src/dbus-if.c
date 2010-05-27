@@ -27,10 +27,16 @@
 #define NGF_DBUS_PATH        "/com/nokia/NonGraphicFeedback1"
 #define NGF_DBUS_IFACE       "com.nokia.NonGraphicFeedback1"
 
+#define NGF_DBUS_UPDATE      "Update"
 #define NGF_DBUS_STATUS      "Status"
 
 #define NGF_DBUS_METHOD_PLAY "Play"
 #define NGF_DBUS_METHOD_STOP "Stop"
+
+#define PROPERTY_STR(key,value)    key, 's', value
+#define PROPERTY_INT32(key,value)  key, 'i', value
+#define PROPERTY_UINT32(key,value) key, 'u', value
+#define PROPERTY_BOOL(key,value)   key, 'b', value
 
 static gboolean
 _msg_parse_variant (DBusMessageIter *iter, Property **value)
@@ -284,4 +290,114 @@ dbus_if_send_status (Context *context, guint id, guint status)
 
     dbus_connection_send (context->session_bus, msg, NULL);
     dbus_message_unref (msg);
+}
+
+/**
+ * Append properties to DBus message. Properties are held within an array that
+ * contains variable number of dict entries. Each dict entry has a key and value
+ * that is stored in a variant.
+ *
+ * @param iter DBusMessageIter for appending (dbus_message_iter_init_append)
+ * @param ... Variable amount of properties, end with NULL.
+ *
+ * @code
+ * dbus_message_iter_init_append (msg, &iter);
+ * _message_append_properties (&iter,
+ *     PROPERTY_STR ("string.property", "value"),
+ *     PROPERTY_INT32 ("int32.property", -5),
+ *     NULL);
+ * @endcode
+ */
+
+static gboolean
+_message_append_properties (DBusMessageIter *iter, ...)
+{
+    const char *key  = NULL;
+    int         type = 0;
+    const char *s    = NULL;
+    gint        i    = 0;
+    guint       u    = 0;
+    gboolean    b    = FALSE;
+    va_list     args;
+
+    DBusMessageIter container, dict, value;
+
+    va_start (args, iter);
+    dbus_message_iter_open_container (iter, DBUS_TYPE_ARRAY, "{sv}", &container);
+
+    while (1) {
+        if ((key = va_arg (args, const char*)) == NULL)
+            break;
+
+        dbus_message_iter_open_container (&container, DBUS_TYPE_DICT_ENTRY, 0, &dict);
+        dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &key);
+
+        type = va_arg (args, int);
+        switch (type) {
+            case 's':
+                s = va_arg (args, const char*);
+                dbus_message_iter_open_container (&dict, DBUS_TYPE_VARIANT, DBUS_TYPE_STRING_AS_STRING, &value);
+                dbus_message_iter_append_basic (&value, DBUS_TYPE_STRING, &s);
+                dbus_message_iter_close_container (&dict, &value);
+                break;
+
+            case 'i':
+                i = va_arg (args, gint);
+                dbus_message_iter_open_container (&dict, DBUS_TYPE_VARIANT, DBUS_TYPE_INT32_AS_STRING, &value);
+                dbus_message_iter_append_basic (&value, DBUS_TYPE_INT32, &i);
+                dbus_message_iter_close_container (&dict, &value);
+                break;
+
+            case 'u':
+                u = va_arg (args, guint);
+                dbus_message_iter_open_container (&dict, DBUS_TYPE_VARIANT, DBUS_TYPE_UINT32_AS_STRING, &value);
+                dbus_message_iter_append_basic (&value, DBUS_TYPE_UINT32, &u);
+                dbus_message_iter_close_container (&dict, &value);
+                break;
+
+            case 'b':
+                b = va_arg (args, gboolean);
+                dbus_message_iter_open_container (&dict, DBUS_TYPE_VARIANT, DBUS_TYPE_BOOLEAN_AS_STRING, &value);
+                dbus_message_iter_append_basic (&value, DBUS_TYPE_BOOLEAN, &b);
+                dbus_message_iter_close_container (&dict, &value);
+                break;
+
+            default:
+                break;
+        }
+
+        dbus_message_iter_close_container (&container, &dict);
+    }
+
+    dbus_message_iter_close_container (iter, &container);
+    va_end (args);
+
+    return TRUE;
+}
+
+void
+dbus_if_send_resource_update (Context *context, guint id, gboolean audio, gboolean vibra, gboolean leds, gboolean backlight)
+{
+    DBusMessage *msg = NULL;
+    DBusMessageIter iter;
+
+    if (context == NULL || id == 0)
+        return;
+
+    msg = dbus_message_new_method_call (NGF_DBUS_PROXY_NAME, NGF_DBUS_PATH, NGF_DBUS_IFACE, NGF_DBUS_UPDATE);
+    if (msg == NULL)
+        return;
+
+    dbus_message_iter_init_append (msg, &iter);
+    _message_append_properties (&iter,
+        PROPERTY_UINT32 ("policy.id",       id),
+        PROPERTY_BOOL   ("media.audio",     audio),
+        PROPERTY_BOOL   ("media.vibra",     vibra),
+        PROPERTY_BOOL   ("media.leds",      leds),
+        PROPERTY_BOOL   ("media.backlight", backlight),
+        NULL);
+
+    dbus_connection_send (context->session_bus, msg, 0);
+    dbus_message_unref (msg);
+
 }
