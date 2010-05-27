@@ -59,6 +59,11 @@ struct _Context
 
     VibrationPattern **patterns;        /* NULL terminated array of all vibration patterns defined in the configuration */  
     guint              num_patterns;
+
+    gchar             *active_profile;
+    gboolean           silent_mode;
+    gboolean           meeting_mode;
+    gboolean           vibration_enabled;
 };
 
 SoundPath*        context_add_sound_path (Context *context, SoundPath *sound_path);
