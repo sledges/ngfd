@@ -5,6 +5,8 @@ ngfd_LDFLAGS = $(NGFD_LIBS)
 
 ngfd_SOURCES = \
 	main.c \
+	context.h \
+	context.c \
 	settings.c \
 	properties.h \
 	properties.c \
@@ -19,6 +21,12 @@ ngfd_SOURCES = \
 	definition.c \
 	event.h \
 	event.c \
+	sound-path.h \
+	sound-path.c \
+	volume.h \
+	volume.c \
+	vibration-pattern.h \
+	vibration-pattern.c \
 	request.h \
 	request.c \
 	audio.h \

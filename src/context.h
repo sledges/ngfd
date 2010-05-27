@@ -33,6 +33,10 @@ typedef struct _Context Context;
 #include "audio.h"
 #include "vibrator.h"
 
+#include "sound-path.h"
+#include "vibration-pattern.h"
+#include "volume.h"
+
 struct _Context
 {
     GMainLoop     *loop;
@@ -46,8 +50,21 @@ struct _Context
     Audio         *audio;
     Vibrator      *vibrator;
 
-    DBusConnection *system_bus;     /* system bus */
-    DBusConnection *session_bus;    /* session bus */
+    DBusConnection    *system_bus;      /* system bus */
+    DBusConnection    *session_bus;     /* session bus */
+
+    SoundPath        **sounds;          /* all sound defined in the configuration, NULL terminated */
+    guint              num_sounds;
+
+    Volume           **volumes;         /* all volumes defined in the configuration, NULL terminated */
+    guint              num_volumes;
+
+    VibrationPattern **patterns;        /* NULL terminated array of all vibration patterns defined in the configuration */  
+    guint              num_patterns;
 };
+
+SoundPath*        context_add_sound_path (Context *context, SoundPath *sound_path);
+Volume*           context_add_volume     (Context *context, Volume *volume);
+VibrationPattern* context_add_pattern    (Context *context, VibrationPattern *pattern);
 
 #endif /* CONTEXT_H */
