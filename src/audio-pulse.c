@@ -30,7 +30,6 @@
 
 #include "log.h"
 #include "audio-pulse.h"
-#include "interface.h"
 
 #define PULSE_BACKEND_NAME "NGF Pulse backend"
 #define MAX_BUFFER_SIZE    65536
@@ -46,7 +45,7 @@ struct _PulseStream
     SNDFILE           *sf;
     pa_operation      *drain_op;
     unsigned char      buffer[MAX_BUFFER_SIZE];
-    AudioInterface *iface;
+    AudioInterface    *iface;
 };
 
 static gboolean _pulse_initialize (AudioInterface *iface, PulseContext *context);
@@ -118,8 +117,8 @@ _stream_state_cb (pa_stream *s,
         case PA_STREAM_READY:
 	        pulse_stream->stream_index = pa_stream_get_index (s);
 
-            if (stream->iface_callback)
-                stream->iface_callback (INTERFACE_AUDIO, TRUE, stream->userdata);
+            if (stream->callback)
+                stream->callback (stream, AUDIO_STREAM_STATE_PREPARED, stream->userdata);
 
             break;
 

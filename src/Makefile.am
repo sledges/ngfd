@@ -29,6 +29,8 @@ ngfd_SOURCES = \
 	vibration-pattern.c \
 	request.h \
 	request.c \
+	player.h \
+	player.c \
 	audio.h \
 	audio.c \
 	audio-interface.h \

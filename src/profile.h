@@ -18,29 +18,10 @@
 #define PROFILE_H
 
 #include <glib.h>
+#include "context.h"
 
-#define PROFILE_GENERAL     "general"
-#define PROFILE_SILENT      "silent"
-#define PROFILE_MEETING     "meeting"
-#define PROFILE_LOUD        "loud"
-#define PROFILE_FALLBACK    "fallback"
-
-typedef struct _Profile Profile;
-
-Profile*    profile_create ();
-void        profile_destroy (Profile *self);
-
-const char* profile_get_current (Profile *self);
-
-gboolean    profile_get_string (Profile *self, const char *profile, const char *key, const char **value);
-gboolean    profile_get_integer (Profile *self, const char *profile, const char *key, gint *value);
-gboolean    profile_get_boolean (Profile *self, const char *profile, const char *key, gboolean *value);
-
-gboolean    profile_is_silent (Profile *self);
-gboolean    profile_is_vibra_enabled (Profile *self);
-
-gboolean    profile_parse_profile_key (const char *key, gchar **out_profile, gchar **out_key);
-const char* profile_get_string_from_key (Profile *self, const char *key);
-gint        profile_get_int_from_key (Profile *self, const char *key);
+int  profile_create  (Context *context);
+int  profile_resolve (Context *context);
+void profile_destroy (Context *context);
 
 #endif /* PROFILE_H */

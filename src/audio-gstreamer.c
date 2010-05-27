@@ -20,7 +20,6 @@
 
 #include "log.h"
 #include "audio-gstreamer.h"
-#include "interface.h"
 
 static gboolean _gst_initialize (AudioInterface *iface, PulseContext *context);
 static void     _gst_shutdown   (AudioInterface *iface);
@@ -56,8 +55,8 @@ _bus_cb (GstBus     *bus,
             gst_message_parse_state_changed (msg, &old_state, &new_state, &pending_state);
 
             if (old_state == GST_STATE_READY && new_state == GST_STATE_PAUSED) {
-                if (stream->iface_callback)
-                    stream->iface_callback (INTERFACE_AUDIO, TRUE, stream->userdata);
+                if (stream->callback)
+                    stream->callback (stream, AUDIO_STREAM_STATE_PREPARED, stream->userdata);
             }
 
             if (old_state == GST_STATE_PAUSED && new_state == GST_STATE_PLAYING) {

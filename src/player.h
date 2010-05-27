@@ -14,17 +14,13 @@
  * written consent of Nokia.
  */
 
-#ifndef INTERFACE_H
-#define INTERFACE_H
+#ifndef PLAYER_H
+#define PLAYER_H
 
-typedef enum  _InterfaceType  InterfaceType;
+#include <glib.h>
+#include "request.h"
 
-enum _InterfaceType
-{
-    INTERFACE_AUDIO,
-    INTERFACE_VIBRA
-};
+int play_request (Request *request);
+int stop_request (Request *request);
 
-typedef void (*InterfaceReadyCallback) (InterfaceType type, gboolean success, gpointer userdata);
-
-#endif /* INTERFACE_H */
+#endif /* PLAYER_H */

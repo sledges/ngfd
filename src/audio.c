@@ -26,7 +26,6 @@
 
 struct _Audio
 {
-    GHashTable        *controllers;
     PulseContext   *context;
     AudioInterface *gst;
     AudioInterface *pulse;
@@ -38,9 +37,6 @@ audio_create ()
     Audio *self = NULL;
 
     if ((self = g_new0 (Audio, 1)) == NULL)
-        goto failed;
-
-    if ((self->controllers = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) controller_free)) == NULL)
         goto failed;
 
     if ((self->context = pulse_context_create ()) == NULL)
@@ -69,11 +65,6 @@ audio_destroy (Audio *self)
     if (self == NULL)
         return;
 
-    if (self->controllers) {
-        g_hash_table_destroy (self->controllers);
-        self->controllers = NULL;
-    }
-
     if (self->pulse) {
         audio_interface_shutdown (self->pulse);
         self->pulse = NULL;
@@ -99,29 +90,6 @@ audio_set_volume (Audio *self, const char *role, gint volume)
         return;
 
     pulse_context_set_volume (self->context, role, volume);
-}
-
-void
-audio_register_controller (Audio *self, const char *name, const char *pattern, gboolean repeat)
-{
-    Controller *c = NULL;
-
-    if (self == NULL || name == NULL || pattern == NULL)
-        return;
-
-    if ((c = controller_new_from_string (pattern, repeat)) == NULL)
-        return;
-
-    g_hash_table_insert (self->controllers, g_strdup (name), c);
-}
-
-Controller*
-audio_get_controller (Audio *self, const char *name)
-{
-    if (self == NULL || name == NULL)
-        return NULL;
-
-    return (Controller*) g_hash_table_lookup (self->controllers, name);
 }
 
 AudioStream*

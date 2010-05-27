@@ -17,340 +17,187 @@
 #include <stdlib.h>
 #include <profiled/libprofile.h>
 
+#include "sound-path.h"
+#include "volume.h"
 #include "profile.h"
 
-#define VIBRATION_ENABLED_KEY "vibrating.alert.enabled"
+#define KEY_VIBRATION_ENABLED "vibrating.alert.enabled"
+#define SILENT_PROFILE        "silent"
+#define MEETING_PROFILE       "meeting"
 
-typedef struct _ProfileEntry
-{
-    gchar       *profile_name;
-    GHashTable  *values;
-} ProfileEntry;
-
-struct _Profile
-{
-    gchar    *current_profile;
-    gboolean  is_silent;
-    gboolean  is_vibra_enabled;
-    GList    *profiles;
-};
+#define TONE_SUFFIX           ".tone"
+#define VOLUME_SUFFIX         ".volume"
 
 static void
-_profile_entry_free (ProfileEntry *entry)
+resolve_sound_path (Context    *context,
+                    const char *profile,
+                    const char *key,
+                    const char *value)
 {
-    if (entry->values) {
-        g_hash_table_destroy (entry->values);
-        entry->values = NULL;
-    }
+    SoundPath **i = NULL;
+    SoundPath  *s = NULL;
 
-    g_free (entry->profile_name);
-    entry->profile_name = NULL;
+    if (context->active_profile == NULL)
+        return;
 
-    g_free (entry);
-}
+    if (!g_str_has_suffix (key, TONE_SUFFIX))
+        return;
 
-static ProfileEntry*
-_profile_entry_new (const char *profile)
-{
-    ProfileEntry *entry = NULL;
+    for (i = context->sounds; *i; ++i) {
+        s = (SoundPath*) (*i);
 
-    if (profile == NULL)
-        return NULL;
+        if (s->type != SOUND_PATH_TYPE_PROFILE)
+            continue;
 
-    if ((entry = g_new0 (ProfileEntry, 1)) == NULL)
-        return NULL;
+        if (!g_str_equal (s->key, key))
+            continue;
 
-    entry->profile_name = g_strdup (profile);
-    entry->values = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
-    return entry;
-}
-
-static ProfileEntry*
-_profile_entry_find (Profile *self, const char *profile)
-{
-    GList *iter = NULL;
-    ProfileEntry *entry = NULL;
-
-    for (iter = g_list_first (self->profiles); iter; iter = g_list_next (iter)) {
-        entry = (ProfileEntry*) iter->data;
-        if (entry && g_str_equal (entry->profile_name, profile))
-            return entry;
-    }
-
-    return NULL;
-}
-
-static void
-_profile_query_values (Profile *self, char **keys, const char *profile)
-{
-    char **k = NULL, *value = NULL;
-    ProfileEntry *entry = NULL;
-
-    entry = _profile_entry_new (profile);
-    self->profiles = g_list_append (self->profiles, entry);
-
-    for (k = keys; *k; k++) {
-        value = profile_get_value (profile, *k);
-        if (value) {
-            g_hash_table_replace (entry->values, g_strdup (*k), g_strdup (value));
-            free (value);
+        if ((!s->profile && g_str_equal (context->active_profile, profile)) || (s->profile && g_str_equal (s->profile, profile))) {
+            g_print ("+ filename changed %s -> %s\n", s->filename, value);
+            g_free (s->filename);
+            s->filename = g_strdup (value);
+            g_print ("sound_path <type=%d, filename=%s, key=%s, profile=%s\n", s->type, s->filename, s->key, s->profile);
+            break;
         }
     }
 }
 
 static void
-_profile_setup (Profile *self)
+resolve_volume (Context    *context,
+                const char *profile,
+                const char *key,
+                const char *value)
 {
-    char **profiles = NULL, **keys = NULL, **p = NULL;
+    Volume **i = NULL;
+    Volume  *s = NULL;
 
-    /* Get the initial current profile */
+    if (context->active_profile == NULL)
+        return;
 
-    self->current_profile = g_strdup (profile_get_profile ());
-    if (g_str_equal (self->current_profile, PROFILE_SILENT))
-        self->is_silent = TRUE;
+    if (!g_str_has_suffix (key, VOLUME_SUFFIX))
+        return;
 
-    /* Get the vibration enabled status for the current profile. */
-    self->is_vibra_enabled = profile_get_value_as_bool (NULL, VIBRATION_ENABLED_KEY) ? TRUE : FALSE;
+    for (i = context->volumes; *i; ++i) {
+        s = (Volume*) (*i);
 
-    /* Get all keys defined in the profiles. We will use this to iterate through
-       all the profiles and get the respective values. */
+        if (s->type != VOLUME_TYPE_PROFILE)
+            continue;
 
-    keys = profile_get_keys ();
+        if (!g_str_equal (s->key, key))
+            continue;
 
-    /* Get all the initial entries for each profile defined
-       and also for fallbacks. */
-
-    profiles = profile_get_profiles ();
-
-    for (p = profiles; *p; p++)
-        _profile_query_values (self, keys, *p);
-
-    _profile_query_values (self, keys, PROFILE_FALLBACK);
-
-    profile_free_profiles (profiles);
-    profiles = NULL;
-
-    profile_free_keys (keys);
-    keys = NULL;
+        if ((!s->profile && g_str_equal (context->active_profile, profile)) || (s->profile && g_str_equal (s->profile, profile))) {
+            g_print ("+ volume changed %d -> %d\n", s->level, profile_parse_int (value));
+            s->level = profile_parse_int (value);
+            g_print ("volume <type=%d, level=%d, key=%s, profile=%s\n",
+                s->type, s->level, s->key, s->profile);
+            break;
+        }
+    }
 }
 
 static void
-_track_value_change_cb (const char *profile,
-				        const char *key,
-				        const char *value,
-				        const char *type,
-				        void *userdata)
+resolve_profile (Context    *context,
+                 const char *profile)
 {
-    Profile *self = (Profile*) userdata;
-    ProfileEntry *entry = NULL;
+    context->silent_mode  = FALSE;
+    context->meeting_mode = FALSE;
 
-    if (g_str_equal (key, VIBRATION_ENABLED_KEY) && g_str_equal (profile, self->current_profile))
-        self->is_vibra_enabled = profile_parse_bool (value) == 1 ? TRUE : FALSE;
+    if (g_str_equal (profile, SILENT_PROFILE))
+        context->silent_mode = TRUE;
 
-    if ((entry = _profile_entry_find (self, profile)) == NULL) {
-        entry = _profile_entry_new (profile);
-        self->profiles = g_list_append (self->profiles, entry);
+    else if (g_str_equal (profile, MEETING_PROFILE))
+        context->meeting_mode = TRUE;
+
+    g_free (context->active_profile);
+    context->active_profile = g_strdup (profile);
+}
+
+static void
+value_changed_cb (const char *profile,
+				  const char *key,
+				  const char *value,
+				  const char *type,
+				  void *userdata)
+{
+    Context *context = (Context*) userdata;
+
+    if (context->active_profile && g_str_equal (context->active_profile, profile)) {
+        if (g_str_equal (key, KEY_VIBRATION_ENABLED)) {
+            context->vibration_enabled = profile_parse_bool (value);
+            return;
+        }
     }
 
-    g_hash_table_replace (entry->values, g_strdup (key), g_strdup (value));
+    resolve_sound_path (context, profile, key, value);
+    resolve_volume     (context, profile, key, value);
 }
 
 static void
-_track_profile_change_cb (const char *profile,
-                          void *userdata)
+profile_changed_cb (const char *profile,
+                    void *userdata)
 {
-    Profile *self = (Profile*) userdata;
-
-    g_free (self->current_profile);
-    self->current_profile = g_strdup (profile);
-
-    self->is_silent = FALSE;
-    if (g_str_equal (self->current_profile, PROFILE_SILENT))
-        self->is_silent = TRUE;
+    Context *context = (Context*) userdata;
+    g_print ("profile changed %s -> %s\n", context->active_profile, profile);
+    resolve_profile (context, profile);
 }
 
-Profile*
-profile_create ()
+int
+profile_create (Context *context)
 {
-    Profile *self = NULL;
-
-    if ((self = g_new0 (Profile, 1)) == NULL)
-        return NULL;
-
-    /* Get all the initial values for the profiles */
-    _profile_setup (self);
-
-    /* Track the profile value changes in all profiles. */
-    profile_track_add_active_cb (_track_value_change_cb, self, NULL);
-    profile_track_add_change_cb (_track_value_change_cb, self, NULL);
-    profile_track_add_profile_cb (_track_profile_change_cb, self, NULL);
+    profile_track_add_active_cb  (value_changed_cb, context, NULL);
+    profile_track_add_change_cb  (value_changed_cb, context, NULL);
+    profile_track_add_profile_cb (profile_changed_cb, context, NULL);
 
     profile_tracker_init ();
 
-    return self;
+    return TRUE;
+}
+
+int
+profile_resolve (Context *context)
+{
+    SoundPath **i = NULL;
+    Volume    **j = NULL;
+
+    context->active_profile    = profile_get_profile ();
+    context->vibration_enabled = profile_get_value_as_bool (NULL, KEY_VIBRATION_ENABLED);
+
+    if (g_str_equal (context->active_profile, SILENT_PROFILE))
+        context->silent_mode = TRUE;
+    else if (g_str_equal (context->active_profile, MEETING_PROFILE))
+        context->meeting_mode = TRUE;
+
+
+    for (i = context->sounds; *i; ++i) {
+        SoundPath *s = (SoundPath*) (*i);
+
+        if (s->type != SOUND_PATH_TYPE_PROFILE)
+            continue;
+
+        g_free (s->filename);
+        s->filename = g_strdup (profile_get_value (s->profile, s->key));
+        g_print ("sound_path <type=%d, filename=%s, key=%s, profile=%s\n", s->type, s->filename, s->key, s->profile);
+    }
+
+    for (j = context->volumes; *j; ++j) {
+        Volume *v = (Volume*) (*j);
+
+        if (v->type != VOLUME_TYPE_PROFILE)
+            continue;
+
+        v->level = profile_get_value_as_int (v->profile, v->key);
+        g_print ("volume <type=%d, level=%d, key=%s, profile=%s\n", v->type, v->level, v->key, v->profile);
+    }
+
+    return TRUE;
 }
 
 void
-profile_destroy (Profile *self)
+profile_destroy (Context *context)
 {
-    GList *iter = NULL;
-    ProfileEntry *entry = NULL;
-
-    if (self == NULL)
-        return;
-
+    (void) context;
     profile_tracker_quit ();
-
-    if (self->profiles) {
-        for (iter = g_list_first (self->profiles); iter; iter = g_list_next (iter)) {
-            entry = (ProfileEntry*) iter->data;
-            _profile_entry_free (entry);
-        }
-
-        g_list_free (self->profiles);
-        self->profiles = NULL;
-    }
-
-    g_free (self);
 }
 
-const char*
-profile_get_current (Profile *self)
-{
-    return self->current_profile;
-}
 
-static const char*
-_get_value (Profile *self, const char *profile, const char *key)
-{
-    ProfileEntry *entry = NULL;
-    const char *search_profile = profile;
-
-    if (key == NULL)
-        return NULL;
-
-    if (profile == NULL)
-        search_profile = (const char*) self->current_profile;
-
-    if ((entry = _profile_entry_find (self, search_profile)) == NULL)
-        return NULL;
-
-    return (const char*) g_hash_table_lookup (entry->values, key);
- }
-
-gboolean
-profile_get_string (Profile *self, const char *profile, const char *key, const char **value)
-{
-    const char *v = NULL;
-
-    if ((v = _get_value (self, profile, key)) == NULL)
-        return FALSE;
-
-    *value = v;
-    return TRUE;
-}
-
-gboolean
-profile_get_integer (Profile *self, const char *profile, const char *key, gint *value)
-{
-    const char *v = NULL;
-
-    if ((v = _get_value (self, profile, key)) == NULL)
-        return FALSE;
-
-    *value = profile_parse_int (v);
-    return TRUE;
-}
-
-gboolean
-profile_get_boolean (Profile *self, const char *profile, const char *key, gboolean *value)
-{
-    const char *v = NULL;
-
-    if ((v = _get_value (self, profile, key)) == NULL)
-        return FALSE;
-
-    *value = profile_parse_bool (v) ? TRUE : FALSE;
-    return TRUE;
-}
-
-gboolean
-profile_is_silent (Profile *self)
-{
-    if (self == NULL)
-        return FALSE;
-
-    return self->is_silent;
-}
-
-gboolean
-profile_is_vibra_enabled (Profile *self)
-{
-    if (self == NULL)
-        return FALSE;
-
-    return self->is_vibra_enabled;
-}
-
-gboolean
-profile_parse_profile_key (const char *key, gchar **out_profile, gchar **out_key)
-{
-    gchar **split = NULL;
-    gboolean ret = FALSE;
-
-    if (key == NULL)
-        return FALSE;
-
-    if ((split = g_strsplit (key, "@", 2)) != NULL) {
-        if (split[0] == NULL || g_str_equal (split[0], "")) {
-            ret = FALSE;
-            goto done;
-        }
-
-        *out_key = g_strdup (split[0]);
-        *out_profile = g_strdup (split[1]);
-        ret = TRUE;
-    }
-
-done:
-    g_strfreev (split);
-    return ret;
-}
-
-const char*
-profile_get_string_from_key (Profile *self, const char *key)
-{
-    gchar *profile = NULL, *inkey = NULL;
-    const char *value = NULL;
-
-    if (self == NULL || key == NULL)
-        return NULL;
-
-    if (!profile_parse_profile_key (key, &profile, &inkey))
-        return NULL;
-
-    profile_get_string (self, profile, inkey, &value);
-
-    g_free (profile);
-    g_free (inkey);
-    return value;
-}
-
-gint
-profile_get_int_from_key (Profile *self, const char *key)
-{
-    gchar *profile = NULL, *inkey = NULL;
-    gint value = -1;
-
-    if (self == NULL || key == NULL)
-        return -1;
-
-    if (!profile_parse_profile_key (key, &profile, &inkey))
-        return -1;
-
-    profile_get_integer (self, profile, inkey, &value);
-
-    g_free (profile);
-    g_free (inkey);
-    return value;
-}

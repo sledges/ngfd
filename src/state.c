@@ -1,7 +1,9 @@
 #include "log.h"
 #include "timestamp.h"
+#include "resources.h"
 #include "request.h"
 #include "property.h"
+#include "player.h"
 #include "state.h"
 
 static gboolean _properties_get_boolean         (GHashTable *properties, const char *key);
@@ -23,6 +25,20 @@ _properties_get_boolean (GHashTable *properties, const char *key)
         return property_get_boolean (value);
 
     return FALSE;
+}
+
+static const gchar*
+_properties_get_string (GHashTable *properties, const char *key)
+{
+    Property *value = NULL;
+
+    if ((value = g_hash_table_lookup (properties, key)) == NULL)
+        return NULL;
+
+    if (property_get_type (value) == PROPERTY_TYPE_STRING)
+        return property_get_string (value);
+
+    return NULL;
 }
 
 static guint
@@ -59,17 +75,13 @@ _properties_get_play_mode (GHashTable *properties)
     Property *value = NULL;
     const char *str = NULL;
 
-    if ((value = g_hash_table_lookup (properties, "play.mode")) == NULL)
+    if ((str = _properties_get_string (properties, "play.mode")) == NULL)
         return 0;
 
-    if (property_get_type (value) == PROPERTY_TYPE_STRING) {
-        str = property_get_string (value);
-
-        if (g_str_equal (str, "short"))
-            return PLAY_MODE_SHORT;
-        else if (g_str_equal (str, "long"))
-            return PLAY_MODE_LONG;
-    }
+    if (g_str_equal (str, "short"))
+        return REQUEST_PLAY_MODE_SHORT;
+    else if (g_str_equal (str, "long"))
+        return REQUEST_PLAY_MODE_LONG;
 
     return 0;
 }
@@ -86,7 +98,7 @@ _properties_get_resources (GHashTable *properties)
         resources |= RESOURCE_VIBRATION;
 
     if (_properties_get_boolean (properties, "media.leds"))
-        resources |= RESOURCE_LED;
+        resources |= RESOURCE_LEDS;
 
     if (_properties_get_boolean (properties, "media.backlight"))
         resources |= RESOURCE_BACKLIGHT;
@@ -102,18 +114,23 @@ _request_state_cb (Request *request, guint state, gpointer userdata)
 
     switch (state) {
         case REQUEST_STATE_STARTED:
-            TIMESTAMP ("Request started");
-            LOG_DEBUG ("REQUEST STARTED (id=%d): Time: %f s", request->policy_id, g_timer_elapsed (request->start_timer,NULL));
+            TIMESTAMP ("REQUEST STARTED");
+            LOG_DEBUG ("request (%d) >> started", request->policy_id);
             break;
 
         case REQUEST_STATE_FAILED:
-            LOG_DEBUG ("REQUEST FAILED (id=%d)", request->policy_id);
+            LOG_DEBUG ("request (%d) >> failed", request->policy_id);
             dbus_if_send_status (context, request->policy_id, 0);
             remove_request = TRUE;
             break;
 
+        case REQUEST_STATE_UPDATED:
+            LOG_DEBUG ("request (%d) >> resource update", request->policy_id);
+            dbus_if_send_resource_update (context, request->policy_id, TRUE, TRUE, FALSE, TRUE);
+            break;
+
         case REQUEST_STATE_COMPLETED:
-            LOG_DEBUG ("REQUEST COMPLETED (id=%d)", request->policy_id);
+            LOG_DEBUG ("request (%d) >> completed", request->policy_id);
             dbus_if_send_status (context, request->policy_id, 0);
             remove_request = TRUE;
             break;
@@ -123,9 +140,10 @@ _request_state_cb (Request *request, guint state, gpointer userdata)
     }
 
     if (remove_request) {
-        LOG_DEBUG ("REQUEST REMOVED (id=%d)", request->policy_id);
+        LOG_DEBUG ("request (%d) >> removed", request->policy_id);
+
         context->request_list = g_list_remove (context->request_list, request);
-        request_stop (request);
+        stop_request (request);
         request_free (request);
     }
 }
@@ -168,12 +186,11 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
        definition, use that. Otherwise, lookup the event based on the play mode.
        If not found, we have the definition, but no actions specified for the play mode. */
 
-    current_profile = profile_get_current (context->profile);
-    if (def->meeting_event && current_profile && g_str_equal (current_profile, PROFILE_MEETING)) {
+    if (def->meeting_event && context->meeting_mode) {
         event_name = def->meeting_event;
     }
     else {
-        event_name = (play_mode == PLAY_MODE_LONG) ? def->long_event : def->short_event;
+        event_name = (play_mode == REQUEST_PLAY_MODE_LONG) ? def->long_event : def->short_event;
     }
 
     if ((event = g_hash_table_lookup (context->events, event_name)) == 0) {
@@ -194,7 +211,7 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
     }
 
     LOG_REQUEST ("request_name=%s, event_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d (%s))",
-        request_name, event_name, policy_id, play_timeout, resources, play_mode, play_mode == PLAY_MODE_LONG ? "LONG" : "SHORT");
+        request_name, event_name, policy_id, play_timeout, resources, play_mode, play_mode == REQUEST_PLAY_MODE_LONG ? "LONG" : "SHORT");
 
     TIMESTAMP ("Request parsing completed");
 
@@ -202,7 +219,7 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
        to it. */
 
     if ((request = request_new (context, event)) == NULL) {
-        LOG_ERROR ("Failed to create request %s", request_name);
+        LOG_WARNING ("request (%d) >> failed create request", policy_id);
         return 0;
     }
 
@@ -210,16 +227,18 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
     request->resources    = resources;
     request->play_mode    = play_mode;
     request->play_timeout = play_timeout;
+    request->callback     = _request_state_cb;
+    request->userdata     = context;
 
-    /* Setup the request callback to monitor requests progress. */
+    /* set the user provided custom sound, if any and
+       start the playback of the request. */
 
-    request_set_callback (request, _request_state_cb, context);
-
-    /* Start the request immediately. */
+    if (event->allow_custom)
+        request_set_custom_sound (request, _properties_get_string (properties, "audio"));
 
     context->request_list = g_list_append (context->request_list, request);
-    if (!request_start (request, properties)) {
-        LOG_ERROR ("Failed to start request %s", request_name);
+    if (!play_request (request)) {
+        LOG_WARNING ("request (%d) >> failed to start", request->policy_id);
         context->request_list = g_list_remove (context->request_list, request);
         request_free (request);
         return 0;
@@ -240,11 +259,14 @@ stop_handler (Context *context, guint policy_id)
     for (iter = g_list_first (context->request_list); iter; iter = g_list_next (context->request_list)) {
         request = (Request*) iter->data;
         if (request->policy_id == policy_id) {
-            LOG_DEBUG ("request STOP (id=%d)\n", policy_id);
+            LOG_DEBUG ("request (%d) >> stop received", policy_id);
+
             context->request_list = g_list_remove (context->request_list, request);
-            request_stop (request);
-            dbus_if_send_status (context, request->policy_id, 0);
+
+            stop_request (request);
             request_free (request);
+
+            dbus_if_send_status (context, policy_id, 0);
             break;
         }
     }

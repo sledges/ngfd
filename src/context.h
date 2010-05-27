@@ -28,7 +28,6 @@ typedef struct _Context Context;
 #include "event.h"
 #include "request.h"
 
-#include "profile.h"
 #include "tone-mapper.h"
 #include "audio.h"
 #include "vibrator.h"
@@ -45,7 +44,6 @@ struct _Context
     GHashTable    *events;
     GList         *request_list;
 
-    Profile       *profile;
     ToneMapper    *tone_mapper;
     Audio         *audio;
     Vibrator      *vibrator;
@@ -61,6 +59,11 @@ struct _Context
 
     VibrationPattern **patterns;        /* NULL terminated array of all vibration patterns defined in the configuration */  
     guint              num_patterns;
+
+    gchar             *active_profile;
+    gboolean           silent_mode;
+    gboolean           meeting_mode;
+    gboolean           vibration_enabled;
 };
 
 SoundPath*        context_add_sound_path (Context *context, SoundPath *sound_path);

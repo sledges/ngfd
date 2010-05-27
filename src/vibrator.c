@@ -19,21 +19,10 @@
 #include <ImmVibeCore.h>
 
 #include "vibrator.h"
-#include "interface.h"
-
-typedef struct _Pattern Pattern;
-
-struct _Pattern
-{
-    VibeUInt8   *data;
-    gint        pattern_id;
-};
 
 struct _Vibrator
 {
     VibeInt32   device;
-    GHashTable  *vibrator_data;
-    GHashTable  *patterns;
 };
 
 Vibrator*
@@ -48,12 +37,6 @@ vibrator_create ()
         goto failed;
 
     if (VIBE_FAILED (ImmVibeOpenDevice (0, &self->device)))
-        goto failed;
-
-    if ((self->patterns = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free)) == NULL)
-        goto failed;
-
-    if ((self->vibrator_data = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free)) == NULL)
         goto failed;
 
     return self;
@@ -74,16 +57,6 @@ vibrator_destroy (Vibrator *self)
         ImmVibeCloseDevice (self->device);
         self->device = VIBE_INVALID_DEVICE_HANDLE_VALUE;
         ImmVibeTerminate ();
-    }
-
-    if (self->vibrator_data) {
-        g_hash_table_destroy (self->vibrator_data);
-        self->vibrator_data = NULL;
-    }
-
-    if (self->patterns) {
-        g_hash_table_destroy (self->patterns);
-        self->patterns = NULL;
     }
 
     g_free (self);
@@ -131,79 +104,26 @@ failed:
     return NULL;
 }
 
-gboolean
-vibrator_register (Vibrator *self, const char *name, const char *filename, gint pattern_id)
-{
-    Pattern *p = NULL;
-    VibeUInt8 *data = NULL;
-
-    if (self ==  NULL || name == NULL || pattern_id < 0)
-        return FALSE;
-
-    /* Lookup for the pattern, if we have already registered one with the similar name then
-       we will ignore this one. */
-
-    if ((p = (Pattern*) g_hash_table_lookup (self->patterns, name)) != NULL)
-        return FALSE;
-
-    /* Lookup for the given IVT filename to see if it has been loaded. If not, let's load
-       it. */
-
-    if (filename) {
-        if ((data = (VibeUInt8*) g_hash_table_lookup (self->vibrator_data, filename)) == NULL) {
-            if ((data = (VibeUInt8*) vibrator_load (filename)) == NULL)
-                return FALSE;
-
-            g_hash_table_replace (self->vibrator_data, g_strdup (filename), data);
-        }
-    }
-
-    /* We don't have entry with the given name, so we will make one. */
-
-    if ((p = g_new0 (Pattern, 1)) == NULL)
-        return FALSE;
-
-    p->data         = data;
-    p->pattern_id   = pattern_id;
-
-    g_hash_table_replace (self->patterns, g_strdup (name), p);
-
-    return TRUE;
-}
-
 guint
-vibrator_start (Vibrator *self, const char *name, gpointer data)
+vibrator_start (Vibrator *self, gpointer data, gint pattern_id)
 {
-    gint id = 0;
-    VibeUInt8 *effects = NULL;
-    Pattern *p = NULL;
+    VibeUInt8 *effects = data ? (VibeUInt8*) data : g_pVibeIVTBuiltInEffects;
+    gint       id = 0;
 
     if (self == NULL)
         return 0;
 
-    if (data) {
-        effects = (VibeUInt8*) data;
-        ImmVibePlayIVTEffect (self->device, effects, 0, &id);
-    } else {
-        if ((p = (Pattern*) g_hash_table_lookup (self->patterns, name)) == NULL)
-            return 0;
+    if (VIBE_SUCCEEDED (ImmVibePlayIVTEffect (self->device, effects, pattern_id, &id)))
+        return id;
 
-        if (p->data)
-            effects = p->data;
-        else
-            effects = g_pVibeIVTBuiltInEffects;
-
-        ImmVibePlayIVTEffect (self->device, effects, p->pattern_id, &id);
-    }
-
-    return id;
+    return 0;
 }
 
 void
 vibrator_stop (Vibrator *self, gint id)
 {
-    VibeStatus status;
-    VibeInt32 effect_state = 0;
+    VibeStatus status       = 0;
+    VibeInt32  effect_state = 0;
 
     if (self == NULL || id < 0)
         return;
@@ -230,24 +150,15 @@ vibrator_is_completed (Vibrator *self, gint id)
 }
 
 gboolean
-vibrator_is_repeating (Vibrator *self, const char *name)
+vibrator_is_repeating (Vibrator *self, gpointer data, gint pattern_id)
 {
-    VibeUInt8 *effects = NULL;
-    Pattern *p = NULL;
-    VibeInt32 duration = 0;
+    VibeUInt8 *effects  = data ? (VibeUInt8*) data : g_pVibeIVTBuiltInEffects;
+    VibeInt32  duration = 0;
 
     if (self == NULL)
         return FALSE;
 
-    if ((p = (Pattern*) g_hash_table_lookup (self->patterns, name)) == NULL)
-        return FALSE;
-
-    if (p->data)
-        effects = p->data;
-    else
-        effects = g_pVibeIVTBuiltInEffects;
-
-    ImmVibeGetIVTEffectDuration (effects, p->pattern_id, &duration);
+    ImmVibeGetIVTEffectDuration (effects, pattern_id, &duration);
     if (duration == VIBE_TIME_INFINITE)
         return TRUE;
 

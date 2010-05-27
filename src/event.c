@@ -64,11 +64,6 @@ event_free (Event *event)
     if (event == NULL)
         return;
 
-    if (event->allowed_keys) {
-        g_strfreev (event->allowed_keys);
-        event->allowed_keys = NULL;
-    }
-
     if (event->properties) {
         g_hash_table_destroy (event->properties);
         event->properties = NULL;
@@ -77,6 +72,11 @@ event_free (Event *event)
     if (event->stream_properties) {
         pa_proplist_free (event->stream_properties);
         event->stream_properties = NULL;
+    }
+
+    if (event->sounds) {
+        g_list_free (event->sounds);
+        event->sounds = NULL;
     }
 
     g_free (event);

@@ -20,13 +20,40 @@
 #include <glib.h>
 #include <pulse/proplist.h>
 
+#include "sound-path.h"
+#include "vibration-pattern.h"
+#include "volume.h"
+
 typedef struct _Event Event;
 
 struct _Event
 {
-    gchar       **allowed_keys;         /* NULL terminated array of keys that user can override. */
-    GHashTable   *properties;           /* Collection of properties. */
-    pa_proplist  *stream_properties;    /* Stream properties. */
+    GHashTable       *properties;               /* Collection of properties. */
+    pa_proplist      *stream_properties;        /* Stream properties. */
+
+    gboolean          allow_custom;             /* allow custom sound */
+    gint              max_timeout;              /* maximum timeout for event */
+
+    GList            *sounds;                   /* sounds defined for the event. collection of pointers to context->sounds */
+    Volume           *volume;                   /* volume for the event */
+    gchar            *stream_role;              /* stream role */
+    gboolean          silent_enabled;           /* play in silent mode */
+    gboolean          repeat;                   /* repeat sound */
+    gint              num_repeats;              /* number of times to repeat or 0 for infinite */
+
+    gboolean          lookup_pattern;           /* lookup a custom vibration pattern */
+    GList            *patterns;                 /* vibration patterns in the order of importance */
+
+    gint              tone_generator_pattern;   /* tone generator pattern */
+    gchar            *led_pattern;
+    
+    gboolean          tone_generator_enabled;
+    gboolean          audio_enabled;
+    gboolean          vibration_enabled;
+    gboolean          leds_enabled;
+
+    gboolean          unlock_tklock;            /* unlock touchscreen and keyboard lock */
+    gboolean          backlight_enabled;        /* keep the backlight alive */
 };
 
 Event* event_new   ();

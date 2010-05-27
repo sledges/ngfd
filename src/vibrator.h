@@ -26,10 +26,9 @@ typedef struct _Vibrator Vibrator;
 Vibrator* vibrator_create       ();
 void      vibrator_destroy      (Vibrator *self);
 gpointer  vibrator_load         (const char *filename);
-gboolean  vibrator_register     (Vibrator *self, const char *name, const char *filename, gint pattern_id);
-guint     vibrator_start        (Vibrator *self, const char *name, gpointer data);
+guint     vibrator_start        (Vibrator *self, gpointer data, gint pattern_id);
 void      vibrator_stop         (Vibrator *self, gint id);
 gboolean  vibrator_is_completed (Vibrator *self, gint id);
-gboolean  vibrator_is_repeating (Vibrator *self, const char *name);
+gboolean  vibrator_is_repeating (Vibrator *self, gpointer data, gint pattern_id);
 
 #endif /* VIBRATOR_H */

@@ -20,8 +20,6 @@
 #include <glib.h>
 #include <pulse/proplist.h>
 
-#include "interface.h"
-
 typedef struct _AudioStream      AudioStream;
 typedef enum   _AudioStreamState AudioStreamState;
 typedef enum   _AudioStreamType  AudioStreamType;
@@ -31,6 +29,7 @@ typedef void (*AudioStreamCallback) (AudioStream *stream, AudioStreamState state
 enum _AudioStreamState
 {
     AUDIO_STREAM_STATE_NONE,
+    AUDIO_STREAM_STATE_PREPARED,
     AUDIO_STREAM_STATE_STARTED,
     AUDIO_STREAM_STATE_COMPLETED,
     AUDIO_STREAM_STATE_FAILED
@@ -48,7 +47,6 @@ struct _AudioStream
     gchar                  *source;
     pa_proplist            *properties;
     AudioStreamCallback     callback;
-    InterfaceReadyCallback  iface_callback;
     gpointer                userdata;
 
     /** Private implementation data */

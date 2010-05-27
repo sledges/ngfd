@@ -18,6 +18,8 @@
 
 #include "log.h"
 #include "context.h"
+#include "dbus-if.h"
+#include "profile.h"
 
 static gboolean _request_manager_create         (Context *context);
 static void     _request_manager_destroy        (Context *context);
@@ -77,7 +79,7 @@ context_create (Context **context)
 
     /* setup the backends */
 
-    if ((c->profile = profile_create ()) == NULL) {
+    if (!profile_create (c)) {
         LOG_ERROR ("Failed to create profile tracking!");
         return FALSE;
     }
@@ -103,12 +105,13 @@ context_create (Context **context)
         return FALSE;
     }
 
-    /* load settings */
-
     if (!load_settings (c)) {
         LOG_ERROR ("Failed to load settings!");
         return FALSE;
     }
+
+    /* resolve the initial profile settings */
+    profile_resolve (c);
 
     *context = c;
     return TRUE;
@@ -118,6 +121,7 @@ void
 context_destroy (Context *context)
 {
     dbus_if_destroy (context);
+    profile_destroy (context);
 
     if (context->session_bus) {
         dbus_connection_unref (context->session_bus);
@@ -142,11 +146,6 @@ context_destroy (Context *context)
     if (context->tone_mapper) {
         tone_mapper_destroy (context->tone_mapper);
         context->tone_mapper = NULL;
-    }
-
-    if (context->profile) {
-        profile_destroy (context->profile);
-        context->profile = NULL;
     }
 
     _request_manager_destroy (context);

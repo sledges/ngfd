@@ -19,6 +19,7 @@
 #include "log.h"
 #include "property.h"
 #include "properties.h"
+#include "controller.h"
 #include "event.h"
 #include "context.h"
 
@@ -30,11 +31,9 @@
 
 #define STREAM_RESTORE_ID "module-stream-restore.id"
 
-/** Temporary structure when configuration is being parsed */
 typedef struct _SettingsData
 {
-    Context  *context;
-    gchar     **allowed_keys;
+    Context *context;
 } SettingsData;
 
 /**
@@ -137,117 +136,12 @@ _parse_group_parent (const char *group)
     return parent;
 }
 
-/**
- * Parse general options.
- *
- * @param data SettingsData
- * @param k GKeyFile
- */
-
 static void
 _parse_general (SettingsData *data, GKeyFile *k)
 {
-    /* Get list of allowed properties that we allow to be overridden through
-       the client interface. */
-
-    gchar **allowed_keys = NULL;
-    allowed_keys = g_key_file_get_string_list (k, GROUP_GENERAL, "allowed_keys", NULL, NULL);
-    if (allowed_keys == NULL)
-        return;
-
-    gchar **p = NULL;
-    for (p = allowed_keys; *p != NULL; ++p)
-        LOG_DEBUG ("<allowed override key: %s>", *p);
-
-    data->allowed_keys = allowed_keys;
+    (void) data;
+    (void) k;
 }
-
-/**
- * Parse the vibrator patterns defined in the configuration file. For each
- * pattern we will get the IVT file and pattern id and register it to the
- * vibrator backend.
- *
- * @param data SettingsData
- * @param k GKeyFile
- * @post Vibrator patterns registered to the backend.
- */
-
-static void
-_parse_vibra_patterns (SettingsData *data, GKeyFile *k)
-{
-    Context *context = data->context;
-
-    gchar **group_list = NULL;
-    gchar **group      = NULL;
-    gchar  *filename   = NULL;
-    gchar  *name       = NULL;
-    gint    pattern_id = 0;
-
-    group_list = g_key_file_get_groups (k, NULL);
-    for (group = group_list; *group != NULL; ++group) {
-        if (!g_str_has_prefix (*group, GROUP_VIBRATOR))
-            continue;
-
-        name = _parse_group_name (*group);
-        if (name == NULL)
-            continue;
-
-        filename   = g_key_file_get_string (k, *group, "filename", NULL);
-        pattern_id = g_key_file_get_integer (k, *group, "pattern_id", NULL);
-
-        LOG_DEBUG ("<new vibrator pattern: %s (filename=%s, pattern_id=%d)>", name, filename, pattern_id);
-
-        vibrator_register (context->vibrator, name, filename, pattern_id);
-
-        g_free (filename);
-        g_free (name);
-    }
-
-    g_strfreev (group_list);
-}
-
-static void
-_parse_volume_patterns (SettingsData *data, GKeyFile *k)
-{
-    Context *context = data->context;
-
-    gchar    **group_list = NULL;
-    gchar    **group      = NULL;
-    gchar     *name       = NULL;
-    gchar     *pattern    = NULL;
-    gboolean   repeat     = FALSE;
-
-    group_list = g_key_file_get_groups (k, NULL);
-    for (group = group_list; *group != NULL; ++group) {
-        if (!g_str_has_prefix (*group, GROUP_VOLUME))
-            continue;
-
-        name = _parse_group_name (*group);
-        if (name == NULL)
-            continue;
-
-        pattern = g_key_file_get_string (k, *group, "pattern", NULL);
-        repeat  = g_key_file_get_boolean (k, *group, "repeat", NULL);
-
-        LOG_DEBUG ("<new volume pattern: %s (pattern=%s, repeat=%s)>", name, pattern, repeat ? "TRUE" : "FALSE");
-
-        audio_register_controller (context->audio, name, pattern, repeat);
-
-        g_free (pattern);
-        g_free (name);
-    }
-
-    g_strfreev (group_list);
-}
-
-/**
- * Parse event definitions. Event definition contains a reference to
- * long and short events.
- *
- * @param data SettingsData
- * @param k GKeyFile
- * @post New event definition registered to event definitions.
- */
 
 static void
 _parse_definitions (SettingsData *data, GKeyFile *k)
@@ -283,14 +177,6 @@ _parse_definitions (SettingsData *data, GKeyFile *k)
 
     g_strfreev (group_list);
 }
-
-/**
- * Iterate the done list and check if the list contains a name.
- *
- * @param done_list GList of strings containing event names.
- * @param name Name of event to look for.
- * @returns TRUE if found, else FALSE.
- */
 
 static gboolean
 _event_is_done (GList *done_list, const char *name)
@@ -462,6 +348,188 @@ _parse_stream_properties (Event *event,
     event->stream_properties = p;
 }
 
+static gboolean
+_parse_profile_key (const char *key, gchar **out_profile, gchar **out_key)
+{
+    gchar **split = NULL;
+    gboolean ret = FALSE;
+
+    if (key == NULL)
+        return FALSE;
+
+    if ((split = g_strsplit (key, "@", 2)) != NULL) {
+        if (split[0] == NULL || g_str_equal (split[0], "")) {
+            ret = FALSE;
+            goto done;
+        }
+
+        *out_key = g_strdup (split[0]);
+        *out_profile = g_strdup (split[1]);
+        ret = TRUE;
+    }
+
+done:
+    g_strfreev (split);
+    return ret;
+}
+
+static SoundPath*
+_parse_sound_path (Context *context, const gchar *str)
+{
+    SoundPath *sound_path = NULL;
+    gchar *stripped = NULL;
+
+    if (str == NULL)
+        return NULL;
+
+    if (g_str_has_prefix (str, "profile:")) {
+        stripped = _strip_prefix (str, "profile:");
+
+        sound_path       = sound_path_new ();
+        sound_path->type = SOUND_PATH_TYPE_PROFILE;
+
+        if (!_parse_profile_key (stripped, &sound_path->profile, &sound_path->key)) {
+            g_free (stripped);
+            return NULL;
+        }
+
+        g_free (stripped);
+    }
+    else if (g_str_has_prefix (str, "filename:")) {
+        stripped = _strip_prefix (str, "filename:");
+
+        sound_path           = sound_path_new ();
+        sound_path->type     = SOUND_PATH_TYPE_FILENAME;
+        sound_path->filename = stripped;
+    }
+
+    return context_add_sound_path (context, sound_path);
+}
+
+static GList*
+_create_sound_paths (Context *context, const gchar *str)
+{
+    GList      *result = NULL;
+    SoundPath  *sound_path = NULL;
+    gchar     **sounds = NULL, **s = NULL;
+
+    if (str == NULL)
+        return NULL;
+
+    if ((sounds = g_strsplit (str, ";", -1)) == NULL)
+        return NULL;
+
+    for (s = sounds; *s; ++s) {
+        if ((sound_path = _parse_sound_path (context, *s)) != NULL)
+            result = g_list_append (result, sound_path);
+    }
+
+    g_strfreev (sounds);
+    return result;
+}
+
+static Volume*
+_create_volume (Context *context, const gchar *str)
+{
+    Volume *volume = NULL;
+    gchar *stripped = NULL;
+
+    if (str == NULL)
+        return NULL;
+
+    if (g_str_has_prefix (str, "profile:")) {
+        stripped = _strip_prefix (str, "profile:");
+
+        volume       = volume_new ();
+        volume->type = VOLUME_TYPE_PROFILE;
+
+        if (!_parse_profile_key (stripped, &volume->profile, &volume->key)) {
+            g_free (stripped);
+            return NULL;
+        }
+
+        g_free (stripped);
+    }
+    else if (g_str_has_prefix (str, "fixed:")) {
+        stripped = _strip_prefix (str, "fixed:");
+
+        volume        = volume_new ();
+        volume->type  = VOLUME_TYPE_FIXED;
+        volume->level = atoi (stripped);
+
+        g_free (stripped);
+    }
+    else if (g_str_has_prefix (str, "controller:")) {
+        stripped = _strip_prefix (str, "controller:");
+
+        volume             = volume_new ();
+        volume->type       = VOLUME_TYPE_CONTROLLER;
+        volume->controller = controller_new_from_string (stripped, FALSE);
+
+        if (volume->controller == NULL) {
+            volume_free (volume);
+            g_free (stripped);
+            return NULL;
+        }
+
+        g_free (stripped);
+    }
+
+    return context_add_volume (context, volume);
+}
+
+static VibrationPattern*
+_parse_pattern (Context *context, const gchar *str)
+{
+    VibrationPattern *pattern = NULL;
+    gchar *stripped = NULL;
+
+    if (str == NULL)
+        return NULL;
+
+    if (g_str_has_prefix (str, "filename:")) {
+        stripped = _strip_prefix (str, "filename:");
+
+        pattern = vibration_pattern_new ();
+        pattern->type     = VIBRATION_PATTERN_TYPE_FILENAME;
+        pattern->filename = stripped;
+    }
+    else if (g_str_has_prefix (str, "internal:")) {
+        stripped = _strip_prefix (str, "internal:");
+
+        pattern = vibration_pattern_new ();
+        pattern->type    = VIBRATION_PATTERN_TYPE_INTERNAL;
+        pattern->pattern = atoi (stripped);
+
+        g_free (stripped);
+    }
+
+    return context_add_pattern (context, pattern);
+}
+
+static GList*
+_create_patterns (Context *context, const gchar *str)
+{
+    GList             *result = NULL;
+    VibrationPattern  *pattern = NULL;
+    gchar            **patterns = NULL, **i = NULL;
+
+    if (str == NULL)
+        return NULL;
+
+    if ((patterns = g_strsplit (str, ";", -1)) == NULL) {
+        return NULL;
+    }
+
+    for (i = patterns; *i; ++i) {
+        if ((pattern = _parse_pattern (context, *i)) != NULL)
+            result = g_list_append (result, pattern);
+    }
+
+    g_strfreev (patterns);
+    return result;
+}
+
 /**
  * Parse a single event. If the event has a parent, make sure that
  * we parse it first. Once done, merge the parent's and new events
@@ -477,14 +545,32 @@ _parse_stream_properties (Event *event,
  */
 
 static void
+_dump_sound_path (gpointer data, gpointer userdata)
+{
+    SoundPath *sound_path = (SoundPath*) data;
+
+    LOG_DEBUG ("sound_path <type=%d, filename=%s, key=%s, profile=%s>\n",
+        sound_path->type, sound_path->filename, sound_path->key, sound_path->profile);
+}
+
+static void
+_dump_vibration (gpointer data, gpointer userdata)
+{
+    VibrationPattern *pattern = (VibrationPattern*) data;
+    
+    LOG_DEBUG ("vibration_pattern <type=%d, filename=%s, pattern=%d>\n",
+            pattern->type, pattern->filename, pattern->pattern);
+}
+
+static void
 _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, GHashTable *events, const char *name)
 {
     Context *context = data->context;
 
     const gchar       *group        = NULL;
     gchar             *parent       = NULL;
-    Event *p            = NULL;
-    Event *copy         = NULL;
+    Event             *p            = NULL;
+    Event             *copy         = NULL;
     gchar             *default_role = NULL;
     gboolean           set_default  = FALSE;
 
@@ -511,36 +597,24 @@ _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, GHash
 
     default_role = g_strdup_printf ("x-maemo-%s", name);
 
-    _add_property_int        (p, k, group, "max_length", FALSE, set_default);
-
+    _add_property_int        (p, k, group, "max_timeout", FALSE, set_default);
     _add_property_bool       (p, k, group, "audio_enabled", FALSE, set_default);
     _add_property_bool       (p, k, group, "audio_repeat", FALSE, set_default);
     _add_property_int        (p, k, group, "audio_max_repeats", 0, set_default);
-    _add_property_string     (p, k, group, "audio", NULL, set_default);
-    _add_property_string     (p, k, group, "audio_tone_profile", NULL, set_default);
-    _add_property_bool       (p, k, group, "audio_silent", FALSE, set_default);
-
-    _add_property_string     (p, k, group, "audio_fallback_filename", NULL, set_default);
-    _add_property_string     (p, k, group, "audio_fallback_profile", NULL, set_default);
-
-    _add_property_int        (p, k, group, "audio_volume_value", -1, set_default);
-    _add_property_string     (p, k, group, "audio_volume_profile", NULL, set_default);
-    _add_property_string     (p, k, group, "audio_volume_pattern", NULL, set_default);
+    _add_property_string     (p, k, group, "sound", NULL, set_default);
+    _add_property_bool       (p, k, group, "silent_enabled", FALSE, set_default);
+    _add_property_string     (p, k, group, "volume", NULL, set_default);
     _add_property_string     (p, k, group, "audio_stream_role", default_role, TRUE);
-
     _add_property_bool       (p, k, group, "audio_tonegen_enabled", FALSE, set_default);
     _add_property_int        (p, k, group, "audio_tonegen_pattern", -1, set_default);
-
-    _add_property_bool       (p, k, group, "vibra_enabled", FALSE, set_default);
-    _add_property_bool       (p, k, group, "vibrator_custom_patterns", FALSE, set_default);
-    _add_property_string     (p, k, group, "vibra", NULL, set_default);
-
+    _add_property_bool       (p, k, group, "vibration_enabled", FALSE, set_default);
+    _add_property_bool       (p, k, group, "lookup_pattern", FALSE, set_default);
+    _add_property_string     (p, k, group, "vibration", NULL, set_default);
     _add_property_bool       (p, k, group, "led_enabled", FALSE, set_default);
     _add_property_string     (p, k, group, "led", NULL, set_default);
-
     _add_property_bool       (p, k, group, "backlight_enabled", FALSE, set_default);
-
-    _add_property_bool       (p, k, group, "disallow_override", FALSE, set_default);
+    _add_property_bool       (p, k, group, "allow_custom", FALSE, set_default);
+    _add_property_bool       (p, k, group, "unlock_tklock", FALSE, set_default);
 
     g_free (default_role);
 
@@ -560,14 +634,37 @@ _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, GHash
         }
     }
 
-    /* Make a copy of the list of allowed keys for this event. */
-    p->allowed_keys = g_strdupv (data->allowed_keys);
+    /* translate the event */
+
+    p->audio_enabled     = properties_get_bool (p->properties, "audio_enabled");
+    p->vibration_enabled = properties_get_bool (p->properties, "vibration_enabled");
+    p->leds_enabled      = properties_get_bool (p->properties, "led_enabled");
+    p->backlight_enabled = properties_get_bool (p->properties, "backlight_enabled");
+    p->unlock_tklock     = properties_get_bool (p->properties, "unlock_tklock");
+
+    p->allow_custom      = properties_get_bool (p->properties, "allow_custom");
+    p->max_timeout       = properties_get_int  (p->properties, "max_timeout");
+    p->lookup_pattern    = properties_get_bool (p->properties, "lookup_pattern");
+    p->silent_enabled    = properties_get_bool (p->properties, "silent_enabled");
+
+    p->tone_generator_enabled = properties_get_bool (p->properties, "audio_tonegen_enabled");
+    p->tone_generator_pattern = properties_get_int (p->properties, "audio_tonegen_pattern");
+
+    p->repeat            = properties_get_bool (p->properties, "audio_repeat");
+    p->num_repeats       = properties_get_int (p->properties, "audio_max_repeats");
+    p->stream_role       = g_strdup (properties_get_string (p->properties, "audio_stream_role"));
+
+    p->sounds   = _create_sound_paths (context, properties_get_string (p->properties, "sound"));
+    p->volume   = _create_volume      (context, properties_get_string (p->properties, "volume"));
+    p->patterns = _create_patterns    (context, properties_get_string (p->properties, "vibration"));
+
+    g_list_foreach (p->sounds, _dump_sound_path, NULL);
+    g_list_foreach (p->patterns, _dump_vibration, NULL);
 
     /* We're done, let's register the new event. */
     g_hash_table_replace (context->events, g_strdup (name), p);
 
     LOG_DEBUG ("<new event %s>", name);
-    event_dump (p);
 
     *events_done = g_list_append (*events_done, g_strdup (name));
     g_free (parent);
@@ -648,13 +745,10 @@ load_settings (Context *context)
     data = g_new0 (SettingsData, 1);
     data->context = context;
 
-    _parse_general            (data, key_file);
-    _parse_vibra_patterns     (data, key_file);
-    _parse_volume_patterns    (data, key_file);
-    _parse_definitions        (data, key_file);
-    _parse_events         (data, key_file);
+    _parse_general     (data, key_file);
+    _parse_definitions (data, key_file);
+    _parse_events      (data, key_file);
 
-    g_strfreev (data->allowed_keys);
     g_free (data);
 
     return TRUE;
