@@ -161,8 +161,6 @@ clear_stream_volume (Request *request)
 static const gchar*
 get_uncompressed_tone (ToneMapper *mapper, const char *tone)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
-
     const char *uncompressed = NULL;
 
     if (mapper == NULL || tone == NULL)
@@ -170,7 +168,7 @@ get_uncompressed_tone (ToneMapper *mapper, const char *tone)
 
     uncompressed = tone_mapper_get_tone (mapper, tone);
     if (uncompressed) {
-        LOG_DEBUG ("%s >> resolved uncompressed tone: %s", uncompressed);
+        LOG_DEBUG ("%s >> resolved uncompressed tone: %s", __FUNCTION__, uncompressed);
         return uncompressed;
     }
 
