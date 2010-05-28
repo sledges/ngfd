@@ -246,7 +246,7 @@ controller_start (Controller *controller, ControllerCallback callback, gpointer 
 
     controller->active_controllers = g_list_append (controller->active_controllers, active);
 
-    step = (ControllerStep*) active->current;
+    step = (ControllerStep*) active->current->data;
     if (step->time == 0)
         process_next_step_cb (active);
     else
