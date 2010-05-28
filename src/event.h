@@ -35,7 +35,7 @@ struct _Event
     gint              max_timeout;              /* maximum timeout for event */
 
     GList            *sounds;                   /* sounds defined for the event. collection of pointers to context->sounds */
-    Volume           *volume;                   /* volume for the event */
+    Volume           *volume;                   /* volume for the event, pointer to context->volumes */
     gchar            *stream_role;              /* stream role */
     gboolean          silent_enabled;           /* play in silent mode */
     gboolean          repeat;                   /* repeat sound */
