@@ -661,6 +661,11 @@ stop_request (Request *request)
         request->leds_active = FALSE;
     }
 
+    if (request->custom_pattern) {
+        vibration_pattern_free (request->custom_pattern);
+        request->custom_pattern = NULL;
+    }
+
     remove_timeout      (request);
     clear_stream_volume (request);
     stop_vibration      (request);

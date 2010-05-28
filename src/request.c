@@ -47,11 +47,6 @@ request_free (Request *request)
         request->custom_sound = NULL;
     }
 
-    if (request->custom_pattern) {
-        vibration_pattern_free (request->custom_pattern);
-        request->custom_pattern = NULL;
-    }
-
     g_free (request->name);
     g_free (request);
 }
