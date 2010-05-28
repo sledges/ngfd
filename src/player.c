@@ -17,17 +17,38 @@
 #define BACKLIGHT_RESOURCE_ENABLED(request) \
     RESOURCE_ENABLED(request->resources, RESOURCE_BACKLIGHT)
 
-static gboolean prepare_stream                   (Request *request, SoundPath *sound_path);
-static gboolean play_stream                      (Request *request);
-static void     stop_stream                      (Request *request);
-static gboolean play_vibration                   (Request *request, VibrationPattern *pattern);
-static void     stop_vibration                   (Request *request);
+static gboolean          max_timeout_cb                   (gpointer userdata);
+static void              setup_timeout                    (Request *request);
+static void              remove_timeout                   (Request *request);
 
-static gboolean playback_path_tone_generator     (Request *request);
-static gboolean playback_path_synchronize        (Request *request);
-static gboolean playback_path_vibration          (Request *request);
-static gboolean playback_path_leds_and_backlight (Request *request);
-static gboolean playback_path_no_sound           (Request *request);
+static gboolean          controller_set_volume            (Controller *controller, guint id, guint t, guint v, gpointer userdata);
+static void              set_stream_volume                (Request *request);
+static void              clear_stream_volume              (Request *request);
+
+static const gchar*      get_uncompressed_tone            (ToneMapper *mapper, const char *tone);
+static SoundPath*        resolve_sound_path               (Request *request, gboolean advance);
+
+static gchar*            build_vibration_filename         (const char *source);
+static VibrationPattern* resolve_custom_pattern           (Request *request, SoundPath *sound_path);
+static VibrationPattern* resolve_vibration_pattern        (Request *request, gboolean advance);
+
+static void              synchronize_resources            (Request *request);
+static gboolean          restart_next_stream              (Request *request);
+static gboolean          repeat_current_stream            (Request *request);
+static void              stream_state_cb                  (AudioStream *stream, AudioStreamState state, gpointer userdata);
+
+static gboolean          prepare_stream                   (Request *request, SoundPath *sound_path);
+static gboolean          play_stream                      (Request *request);
+static void              stop_stream                      (Request *request);
+
+static gboolean          play_vibration                   (Request *request, VibrationPattern *pattern);
+static void              stop_vibration                   (Request *request);
+
+static gboolean          playback_path_tone_generator     (Request *request);
+static gboolean          playback_path_synchronize        (Request *request);
+static gboolean          playback_path_vibration          (Request *request);
+static gboolean          playback_path_leds_and_backlight (Request *request);
+static gboolean          playback_path_no_sound           (Request *request);
 
 
 
@@ -149,7 +170,7 @@ get_uncompressed_tone (ToneMapper *mapper, const char *tone)
 
     uncompressed = tone_mapper_get_tone (mapper, tone);
     if (uncompressed) {
-        LOG_DEBUG ("Tone (uncompressed): %s", uncompressed);
+        LOG_DEBUG ("%s >> resolved uncompressed tone: %s", uncompressed);
         return uncompressed;
     }
 
@@ -389,7 +410,7 @@ stream_state_cb (AudioStream *stream, AudioStreamState state, gpointer userdata)
             break;
 
         default:
-            break;   
+            break;
     }
 
     if (callback_state != REQUEST_STATE_NONE && request->callback)
@@ -420,7 +441,7 @@ prepare_stream (Request *request, SoundPath *sound_path)
         stream_source = g_strdup (sound_path->filename);
         stream_type   = AUDIO_STREAM_NONE;
     }
- 
+
     /* create audio stream and prepare it for playback */
 
     stream = audio_create_stream (context->audio, stream_type);
@@ -465,7 +486,7 @@ stop_stream (Request *request)
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
     Context *context = request->context;
-    
+
     if (request->stream) {
         audio_stop (context->audio, request->stream);
         audio_destroy_stream (context->audio, request->stream);
@@ -480,7 +501,7 @@ play_vibration (Request *request, VibrationPattern *pattern)
 
     Context *context = request->context;
     Event   *event   = request->event;
- 
+
     if (!pattern)
         return FALSE;
 
