@@ -627,7 +627,7 @@ playback_path_leds_and_backlight (Request *request)
     Context *context = request->context;
     Event   *event   = request->event;
 
-    if (event->leds_enabled && LEDS_RESOURCE_ENABLED (request)) {
+    if (event->leds_enabled && LEDS_RESOURCE_ENABLED (request) && event->led_pattern) {
         led_activate_pattern (context->system_bus, event->led_pattern);
         request->leds_active = TRUE;
     }

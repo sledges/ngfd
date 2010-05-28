@@ -653,6 +653,7 @@ _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, GHash
     p->repeat            = properties_get_bool (p->properties, "audio_repeat");
     p->num_repeats       = properties_get_int (p->properties, "audio_max_repeats");
     p->stream_role       = g_strdup (properties_get_string (p->properties, "audio_stream_role"));
+    p->led_pattern       = g_strdup (properties_get_string (p->properties, "led_pattern"));
 
     p->sounds   = _create_sound_paths (context, properties_get_string (p->properties, "sound"));
     p->volume   = _create_volume      (context, properties_get_string (p->properties, "volume"));
