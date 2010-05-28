@@ -701,6 +701,11 @@ stop_request (Request *request)
     Context *context = request->context;
     Event   *event   = request->event;
 
+    remove_timeout      (request);
+    clear_stream_volume (request);
+    stop_vibration      (request);
+    stop_stream         (request);
+
     if (request->backlight_active) {
         backlight_cancel_prevent_blank (context->system_bus);
         request->backlight_active = FALSE;
@@ -715,9 +720,4 @@ stop_request (Request *request)
         vibration_pattern_free (request->custom_pattern);
         request->custom_pattern = NULL;
     }
-
-    remove_timeout      (request);
-    clear_stream_volume (request);
-    stop_vibration      (request);
-    stop_stream         (request);
 }
