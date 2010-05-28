@@ -205,7 +205,8 @@ resolve_sound_path (Request *request, gboolean advance)
     }
 
     else if (!advance && !request->custom_sound) {
-        sound_path = (SoundPath*) request->sound_iterator->data;
+        if (request->sound_iterator)
+            sound_path = (SoundPath*) request->sound_iterator->data;
     }
 
     if (!sound_path)
