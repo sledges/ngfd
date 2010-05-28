@@ -21,7 +21,7 @@ static gboolean          max_timeout_cb                   (gpointer userdata);
 static void              setup_timeout                    (Request *request);
 static void              remove_timeout                   (Request *request);
 
-static gboolean          controller_set_volume            (Controller *controller, guint id, guint t, guint v, gpointer userdata);
+static void              controller_set_volume            (Controller *controller, guint t, guint v, gboolean is_last, gpointer userdata);
 static void              set_stream_volume                (Request *request);
 static void              clear_stream_volume              (Request *request);
 
@@ -100,8 +100,8 @@ remove_timeout (Request *request)
     }
 }
 
-static gboolean
-controller_set_volume (Controller *controller, guint id, guint t, guint v, gpointer userdata)
+static void
+controller_set_volume (Controller *controller, guint t, guint v, gboolean is_last, gpointer userdata)
 {
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
@@ -109,11 +109,10 @@ controller_set_volume (Controller *controller, guint id, guint t, guint v, gpoin
     Context *context = request->context;
     Event   *event   = request->event;
 
-    (void) id;
     (void) t;
+    (void) is_last;
 
     audio_set_volume (context->audio, event->stream_role, v);
-    return TRUE;
 }
 
 static void

@@ -40,45 +40,73 @@ struct _Controller
 };
 
 static void
-_free_controller (ActiveController *c)
+free_active_controller (ActiveController *active)
 {
-    g_slice_free (ActiveController, c);
+    if (active->source_id > 0) {
+        g_source_remove (active->source_id);
+        active->source_id = 0;
+    }
+
+    g_slice_free (ActiveController, active);
+}
+
+static ActiveController*
+find_active_controller (Controller *controller, guint id)
+{
+    GList            *iter   = NULL;
+    ActiveController *active = NULL;
+
+    for (iter = g_list_first (controller->active_controllers); iter; iter = g_list_next (iter)) {
+        active = (ActiveController*) iter->data;
+        if (active->id == id)
+            return active;
+    }
+
+    return NULL;
 }
 
 static gboolean
-_process_next_step (gpointer userdata)
+process_next_step_cb (gpointer userdata)
 {
-    ActiveController *c = (ActiveController*) userdata;
-    Controller *self = c->controller;
+    ActiveController *active     = (ActiveController*) userdata;
+    Controller       *controller = active->controller;
+    ControllerStep   *step       = NULL;
+    GList            *next       = NULL;
+    gboolean          is_last    = FALSE;
+    guint             old_time   = 0;
+    guint             old_value  = 0;
 
-    ControllerStep *step = NULL, *next = NULL;
-    gboolean do_continue = FALSE;
+    /* if we have no next event, this is the last step. free the controller. */
 
-    step = (ControllerStep*) c->current->data;
-    LOG_DEBUG ("CONTROLLER STEP (id=%d, time=%d, value=%d)", c->id, step->time, step->value);
+    if ((next = g_list_next (active->current)) == NULL)
+        is_last = TRUE;
 
-    if (c->callback)
-        do_continue = c->callback (c->controller, c->id, step->time, step->value, c->userdata);
+    /* store the current step data. */
 
-    c->current = g_list_next (c->current);
-    if (do_continue && c->current) {
-        next = (ControllerStep*) c->current->data;
-        c->source_id = g_timeout_add ((next->time - step->time), _process_next_step, c);
+    step      = (ControllerStep*) active->current->data;
+    old_time  = step->time;
+    old_value = step->value;
+
+    /* if the step was last, then free the controller. */
+
+    if (is_last) {
+        controller->active_controllers = g_list_remove (controller->active_controllers, active);
+        free_active_controller (active);
+        return FALSE;
     }
     else {
-        if (c->repeat) {
-            c->current = g_list_first (self->steps);
-            step = (ControllerStep*) c->current->data;
-            if (step->time == 0)
-                _process_next_step ((gpointer) c);
-            else
-                c->source_id = g_timeout_add (step->time, _process_next_step, c);
-        }
-        else {
-            self->active_controllers = g_list_remove (self->active_controllers, c);
-            _free_controller (c);
-        }
+        /* schedule a next step. if next step is a repeat event, then the next step is
+           the first one. */
+
+        step = (ControllerStep*) next->data;
+        active->current   = step->repeat ? g_list_first (controller->steps) : next;
+        active->source_id = g_timeout_add ((step->time - old_time), process_next_step_cb, active);
     }
+
+    /* call the user set callback with the current step data. */
+
+    if (active->callback)
+        active->callback (active->controller, old_time, old_value, is_last, active->userdata);
 
     return FALSE;
 }
@@ -90,18 +118,17 @@ controller_new ()
 }
 
 Controller*
-controller_new_from_string (const char *pattern, gboolean repeat)
+controller_new_from_string (const char *pattern)
 {
-    Controller  *c     = NULL;
-    gchar         **split = NULL;
-    guint           step_time  = 0;
-    guint           step_value = 0;
+    Controller  *c          = NULL;
+    gchar      **split      = NULL;
+    guint        step_time  = 0;
+    guint        step_value = 0;
 
     if (pattern == NULL)
         return NULL;
 
     c = controller_new ();
-    c->repeat = repeat;
 
     /* Split the pattern by the ; separator */
     split = g_strsplit (pattern, ";", -1);
@@ -119,8 +146,12 @@ controller_new_from_string (const char *pattern, gboolean repeat)
         if (*item == NULL)
             break;
 
-        step_value = atoi (*item);
-        controller_add_step (c, step_time, step_value);
+        if (g_str_equal (*item, "repeat"))
+            controller_add_step (c, step_time, 0, TRUE);
+        else {
+            step_value = atoi (*item);
+            controller_add_step (c, step_time, step_value, FALSE);
+        }
 
         ++item;
     }
@@ -135,115 +166,108 @@ failed:
 }
 
 void
-controller_free (Controller *self)
+controller_free (Controller *controller)
 {
-    GList *iter = NULL;
+    GList            *iter   = NULL;
+    ActiveController *active = NULL;
+    ControllerStep   *step   = NULL;
 
-    ActiveController *c = NULL;
-    ControllerStep *step = NULL;
-
-    if (self == NULL)
+    if (controller == NULL)
         return;
 
-    for (iter = g_list_first (self->active_controllers); iter; iter = g_list_next (iter)) {
-        c = (ActiveController*) iter->data;
-        _free_controller (c);
+    for (iter = g_list_first (controller->active_controllers); iter; iter = g_list_next (iter)) {
+        active = (ActiveController*) iter->data;
+        free_active_controller (active);
     }
 
-    g_list_free (self->active_controllers);
-    self->active_controllers = NULL;
+    g_list_free (controller->active_controllers);
+    controller->active_controllers = NULL;
 
-    for (iter = g_list_first (self->steps); iter; iter = g_list_next (iter)) {
+    for (iter = g_list_first (controller->steps); iter; iter = g_list_next (iter)) {
         step = (ControllerStep*) iter->data;
         g_slice_free (ControllerStep, step);
     }
 
-    g_list_free (self->steps);
-    self->steps = NULL;
+    g_list_free (controller->steps);
+    controller->steps = NULL;
 
-    g_free (self);
+    g_free (controller);
 }
 
 void
-controller_add_step (Controller *self, guint step_time, guint step_value)
+controller_add_step (Controller *controller, guint step_time, guint step_value, gboolean repeat)
 {
     ControllerStep *step = NULL;
 
-    if (self == NULL)
+    if (controller == NULL)
         return;
 
-    step = g_slice_new0 (ControllerStep);
-    step->time = step_time;
-    step->value = step_value;
+    step         = g_slice_new0 (ControllerStep);
+    step->time   = step_time;
+    step->value  = step_value;
+    step->repeat = repeat;
 
-    self->steps = g_list_append (self->steps, step);
+    controller->steps = g_list_append (controller->steps, step);
 }
 
 GList*
-controller_get_steps (Controller *self)
+controller_get_steps (Controller *controller)
 {
-    if (self == NULL)
+    if (controller == NULL)
         return NULL;
 
-    return self->steps;
+    return controller->steps;
 }
 
 guint
-controller_start (Controller *self, ControllerCallback callback, gpointer userdata)
+controller_start (Controller *controller, ControllerCallback callback, gpointer userdata)
 {
-    ActiveController *c = NULL;
-    ControllerStep *step = NULL;
+    ActiveController *active = NULL;
+    ControllerStep   *step   = NULL;
 
-    if (self == NULL || callback == NULL)
+    if (controller == NULL || callback == NULL)
         return 0;
 
-    if (self->steps == NULL)
+    if (controller->steps == NULL)
         return 0;
 
-    c = g_slice_new0 (ActiveController);
-    c->current      = g_list_first (self->steps);
-    c->repeat       = self->repeat;
-    c->controller   = self;
-    c->callback     = callback;
-    c->userdata     = userdata;
-    c->id           = ++self->controller_count;
+    active = g_slice_new0 (ActiveController);
+    active->current    = g_list_first (controller->steps);
+    active->repeat     = controller->repeat;
+    active->controller = controller;
+    active->callback   = callback;
+    active->userdata   = userdata;
+    active->id         = ++controller->controller_count;
 
-    if (c->current == NULL)
+    if (!active->current) {
+        free_active_controller (active);
         return 0;
+    }
 
-    /* If the first step's time is 0, then let's execute that immediately. */
-    self->active_controllers = g_list_append (self->active_controllers, c);
+    controller->active_controllers = g_list_append (controller->active_controllers, active);
 
-    step = (ControllerStep*) c->current->data;
+    step = (ControllerStep*) active->current;
     if (step->time == 0)
-        _process_next_step ((gpointer) c);
+        process_next_step_cb (active);
     else
-        c->source_id = g_timeout_add (step->time, _process_next_step, c);
+        active->source_id = g_timeout_add (step->time, process_next_step_cb, active);
 
-    return c->id;
+    return active->id;
 }
 
 void
-controller_stop (Controller *self, guint id)
+controller_stop (Controller *controller, guint id)
 {
-    GList *iter = NULL;
-    ActiveController *c = NULL;
+    GList            *iter   = NULL;
+    ActiveController *active = NULL;
 
-    if (self == NULL || id == 0)
+    if (controller == NULL || id == 0)
         return;
 
-    for (iter = g_list_first (self->active_controllers); iter; iter = g_list_next (iter)) {
-        c = (ActiveController*) iter->data;
+    active = find_active_controller (controller, id);
+    if (!active)
+        return;
 
-        if (c->id == id) {
-            if (c->source_id > 0) {
-                g_source_remove (c->source_id);
-                c->source_id = 0;
-            }
-
-            self->active_controllers = g_list_remove (self->active_controllers, c);
-            _free_controller (c);
-            break;
-        }
-    }
+    controller->active_controllers = g_list_remove (controller->active_controllers, active);
+    free_active_controller (active);
 }

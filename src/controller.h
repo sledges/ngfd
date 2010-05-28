@@ -21,18 +21,18 @@
 
 typedef struct _ControllerStep
 {
-    guint time;
-    guint value;
+    guint    time;
+    guint    value;
+    gboolean repeat;
 } ControllerStep;
 
 typedef struct _Controller Controller;
-
-typedef gboolean (*ControllerCallback) (Controller *controller, guint id, guint step_time, guint step_value, gpointer userdata);
+typedef void (*ControllerCallback) (Controller *controller, guint step_time, guint step_value, gboolean is_last, gpointer userdata);
 
 Controller* controller_new             ();
-Controller* controller_new_from_string (const char *pattern, gboolean repeat);
+Controller* controller_new_from_string (const char *pattern);
 void        controller_free            (Controller *self);
-void        controller_add_step        (Controller *self, guint step_time, guint step_value);
+void        controller_add_step        (Controller *self, guint step_time, guint step_value, gboolean repeat);
 GList*      controller_get_steps       (Controller *self);
 guint       controller_start           (Controller *self, ControllerCallback callback, gpointer userdata);
 void        controller_stop            (Controller *self, guint id);

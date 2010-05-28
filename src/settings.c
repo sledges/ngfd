@@ -464,7 +464,7 @@ _create_volume (Context *context, const gchar *str)
 
         volume             = volume_new ();
         volume->type       = VOLUME_TYPE_CONTROLLER;
-        volume->controller = controller_new_from_string (stripped, FALSE);
+        volume->controller = controller_new_from_string (stripped);
 
         if (volume->controller == NULL) {
             volume_free (volume);
