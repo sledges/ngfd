@@ -19,16 +19,13 @@
 
 #include <glib.h>
 
-#define VIBRA_POLL_TIMEOUT 500  // Poll frequency in ms for vibra completition
-
 typedef struct _Vibrator Vibrator;
+typedef void (*VibratorCompletedCallback) (Vibrator *vibrator, gpointer userdata);
 
 Vibrator* vibrator_create       ();
 void      vibrator_destroy      (Vibrator *self);
 gpointer  vibrator_load         (const char *filename);
-guint     vibrator_start        (Vibrator *self, gpointer data, gint pattern_id);
+guint     vibrator_start        (Vibrator *self, gpointer data, gint pattern_id, VibratorCompletedCallback callback, gpointer userdata);
 void      vibrator_stop         (Vibrator *self, gint id);
-gboolean  vibrator_is_completed (Vibrator *self, gint id);
-gboolean  vibrator_is_repeating (Vibrator *self, gpointer data, gint pattern_id);
 
 #endif /* VIBRATOR_H */

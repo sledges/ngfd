@@ -41,6 +41,7 @@ static gboolean          prepare_stream                   (Request *request, Sou
 static gboolean          play_stream                      (Request *request);
 static void              stop_stream                      (Request *request);
 
+static void              vibration_completed_cb           (Vibrator *vibrator, gpointer userdata);
 static gboolean          play_vibration                   (Request *request, VibrationPattern *pattern);
 static void              stop_vibration                   (Request *request);
 
@@ -495,6 +496,33 @@ stop_stream (Request *request)
     }
 }
 
+static void
+vibration_completed_cb (Vibrator *vibrator, gpointer userdata)
+{
+    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+
+    Request *request = (Request*) userdata;
+    Context *context = request->context;
+    Event   *event   = request->event;
+
+    guint state;
+
+    /* do a resource update or complete the request, when the vibration
+       pattern is finite and no audio stream is played. */
+
+    if (request->stream == NULL) {
+
+        state = REQUEST_STATE_COMPLETED;
+        if (event->leds_enabled && LEDS_RESOURCE_ENABLED (request)) {
+            state = REQUEST_STATE_UPDATED;
+            remove_timeout (request);
+        }
+
+        if (request->callback)
+            request->callback (request, state, request->userdata);
+    }
+}
+
 static gboolean
 play_vibration (Request *request, VibrationPattern *pattern)
 {
@@ -506,7 +534,7 @@ play_vibration (Request *request, VibrationPattern *pattern)
     if (!pattern)
         return FALSE;
 
-    if ((request->vibration_id = vibrator_start (context->vibrator, pattern->data, pattern->pattern)) > 0)
+    if ((request->vibration_id = vibrator_start (context->vibrator, pattern->data, pattern->pattern, vibration_completed_cb, request)) > 0)
         return TRUE;
 
     return FALSE;

@@ -18,48 +18,152 @@
 #include <ImmVibe.h>
 #include <ImmVibeCore.h>
 
+#include "log.h"
 #include "vibrator.h"
+
+#define POLL_TIMEOUT 500
+
+typedef struct _Pattern Pattern;
+
+struct _Pattern
+{
+    guint            id;            /* immersion vibration event id */
+    guint            pattern_id;    /* pattern id within effect data */
+    gpointer         data;          /* effect data */
+    guint            poll_id;       /* source id for poll */
+    Vibrator        *vibrator;
+
+    VibratorCompletedCallback callback;
+    gpointer                  userdata;
+};
 
 struct _Vibrator
 {
-    VibeInt32   device;
+    VibeInt32  device;          /* immersion device id */
+    GList     *patterns;        /* list of active patterns */
 };
+
+static gboolean pattern_poll_cb      (gpointer userdata);
+static Pattern* pattern_new          (Vibrator *vibrator, guint id, gpointer data, guint pattern_id, VibratorCompletedCallback callback, gpointer userdata);
+static void     pattern_free         (Pattern *p);
+static Pattern* pattern_lookup       (Vibrator *vibrator, guint id);
+static gboolean pattern_is_completed (Vibrator *vibrator, gint id);
+static gboolean pattern_is_repeating (gpointer data, gint pattern_id);
+
+
+
+static gboolean
+pattern_poll_cb (gpointer userdata)
+{
+    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+
+    Pattern  *p        = (Pattern*) userdata;
+    Vibrator *vibrator = p->vibrator;
+
+    if (pattern_is_completed (vibrator, p->id)) {
+        LOG_DEBUG ("%s >> vibration has been completed.", __FUNCTION__);
+
+        if (p->callback)
+            p->callback (vibrator, p->userdata);
+
+        vibrator->patterns = g_list_remove (vibrator->patterns, p);
+        pattern_free (p);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static Pattern*
+pattern_new (Vibrator *vibrator, guint id, gpointer data, guint pattern_id, VibratorCompletedCallback callback, gpointer userdata)
+{
+    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+
+    Pattern *p = NULL;
+
+    p = g_slice_new0 (Pattern);
+    p->id         = id;
+    p->pattern_id = pattern_id;
+    p->data       = data;
+    p->callback   = callback;
+    p->userdata   = userdata;
+    p->vibrator   = vibrator;
+
+    if (!pattern_is_repeating (p->data, p->pattern_id)) {
+        LOG_DEBUG ("%s >> pattern is finite, poll for completion.", __FUNCTION__);
+        p->poll_id = g_timeout_add (POLL_TIMEOUT, pattern_poll_cb, p);
+    }
+
+    return p;
+}
+
+static void
+pattern_free (Pattern *p)
+{
+    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+
+    if (p->poll_id > 0) {
+        g_source_remove (p->poll_id);
+        p->poll_id = 0;
+    }
+
+    g_slice_free (Pattern, p);
+}
+
+static Pattern*
+pattern_lookup (Vibrator *vibrator, guint id)
+{
+    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+
+    GList   *iter = NULL;
+    Pattern *p    = NULL;
+
+    for (iter = g_list_first (vibrator->patterns); iter; iter = g_list_next (iter)) {
+        p = (Pattern*) iter->data;
+        if (p->id == id) {
+            LOG_DEBUG ("%s >> found match", __FUNCTION__);
+            return p;
+        }
+    }
+
+    return NULL;
+}
 
 Vibrator*
 vibrator_create ()
 {
-    Vibrator *self = NULL;
+    Vibrator *vibrator = NULL;
 
-    if ((self = g_new0 (Vibrator, 1)) == NULL)
+    if ((vibrator = g_new0 (Vibrator, 1)) == NULL)
         goto failed;
 
     if (VIBE_FAILED (ImmVibeInitialize (VIBE_CURRENT_VERSION_NUMBER)))
         goto failed;
 
-    if (VIBE_FAILED (ImmVibeOpenDevice (0, &self->device)))
+    if (VIBE_FAILED (ImmVibeOpenDevice (0, &vibrator->device)))
         goto failed;
 
-    return self;
+    return vibrator;
 
 failed:
-    vibrator_destroy (self);
+    vibrator_destroy (vibrator);
     return NULL;
 }
 
 void
-vibrator_destroy (Vibrator *self)
+vibrator_destroy (Vibrator *vibrator)
 {
-    if (self == NULL)
+    if (vibrator == NULL)
         return;
 
-    if (self->device != VIBE_INVALID_DEVICE_HANDLE_VALUE) {
-        ImmVibeStopAllPlayingEffects (self->device);
-        ImmVibeCloseDevice (self->device);
-        self->device = VIBE_INVALID_DEVICE_HANDLE_VALUE;
+    if (vibrator->device != VIBE_INVALID_DEVICE_HANDLE_VALUE) {
+        ImmVibeStopAllPlayingEffects (vibrator->device);
+        ImmVibeCloseDevice (vibrator->device);
+        vibrator->device = VIBE_INVALID_DEVICE_HANDLE_VALUE;
         ImmVibeTerminate ();
     }
 
-    g_free (self);
+    g_free (vibrator);
 }
 
 gpointer
@@ -105,42 +209,58 @@ failed:
 }
 
 guint
-vibrator_start (Vibrator *self, gpointer data, gint pattern_id)
+vibrator_start (Vibrator *vibrator, gpointer data, gint pattern_id, VibratorCompletedCallback callback, gpointer userdata)
 {
-    VibeUInt8 *effects = data ? (VibeUInt8*) data : g_pVibeIVTBuiltInEffects;
-    gint       id = 0;
+    LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
-    if (self == NULL)
+    VibeUInt8 *effects = data ? (VibeUInt8*) data : g_pVibeIVTBuiltInEffects;
+    gint       id      = 0;
+    Pattern   *p       = NULL;
+
+    if (vibrator == NULL)
         return 0;
 
-    if (VIBE_SUCCEEDED (ImmVibePlayIVTEffect (self->device, effects, pattern_id, &id)))
-        return id;
+    if (VIBE_SUCCEEDED (ImmVibePlayIVTEffect (vibrator->device, effects, pattern_id, &id))) {
+        p = pattern_new (vibrator, id, effects, pattern_id, callback, userdata);
+        vibrator->patterns = g_list_append (vibrator->patterns, p);
+        return p->id;
+    }
 
     return 0;
 }
 
 void
-vibrator_stop (Vibrator *self, gint id)
+vibrator_stop (Vibrator *vibrator, gint id)
 {
-    VibeStatus status       = 0;
-    VibeInt32  effect_state = 0;
+    LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
-    if (self == NULL || id < 0)
+    VibeStatus  status       = 0;
+    VibeInt32   effect_state = 0;
+    Pattern    *p            = NULL;
+
+    if (vibrator == NULL || id < 0)
         return;
 
-    status = ImmVibeGetEffectState (self->device, id, &effect_state);
-    if (VIBE_SUCCEEDED (status)) {
-        ImmVibeStopPlayingEffect (self->device, id);
+    if ((p = pattern_lookup (vibrator, id))) {
+        status = ImmVibeGetEffectState (vibrator->device, id, &effect_state);
+        if (VIBE_SUCCEEDED (status)) {
+            ImmVibeStopPlayingEffect (vibrator->device, id);
+        }
+
+        vibrator->patterns = g_list_remove (vibrator->patterns, p);
+        pattern_free (p);
     }
 }
 
-gboolean
-vibrator_is_completed (Vibrator *self, gint id)
+static gboolean
+pattern_is_completed (Vibrator *vibrator, gint id)
 {
+    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+
     VibeStatus status;
     VibeInt32 effect_state = 0;
 
-    status = ImmVibeGetEffectState (self->device, id, &effect_state);
+    status = ImmVibeGetEffectState (vibrator->device, id, &effect_state);
     if (VIBE_SUCCEEDED (status)) {
         if (status == VIBE_EFFECT_STATE_PLAYING)
             return FALSE;
@@ -149,18 +269,19 @@ vibrator_is_completed (Vibrator *self, gint id)
     return TRUE;
 }
 
-gboolean
-vibrator_is_repeating (Vibrator *self, gpointer data, gint pattern_id)
+static gboolean
+pattern_is_repeating (gpointer data, gint pattern_id)
 {
-    VibeUInt8 *effects  = data ? (VibeUInt8*) data : g_pVibeIVTBuiltInEffects;
-    VibeInt32  duration = 0;
+    LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
-    if (self == NULL)
-        return FALSE;
+    VibeInt32 duration = 0;
 
-    ImmVibeGetIVTEffectDuration (effects, pattern_id, &duration);
-    if (duration == VIBE_TIME_INFINITE)
-        return TRUE;
+    if (VIBE_SUCCEEDED (ImmVibeGetIVTEffectDuration ((VibeUInt8*) data, pattern_id, &duration))) {
+        if (duration == VIBE_TIME_INFINITE)
+            return TRUE;
+    }
+    else
+        LOG_WARNING ("%s >> failed to query pattern duration", __FUNCTION__);
 
     return FALSE;
 }
