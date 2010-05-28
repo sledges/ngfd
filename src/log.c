@@ -18,23 +18,25 @@
 #include <stdlib.h>
 #include "log.h"
 
+static LogLevel _log_level = LOG_LEVEL_INFO;
+
 static const char*
-category_to_string (LogCategory category)
+level_to_string (LogLevel category)
 {
     switch (category) {
-        case LOG_CATEGORY_REQUEST:
+        case LOG_LEVEL_REQUEST:
             return "REQUEST";
 
-        case LOG_CATEGORY_MESSAGE:
-            return "MESSAGE";
+        case LOG_LEVEL_INFO:
+            return "INFO";
 
-        case LOG_CATEGORY_DEBUG:
+        case LOG_LEVEL_DEBUG:
             return "DEBUG";
 
-        case LOG_CATEGORY_WARNING:
+        case LOG_LEVEL_WARNING:
             return "WARNING";
 
-        case LOG_CATEGORY_ERROR:
+        case LOG_LEVEL_ERROR:
             return "ERROR";
 
         default:
@@ -45,17 +47,26 @@ category_to_string (LogCategory category)
 }
 
 void
-log_message (LogCategory category, const char *function, int line, const char *fmt, ...)
+log_message (LogLevel category, const char *function, int line, const char *fmt, ...)
 {
     char buf[256];
 
     (void) function;
     (void) line;
 
+    if (category < _log_level)
+        return;
+
     va_list fmt_args;
     va_start (fmt_args, fmt);
     vsnprintf (buf, 256, fmt, fmt_args);
     va_end (fmt_args);
 
-    fprintf (stdout, "[%s] %s\n", category_to_string (category), buf);
+    fprintf (stdout, "[%s] %s\n", level_to_string (category), buf);
+}
+
+void
+log_set_level (LogLevel level)
+{
+    _log_level = level;
 }

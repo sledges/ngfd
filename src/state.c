@@ -115,7 +115,7 @@ _request_state_cb (Request *request, guint state, gpointer userdata)
     switch (state) {
         case REQUEST_STATE_STARTED:
             TIMESTAMP ("REQUEST STARTED");
-            LOG_DEBUG ("request (%d) >> started", request->policy_id);
+            LOG_INFO ("request (%d) >> started", request->policy_id);
             break;
 
         case REQUEST_STATE_FAILED:
@@ -125,12 +125,12 @@ _request_state_cb (Request *request, guint state, gpointer userdata)
             break;
 
         case REQUEST_STATE_UPDATED:
-            LOG_DEBUG ("request (%d) >> resource update", request->policy_id);
+            LOG_INFO ("request (%d) >> resource update", request->policy_id);
             dbus_if_send_resource_update (context, request->policy_id, TRUE, TRUE, FALSE, TRUE);
             break;
 
         case REQUEST_STATE_COMPLETED:
-            LOG_DEBUG ("request (%d) >> completed", request->policy_id);
+            LOG_INFO ("request (%d) >> completed", request->policy_id);
             dbus_if_send_status (context, request->policy_id, 0);
             remove_request = TRUE;
             break;
@@ -140,7 +140,7 @@ _request_state_cb (Request *request, guint state, gpointer userdata)
     }
 
     if (remove_request) {
-        LOG_DEBUG ("request (%d) >> removed", request->policy_id);
+        LOG_INFO ("request (%d) >> removed", request->policy_id);
 
         context->request_list = g_list_remove (context->request_list, request);
         stop_request (request);
@@ -259,7 +259,7 @@ stop_handler (Context *context, guint policy_id)
     for (iter = g_list_first (context->request_list); iter; iter = g_list_next (context->request_list)) {
         request = (Request*) iter->data;
         if (request->policy_id == policy_id) {
-            LOG_DEBUG ("request (%d) >> stop received", policy_id);
+            LOG_INFO ("request (%d) >> stop received", policy_id);
 
             context->request_list = g_list_remove (context->request_list, request);
 

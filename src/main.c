@@ -16,6 +16,9 @@
 
 #include <glib.h>
 
+#include <getopt.h>
+#include <unistd.h>
+
 #include "log.h"
 #include "context.h"
 #include "dbus-if.h"
@@ -190,10 +193,38 @@ _request_manager_destroy (Context *context)
     }
 }
 
+static gboolean
+parse_cmdline (int argc, char **argv)
+{
+    int opt, opt_index, i;
+
+    static struct option long_opts[] = {
+        { "verbose", 0, 0, 'v' },
+        { 0, 0, 0, 0 }
+    };
+
+    while ((opt = getopt_long (argc, argv, "v", long_opts, &opt_index)) != -1) {
+        switch (opt) {
+            case 'v':
+                log_set_level (LOG_LEVEL_DEBUG);
+                LOG_INFO ("Verbose mode set, enabling debug output.");
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    return TRUE;
+}
+
 int
 main (int argc, char *argv[])
 {
     Context *context = NULL;
+
+    if (!parse_cmdline (argc, argv))
+        return 1;
 
     if (!context_create (&context))
         return 1;
