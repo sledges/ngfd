@@ -169,25 +169,27 @@ profile_resolve (Context *context)
         context->meeting_mode = TRUE;
 
 
-    for (i = context->sounds; *i; ++i) {
-        SoundPath *s = (SoundPath*) (*i);
+    if (context->sounds) {
+        for (i = context->sounds; *i; ++i) {
+            SoundPath *s = (SoundPath*) (*i);
 
-        if (s->type != SOUND_PATH_TYPE_PROFILE)
-            continue;
+            if (s->type != SOUND_PATH_TYPE_PROFILE)
+                continue;
 
-        g_free (s->filename);
-        s->filename = g_strdup (profile_get_value (s->profile, s->key));
-        g_print ("sound_path <type=%d, filename=%s, key=%s, profile=%s\n", s->type, s->filename, s->key, s->profile);
+            g_free (s->filename);
+            s->filename = g_strdup (profile_get_value (s->profile, s->key));
+        }
     }
 
-    for (j = context->volumes; *j; ++j) {
-        Volume *v = (Volume*) (*j);
+    if (context->volumes) {
+        for (j = context->volumes; *j; ++j) {
+            Volume *v = (Volume*) (*j);
 
-        if (v->type != VOLUME_TYPE_PROFILE)
-            continue;
+            if (v->type != VOLUME_TYPE_PROFILE)
+                continue;
 
-        v->level = profile_get_value_as_int (v->profile, v->key);
-        g_print ("volume <type=%d, level=%d, key=%s, profile=%s\n", v->type, v->level, v->key, v->profile);
+            v->level = profile_get_value_as_int (v->profile, v->key);
+        }
     }
 
     return TRUE;
