@@ -35,8 +35,9 @@ struct _VibrationPattern
     gpointer  data;         /* vibration pattern data from the IVT file */
 };
 
-VibrationPattern* vibration_pattern_new    ();
-void              vibration_pattern_free   (VibrationPattern *pattern);
-gboolean          vibration_pattern_equals (VibrationPattern *a, VibrationPattern *b);
+VibrationPattern* vibration_pattern_new        ();
+void              vibration_pattern_free       (VibrationPattern *pattern);
+gboolean          vibration_pattern_equals     (VibrationPattern *a, VibrationPattern *b);
+void              vibration_pattern_array_free (VibrationPattern **array);
 
 #endif /* VIBRATION_PATTERN_H */

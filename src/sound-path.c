@@ -55,3 +55,19 @@ sound_path_equals (SoundPath *a, SoundPath *b)
 
     return FALSE;
 }
+
+void
+sound_path_array_free (SoundPath **array)
+{
+    SoundPath **iter = NULL;
+
+    if (array == NULL)
+        return;
+
+    for (iter = array; *iter; ++iter) {
+        sound_path_free (*iter);
+        *iter = NULL;
+    }
+
+    g_free (array);
+}

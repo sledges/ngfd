@@ -67,3 +67,19 @@ volume_equals (Volume *a, Volume *b)
 
     return FALSE;
 }
+
+void
+volume_array_free (Volume **array)
+{
+    Volume **iter = NULL;
+
+    if (array == NULL)
+        return;
+
+    for (iter = array; *iter; ++iter) {
+        volume_free (*iter);
+        *iter = NULL;
+    }
+
+    g_free (array);
+}

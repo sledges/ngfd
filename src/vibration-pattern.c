@@ -42,3 +42,19 @@ vibration_pattern_equals (VibrationPattern *a, VibrationPattern *b)
 
     return FALSE;
 }
+
+void
+vibration_pattern_array_free (VibrationPattern **array)
+{
+    VibrationPattern **iter = NULL;
+
+    if (array == NULL)
+        return;
+
+    for (iter = array; *iter; ++iter) {
+        vibration_pattern_free (*iter);
+        *iter = NULL;
+    }
+
+    g_free (array);
+}

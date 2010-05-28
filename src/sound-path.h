@@ -35,8 +35,9 @@ struct _SoundPath
     gchar  *profile;
 };
 
-SoundPath* sound_path_new    ();
-void       sound_path_free   (SoundPath *s);
-gboolean   sound_path_equals (SoundPath *a, SoundPath *b);
+SoundPath* sound_path_new        ();
+void       sound_path_free       (SoundPath *s);
+gboolean   sound_path_equals     (SoundPath *a, SoundPath *b);
+void       sound_path_array_free (SoundPath **array);
 
 #endif /* SOUND_PATH_H */

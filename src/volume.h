@@ -38,8 +38,9 @@ struct _Volume
     Controller *controller;     /* controller instance for the specific pattern */
 };
 
-Volume*  volume_new    ();
-void     volume_free   (Volume *v);
-gboolean volume_equals (Volume *a, Volume *b);
+Volume*  volume_new        ();
+void     volume_free       (Volume *v);
+gboolean volume_equals     (Volume *a, Volume *b);
+void     volume_array_free (Volume **array);
 
 #endif /* VOLUME_H */
