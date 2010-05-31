@@ -612,7 +612,7 @@ _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, GHash
     _add_property_bool       (p, k, group, "lookup_pattern", FALSE, set_default);
     _add_property_string     (p, k, group, "vibration", NULL, set_default);
     _add_property_bool       (p, k, group, "led_enabled", FALSE, set_default);
-    _add_property_string     (p, k, group, "led", NULL, set_default);
+    _add_property_string     (p, k, group, "led_pattern", NULL, set_default);
     _add_property_bool       (p, k, group, "backlight_enabled", FALSE, set_default);
     _add_property_bool       (p, k, group, "allow_custom", FALSE, set_default);
     _add_property_bool       (p, k, group, "unlock_tklock", FALSE, set_default);

@@ -53,6 +53,10 @@ toggle_pattern (DBusConnection *bus, const char *pattern, gboolean activate)
 
     ret = call_dbus_method (bus, msg);
     dbus_message_unref (msg);
+
+    if (ret)
+        LOG_DEBUG ("%s >> led pattern %s %s.", __FUNCTION__, pattern, activate ? "activated" : "deactivated");
+
     return ret;
 }
 
