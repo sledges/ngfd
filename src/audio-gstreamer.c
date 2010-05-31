@@ -172,6 +172,9 @@ _gst_prepare (AudioInterface *iface,
     GstBus      *bus       = NULL;
     pa_proplist *proplist  = NULL;
 
+    if (!stream->source)
+        return FALSE;
+
     element = gst_pipeline_new (NULL);
 
     source    = gst_element_factory_make ("filesrc", NULL);
