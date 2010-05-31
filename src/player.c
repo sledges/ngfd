@@ -3,6 +3,9 @@
 #include "log.h"
 #include "event.h"
 #include "resources.h"
+#include "tone-generator.h"
+#include "led.h"
+#include "backlight.h"
 #include "player.h"
 
 #define AUDIO_RESOURCE_ENABLED(request) \
@@ -147,10 +150,8 @@ clear_stream_volume (Request *request)
 {
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
-    Context *context = request->context;
     Event   *event   = request->event;
     Volume  *volume  = event->volume;
-
 
     if (request->controller_id > 0) {
         controller_stop (volume->controller, request->controller_id);
@@ -180,7 +181,6 @@ resolve_sound_path (Request *request, gboolean advance)
 {
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
-    Event     *event      = request->event;
     SoundPath *sound_path = NULL;
 
     if (advance && request->custom_sound) {
@@ -247,8 +247,6 @@ resolve_custom_pattern (Request *request, SoundPath *sound_path)
 {
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
-    Context          *context  = request->context;
-    Event            *event    = request->event;
     VibrationPattern *pattern  = NULL;
     gpointer          data     = NULL;
     gchar            *filename = NULL;
@@ -280,7 +278,6 @@ resolve_vibration_pattern (Request *request, gboolean advance)
 {
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
-    Event            *event   = request->event;
     VibrationPattern *pattern = NULL;
 
     if (advance)
@@ -301,10 +298,6 @@ static void
 synchronize_resources (Request *request)
 {
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
-
-    Context  *context = request->context;
-    Event    *event   = request->event;
-    gboolean  success = FALSE;
 
     if (!request->synchronize_done) {
         request->synchronize_done = TRUE;
@@ -372,11 +365,8 @@ stream_state_cb (AudioStream *stream, AudioStreamState state, gpointer userdata)
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
     Request *request        = (Request*) userdata;
-    Context *context        = request->context;
     Event   *event          = request->event;
     guint    callback_state = REQUEST_STATE_NONE;
-
-    SoundPath *sound_path = NULL;
 
     switch (state) {
         case AUDIO_STREAM_STATE_PREPARED:
@@ -499,7 +489,6 @@ vibration_completed_cb (Vibrator *vibrator, gpointer userdata)
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
     Request *request = (Request*) userdata;
-    Context *context = request->context;
     Event   *event   = request->event;
 
     guint state;
@@ -526,7 +515,6 @@ play_vibration (Request *request, VibrationPattern *pattern)
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
     Context *context = request->context;
-    Event   *event   = request->event;
 
     if (!pattern)
         return FALSE;
@@ -543,7 +531,6 @@ stop_vibration (Request *request)
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
     Context *context = request->context;
-    Event   *event   = request->event;
 
     if (request->vibration_id > 0) {
         vibrator_stop (context->vibrator, request->vibration_id);
@@ -717,4 +704,6 @@ stop_request (Request *request)
         vibration_pattern_free (request->custom_pattern);
         request->custom_pattern = NULL;
     }
+
+    return TRUE;
 }

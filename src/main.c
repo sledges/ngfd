@@ -15,6 +15,8 @@
  */
 
 #include <glib.h>
+#include <dbus/dbus.h>
+#include <dbus/dbus-glib-lowlevel.h>
 
 #include <getopt.h>
 #include <unistd.h>
@@ -23,6 +25,7 @@
 #include "context.h"
 #include "dbus-if.h"
 #include "profile.h"
+#include "settings.h"
 
 static gboolean _request_manager_create         (Context *context);
 static void     _request_manager_destroy        (Context *context);
@@ -196,7 +199,7 @@ _request_manager_destroy (Context *context)
 static gboolean
 parse_cmdline (int argc, char **argv)
 {
-    int opt, opt_index, i;
+    int opt, opt_index;
 
     static struct option long_opts[] = {
         { "verbose", 0, 0, 'v' },

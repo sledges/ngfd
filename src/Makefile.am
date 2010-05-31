@@ -7,6 +7,7 @@ ngfd_SOURCES = \
 	main.c \
 	context.h \
 	context.c \
+	settings.h \
 	settings.c \
 	properties.h \
 	properties.c \

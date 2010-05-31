@@ -258,7 +258,6 @@ controller_start (Controller *controller, ControllerCallback callback, gpointer 
 void
 controller_stop (Controller *controller, guint id)
 {
-    GList            *iter   = NULL;
     ActiveController *active = NULL;
 
     if (controller == NULL || id == 0)

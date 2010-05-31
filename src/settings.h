@@ -14,13 +14,12 @@
  * written consent of Nokia.
  */
 
-#ifndef LED_H
-#define LED_H
+#ifndef SETTINGS_H
+#define SETTINGS_H
 
 #include <glib.h>
-#include <dbus/dbus.h>
+#include "context.h"
 
-gboolean led_activate_pattern (DBusConnection *system_bus, const char *pattern);
-gboolean led_deactivate_pattern (DBusConnection *system_bus, const char *pattern);
+gboolean load_settings (Context *context);
 
-#endif /* LED_H */
+#endif /* SETTINGS_H */

@@ -14,6 +14,7 @@
  * written consent of Nokia.
  */
 
+#include <stdlib.h>
 #include <string.h>
 
 #include "log.h"

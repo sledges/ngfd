@@ -4,6 +4,7 @@
 #include "request.h"
 #include "property.h"
 #include "player.h"
+#include "dbus-if.h"
 #include "state.h"
 
 static gboolean _properties_get_boolean         (GHashTable *properties, const char *key);
@@ -72,7 +73,6 @@ _properties_get_play_timeout (GHashTable *properties)
 static gint
 _properties_get_play_mode (GHashTable *properties)
 {
-    Property *value = NULL;
     const char *str = NULL;
 
     if ((str = _properties_get_string (properties, "play.mode")) == NULL)
@@ -161,7 +161,6 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
     gint  play_mode    = 0;
 
     const char *event_name      = NULL;
-    const char *current_profile = NULL;
 
     TIMESTAMP ("Request request received");
 
