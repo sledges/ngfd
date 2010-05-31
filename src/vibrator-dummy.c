@@ -16,74 +16,97 @@
 
 #include <stdio.h>
 
+#include "log.h"
 #include "vibrator.h"
+
+#define VibeUInt8 unsigned char
 
 struct _Vibrator
 {
-    int dummy;
+    int dummy; /* dummy */
 };
 
 Vibrator*
 vibrator_create ()
 {
-    Vibrator *self = NULL;
+    Vibrator *vibrator = NULL;
 
-    if ((self = g_new0 (Vibrator, 1)) == NULL)
-        return NULL;
+    if ((vibrator = g_new0 (Vibrator, 1)) == NULL)
+        goto failed;
 
-    return self;
+    return vibrator;
+
+failed:
+    vibrator_destroy (vibrator);
+    return NULL;
 }
 
 void
-vibrator_destroy (Vibrator *self)
+vibrator_destroy (Vibrator *vibrator)
 {
-    if (self == NULL)
+    if (vibrator == NULL)
         return;
 
-    g_free (self);
+    g_free (vibrator);
 }
 
-gboolean
-vibrator_register (Vibrator *self, const char *name, const char *filename, gint pattern_id)
+gpointer
+vibrator_load (const char *filename)
 {
-    (void) self;
-    (void) name;
-    (void) filename;
-    (void) pattern_id;
+    FILE *fp = NULL;
+    long pattern_size = 0;
+    size_t bytes_read = 0;
+    VibeUInt8 *data = NULL;
 
-    return TRUE;
+    if (filename == NULL)
+        goto failed;
+
+    if ((fp = fopen (filename, "rb")) == NULL)
+        goto failed;
+
+    fseek (fp, 0L, SEEK_END);
+    pattern_size = ftell (fp);
+    fseek (fp, 0L, SEEK_SET);
+
+    if (pattern_size > 0 && ((data = g_new (VibeUInt8, pattern_size)) != NULL)) {
+        bytes_read = fread (data, sizeof (VibeUInt8), pattern_size, fp);
+        if (bytes_read != pattern_size)
+            goto failed;
+
+        fclose (fp);
+
+        return (gpointer)data;
+    }
+
+failed:
+    if (data) {
+        g_free (data);
+        data = NULL;
+    }
+
+    if (fp) {
+        fclose (fp);
+        fp = NULL;
+    }
+
+    return NULL;
 }
 
 guint
-vibrator_start (Vibrator *self, const char *name)
+vibrator_start (Vibrator *vibrator, gpointer data, gint pattern_id, VibratorCompletedCallback callback, gpointer userdata)
 {
-    (void) self;
-    (void) name;
+    (void) vibrator;
+    (void) data;
+    (void) pattern_id;
+    (void) callback;
+    (void) userdata;
 
-    return 0;
+    return 1;
 }
 
 void
-vibrator_stop (Vibrator *self, gint id)
+vibrator_stop (Vibrator *vibrator, gint id)
 {
-    (void) self;
+    (void) vibrator;
     (void) id;
-}
-
-gboolean
-vibrator_is_completed (Vibrator *self, gint id)
-{
-    (void) self;
-    (void) id;
-
-    return TRUE;
-}
-
-gboolean
-vibrator_is_repeating (Vibrator *self, const char *name)
-{
-    (void) self;
-    (void) name;
-
-    return FALSE;
 }

@@ -14,84 +14,27 @@
  * written consent of Nokia.
  */
 
+#include <stdlib.h>
 #include "profile.h"
 
-struct _Profile
+int
+profile_create (Context *context)
 {
-    int dummy;
-};
+    (void) context;
+    return TRUE;
+}
 
-
-Profile*
-profile_create ()
+int
+profile_resolve (Context *context)
 {
-    Profile *self = NULL;
-
-    if ((self = g_new0 (Profile, 1)) == NULL)
-        return NULL;
-
-    return self;
+    (void) context;
+    return TRUE;
 }
 
 void
-profile_destroy (Profile *self)
+profile_destroy (Context *context)
 {
-    if (self == NULL)
-        return;
-
-    g_free (self);
+    (void) context;
 }
 
-const char*
-profile_get_current (Profile *self)
-{
-    return NULL;
-}
 
-gboolean
-profile_get_string (Profile *self, const char *profile, const char *key, const char **value)
-{
-    return FALSE;
-}
-
-gboolean
-profile_get_integer (Profile *self, const char *profile, const char *key, gint *value)
-{
-    return FALSE;
-}
-
-gboolean
-profile_get_boolean (Profile *self, const char *profile, const char *key, gboolean *value)
-{
-    return FALSE;
-}
-
-gboolean
-profile_is_silent (Profile *self)
-{
-    return FALSE;
-}
-
-gboolean
-profile_is_vibra_enabled (Profile *self)
-{
-    return FALSE;
-}
-
-gboolean
-profile_parse_profile_key (const char *key, gchar **out_profile, gchar **out_key)
-{
-    return FALSE;
-}
-
-const char*
-profile_get_string_from_key (Profile *self, const char *key)
-{
-    return NULL;
-}
-
-gint
-profile_get_int_from_key (Profile *self, const char *key)
-{
-    return -1;
-}

@@ -14,9 +14,6 @@
  * written consent of Nokia.
  */
 
-#include <dbus/dbus.h>
-#include <mce/dbus-names.h>
-
 #include "log.h"
 #include "led.h"
 
