@@ -47,7 +47,7 @@ prevent_display_blank (gpointer userdata)
     if (msg == NULL)
         return FALSE;
 
-    ret = call_dbus_method (bus, userdata);
+    ret = call_dbus_method (bus, msg);
     dbus_message_unref (msg);
 
     return ret;
