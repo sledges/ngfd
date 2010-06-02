@@ -387,14 +387,8 @@ stream_state_cb (AudioStream *stream, AudioStreamState state, gpointer userdata)
 
         case AUDIO_STREAM_STATE_COMPLETED:
             LOG_DEBUG ("%s >> completed", __FUNCTION__);
-            if (!repeat_current_stream (request)) {
-
+            if (!repeat_current_stream (request))
                 callback_state = REQUEST_STATE_COMPLETED;
-                if (event->leds_enabled && LEDS_RESOURCE_ENABLED (request)) {
-                   callback_state = REQUEST_STATE_UPDATED;
-                   remove_timeout (request);
-                }
-            }
 
             break;
 
@@ -497,15 +491,8 @@ vibration_completed_cb (Vibrator *vibrator, gpointer userdata)
        pattern is finite and no audio stream is played. */
 
     if (request->stream == NULL) {
-
-        state = REQUEST_STATE_COMPLETED;
-        if (event->leds_enabled && LEDS_RESOURCE_ENABLED (request)) {
-            state = REQUEST_STATE_UPDATED;
-            remove_timeout (request);
-        }
-
         if (request->callback)
-            request->callback (request, state, request->userdata);
+            request->callback (request, REQUEST_STATE_COMPLETED, request->userdata);
     }
 }
 

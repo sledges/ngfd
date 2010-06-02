@@ -23,6 +23,5 @@
 int  dbus_if_create               (Context *context);
 void dbus_if_destroy              (Context *context);
 void dbus_if_send_status          (Context *context, guint id, guint status);
-void dbus_if_send_resource_update (Context *context, guint id, gboolean audio, gboolean vibra, gboolean leds, gboolean backlight);
 
 #endif /* DBUSIF_H */

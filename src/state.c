@@ -124,11 +124,6 @@ _request_state_cb (Request *request, guint state, gpointer userdata)
             remove_request = TRUE;
             break;
 
-        case REQUEST_STATE_UPDATED:
-            LOG_INFO ("request (%d) >> resource update", request->policy_id);
-            dbus_if_send_resource_update (context, request->policy_id, TRUE, TRUE, FALSE, TRUE);
-            break;
-
         case REQUEST_STATE_COMPLETED:
             LOG_INFO ("request (%d) >> completed", request->policy_id);
             dbus_if_send_status (context, request->policy_id, 0);
