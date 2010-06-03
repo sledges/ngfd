@@ -9,6 +9,8 @@ ngfd_SOURCES = \
 	context.c \
 	settings.h \
 	settings.c \
+	volume-controller.h \
+	volume-controller.c \
 	properties.h \
 	properties.c \
 	profile.h \

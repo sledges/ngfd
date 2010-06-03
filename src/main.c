@@ -116,8 +116,8 @@ context_create (Context **context)
         return FALSE;
     }
 
-    /* resolve the initial profile settings */
-    profile_resolve (c);
+    profile_resolve              (c);
+    volume_controller_update_all (c);
 
     *context = c;
     return TRUE;

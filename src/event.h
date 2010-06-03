@@ -36,7 +36,6 @@ struct _Event
 
     GList            *sounds;                   /* sounds defined for the event. collection of pointers to context->sounds */
     Volume           *volume;                   /* volume for the event, pointer to context->volumes */
-    gchar            *stream_role;              /* stream role */
     gboolean          silent_enabled;           /* play in silent mode */
     gboolean          repeat;                   /* repeat sound */
     gint              num_repeats;              /* number of times to repeat or 0 for infinite */
@@ -46,7 +45,7 @@ struct _Event
 
     gint              tone_generator_pattern;   /* tone generator pattern */
     gchar            *led_pattern;
-    
+
     gboolean          tone_generator_enabled;
     gboolean          audio_enabled;
     gboolean          vibration_enabled;

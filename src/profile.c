@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <profiled/libprofile.h>
 
+#include "volume-controller.h"
 #include "sound-path.h"
 #include "volume.h"
 #include "profile.h"
@@ -91,6 +92,8 @@ resolve_volume (Context    *context,
             s->level = profile_parse_int (value);
             g_print ("volume <type=%d, level=%d, key=%s, profile=%s\n",
                 s->type, s->level, s->key, s->profile);
+
+            volume_controller_update (context, s);
             break;
         }
     }

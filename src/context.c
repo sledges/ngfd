@@ -82,6 +82,12 @@ context_add_volume (Context *context, Volume *volume)
     if (volume == NULL)
         return NULL;
 
+    if (!volume_generate_role (volume)) {
+        LOG_WARNING ("%s >> failed to generate role for volume!", __FUNCTION__);
+        volume_free (volume);
+        return NULL;
+    }
+
     if (context->volumes == NULL) {
         context->num_volumes = 1;
         context->volumes     = g_try_malloc0 (sizeof (Volume) * (context->num_volumes + 1));
@@ -94,12 +100,6 @@ context_add_volume (Context *context, Volume *volume)
             volume_free (volume);
             return *i;
         }
-    }
-
-    if (!volume_generate_role (volume)) {
-        LOG_WARNING ("%s >> failed to generate role for volume!", __FUNCTION__);
-        volume_free (volume);
-        return NULL;
     }
 
     context->num_volumes++;

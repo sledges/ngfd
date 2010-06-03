@@ -317,8 +317,7 @@ static void
 _parse_stream_properties (Event *event,
                           GKeyFile          *k,
                           const char        *group,
-                          const char        *prefix,
-                          const char        *default_role)
+                          const char        *prefix)
 {
     gchar **keys = NULL, **iter = NULL, *stream_prop = NULL, *stream_value = NULL;
     pa_proplist *p = NULL;
@@ -339,12 +338,6 @@ _parse_stream_properties (Event *event,
     }
 
     g_strfreev (keys);
-
-    /* Setup the default role to the properties if such one
-       is defined. */
-
-    if (default_role != NULL)
-        pa_proplist_sets (p, STREAM_RESTORE_ID, default_role);
 
     event->stream_properties = p;
 }
@@ -582,7 +575,6 @@ _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, GHash
     gchar             *parent       = NULL;
     Event             *p            = NULL;
     Event             *copy         = NULL;
-    gchar             *default_role = NULL;
     gboolean           set_default  = FALSE;
 
     if (_event_is_done (*events_done, name))
@@ -606,8 +598,6 @@ _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, GHash
 
     /* Begin parsing of event */
 
-    default_role = g_strdup_printf ("x-maemo-%s", name);
-
     _add_property_int        (p, k, group, "max_timeout", FALSE, set_default);
     _add_property_bool       (p, k, group, "audio_enabled", FALSE, set_default);
     _add_property_bool       (p, k, group, "audio_repeat", FALSE, set_default);
@@ -615,7 +605,6 @@ _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, GHash
     _add_property_string     (p, k, group, "sound", NULL, set_default);
     _add_property_bool       (p, k, group, "silent_enabled", FALSE, set_default);
     _add_property_string     (p, k, group, "volume", NULL, set_default);
-    _add_property_string     (p, k, group, "audio_stream_role", default_role, TRUE);
     _add_property_bool       (p, k, group, "audio_tonegen_enabled", FALSE, set_default);
     _add_property_int        (p, k, group, "audio_tonegen_pattern", -1, set_default);
     _add_property_bool       (p, k, group, "vibration_enabled", FALSE, set_default);
@@ -627,10 +616,8 @@ _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, GHash
     _add_property_bool       (p, k, group, "allow_custom", FALSE, set_default);
     _add_property_bool       (p, k, group, "unlock_tklock", FALSE, set_default);
 
-    g_free (default_role);
-
     /* Parse the stream properties (all properties beginning with "stream.") */
-    _parse_stream_properties (p, k, group, "stream.", properties_get_string (p->properties, "audio_stream_role"));
+    _parse_stream_properties (p, k, group, "stream.");
 
     /* If we have a parent event, make a copy of it and merge our new event
        to the copy. */

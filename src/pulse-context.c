@@ -216,8 +216,10 @@ pulse_context_set_volume (PulseContext *self,
     if (self->context == NULL || role == NULL || volume < 0)
         return;
 
-    if (pa_context_get_state (self->context) != PA_CONTEXT_READY)
-        return;
+    if (pa_context_get_state (self->context) != PA_CONTEXT_READY) {
+        while (pa_context_get_state (self->context) != PA_CONTEXT_READY)
+            g_main_context_iteration (NULL, 0);
+    }
 
     volume = volume > 100 ? 100 : volume;
     v = (gdouble) volume / 100.0;
@@ -236,7 +238,9 @@ pulse_context_set_volume (PulseContext *self,
     o = pa_ext_stream_restore2_write (self->context,
         PA_UPDATE_REPLACE, (const pa_ext_stream_restore2_info *const *) stream_restore_info, 1, TRUE, NULL, NULL);
 
-    if (o)
-       pa_operation_unref (o);
+    if (o) {
+        LOG_DEBUG ("%s >> volume for role %s set to %d", __FUNCTION__, role, (guint) (v * PA_VOLUME_NORM));
+        pa_operation_unref (o);
+    }
 #endif
 }

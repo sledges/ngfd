@@ -27,6 +27,7 @@ static void              remove_timeout                   (Request *request);
 static void              controller_set_volume            (Controller *controller, guint t, guint v, gboolean is_last, gpointer userdata);
 static void              set_stream_volume                (Request *request);
 static void              clear_stream_volume              (Request *request);
+static void              set_stream_role_from_volume      (Request *request);
 
 static const gchar*      get_uncompressed_tone            (ToneMapper *mapper, const char *tone);
 static SoundPath*        resolve_sound_path               (Request *request, gboolean advance);
@@ -111,11 +112,12 @@ controller_set_volume (Controller *controller, guint t, guint v, gboolean is_las
     Request *request = (Request*) userdata;
     Context *context = request->context;
     Event   *event   = request->event;
+    Volume  *volume  = event->volume;
 
     (void) t;
     (void) is_last;
 
-    audio_set_volume (context->audio, event->stream_role, v);
+    audio_set_volume (context->audio, volume->role, v);
 }
 
 static void
@@ -130,19 +132,8 @@ set_stream_volume (Request *request)
     if (!volume)
         return;
 
-    switch (volume->type) {
-        case VOLUME_TYPE_FIXED:
-        case VOLUME_TYPE_PROFILE:
-            audio_set_volume (context->audio, event->stream_role, volume->level);
-            break;
-
-        case VOLUME_TYPE_CONTROLLER:
-            request->controller_id = controller_start (volume->controller, controller_set_volume, request);
-            break;
-
-        default:
-            break;
-    }
+    if (volume->type == VOLUME_TYPE_CONTROLLER)
+        request->controller_id = controller_start (volume->controller, controller_set_volume, request);
 }
 
 static void
@@ -157,6 +148,15 @@ clear_stream_volume (Request *request)
         controller_stop (volume->controller, request->controller_id);
         request->controller_id = 0;
     }
+}
+
+static void
+set_stream_role_from_volume (AudioStream *stream, Volume *volume)
+{
+    if (!stream || (stream && stream->properties))
+        return;
+
+    pa_proplist_sets (stream->properties, "module-stream-restore.id", volume->role ? volume->role : "sink-input-by-name:x-maemo");
 }
 
 static const gchar*
@@ -436,6 +436,8 @@ prepare_stream (Request *request, SoundPath *sound_path)
 
     request->stream       = stream;
     request->active_sound = sound_path;
+
+    set_stream_role_from_volume (stream, event->volume);
 
     if (!audio_prepare (context->audio, request->stream)) {
         audio_destroy_stream (context->audio, request->stream);
