@@ -1,3 +1,4 @@
+#include "log.h"
 #include "context.h"
 
 SoundPath*
@@ -93,6 +94,12 @@ context_add_volume (Context *context, Volume *volume)
             volume_free (volume);
             return *i;
         }
+    }
+
+    if (!volume_generate_role (volume)) {
+        LOG_WARNING ("%s >> failed to generate role for volume!", __FUNCTION__);
+        volume_free (volume);
+        return NULL;
     }
 
     context->num_volumes++;

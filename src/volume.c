@@ -12,6 +12,7 @@ volume_new ()
 void
 volume_free (Volume *v)
 {
+    g_free (v->role);
     g_free (v->key);
     g_free (v->profile);
 
@@ -82,4 +83,54 @@ volume_array_free (Volume **array)
     }
 
     g_free (array);
+}
+
+static gchar*
+cleanup_value (const gchar *str)
+{
+    gchar *cleaned = NULL, *p = NULL;
+
+    if (!str)
+        return g_strdup_printf ("any");
+
+    cleaned = g_strdup (str);
+    for (p = cleaned; *p != '\0'; ++p) {
+        if (*p == '.') *p = '_';
+    }
+
+    return cleaned;
+}
+
+gboolean
+volume_generate_role (Volume *volume)
+{
+    gchar *format_key = NULL, *format_profile = NULL;
+
+    if (volume->role)
+        return FALSE;
+
+    switch (volume->type) {
+        case VOLUME_TYPE_FIXED:
+            volume->role = g_strdup_printf ("x-meego-fixed-%d", volume->level);
+            break;
+
+        case VOLUME_TYPE_PROFILE:
+            format_profile = cleanup_value (volume->profile);
+            format_key     = cleanup_value (volume->key);
+
+            volume->role = g_strdup_printf ("x-meego-%s-%s", format_profile, format_key);
+
+            g_free (format_key);
+            g_free (format_profile);
+            break;
+
+        case VOLUME_TYPE_CONTROLLER:
+            volume->role = g_strdup_printf ("x-meego-controller");
+            break;
+
+        default:
+            return FALSE;
+    }
+
+    return TRUE;
 }

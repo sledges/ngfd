@@ -564,6 +564,16 @@ _dump_vibration (gpointer data, gpointer userdata)
 }
 
 static void
+_dump_volume (Volume *volume)
+{
+    if (!volume)
+        return;
+	
+    LOG_DEBUG ("volume <type=%d, level=%d, role=%s, key=%s, profile=%s>",
+        volume->type, volume->level, volume->role, volume->key, volume->profile);
+}
+
+static void
 _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, GHashTable *events, const char *name)
 {
     Context *context = data->context;
@@ -662,6 +672,7 @@ _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, GHash
 
     g_list_foreach (p->sounds, _dump_sound_path, NULL);
     g_list_foreach (p->patterns, _dump_vibration, NULL);
+    _dump_volume (p->volume);
 
     /* We're done, let's register the new event. */
     g_hash_table_replace (context->events, g_strdup (name), p);

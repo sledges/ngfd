@@ -33,14 +33,16 @@ struct _Volume
 {
     guint       type;           /* FIXED, PROFILE or CONTROLLER */
     gint        level;          /* volume level, range 0-100 */
+    gchar      *role;           /* volume role */
     gchar      *key;
     gchar      *profile;
     Controller *controller;     /* controller instance for the specific pattern */
 };
 
-Volume*  volume_new        ();
-void     volume_free       (Volume *v);
-gboolean volume_equals     (Volume *a, Volume *b);
-void     volume_array_free (Volume **array);
+Volume*  volume_new           ();
+void     volume_free          (Volume *v);
+gboolean volume_equals        (Volume *a, Volume *b);
+void     volume_array_free    (Volume **array);
+gboolean volume_generate_role (Volume *volume);
 
 #endif /* VOLUME_H */
