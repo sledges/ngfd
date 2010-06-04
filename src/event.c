@@ -84,7 +84,6 @@ event_free (Event *event)
         event->patterns = NULL;
     }
 
-    g_free (event->stream_role);
     g_free (event->led_pattern);
     g_free (event);
 }

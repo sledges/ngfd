@@ -27,7 +27,7 @@ static void              remove_timeout                   (Request *request);
 static void              controller_set_volume            (Controller *controller, guint t, guint v, gboolean is_last, gpointer userdata);
 static void              set_stream_volume                (Request *request);
 static void              clear_stream_volume              (Request *request);
-static void              set_stream_role_from_volume      (Request *request);
+static void              set_stream_role_from_volume      (AudioStream *stream, Volume *volume);
 
 static const gchar*      get_uncompressed_tone            (ToneMapper *mapper, const char *tone);
 static SoundPath*        resolve_sound_path               (Request *request, gboolean advance);
@@ -125,7 +125,6 @@ set_stream_volume (Request *request)
 {
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
-    Context *context = request->context;
     Event   *event   = request->event;
     Volume  *volume  = event->volume;
 
@@ -365,7 +364,6 @@ stream_state_cb (AudioStream *stream, AudioStreamState state, gpointer userdata)
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
     Request *request        = (Request*) userdata;
-    Event   *event          = request->event;
     guint    callback_state = REQUEST_STATE_NONE;
 
     switch (state) {
@@ -485,9 +483,6 @@ vibration_completed_cb (Vibrator *vibrator, gpointer userdata)
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
     Request *request = (Request*) userdata;
-    Event   *event   = request->event;
-
-    guint state;
 
     /* do a resource update or complete the request, when the vibration
        pattern is finite and no audio stream is played. */
