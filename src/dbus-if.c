@@ -237,7 +237,7 @@ _dbus_initialize (Context *context, const char *name, const char *path)
     int       ret;
 
     dbus_error_init (&error);
-    ret = dbus_bus_request_name (context->session_bus, name, DBUS_NAME_FLAG_REPLACE_EXISTING, &error);
+    ret = dbus_bus_request_name (context->system_bus, name, DBUS_NAME_FLAG_REPLACE_EXISTING, &error);
     if (ret != DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER) {
         if (dbus_error_is_set (&error)) {
             LOG_WARNING ("Failed to get unique name: %s", error.message);
@@ -247,7 +247,7 @@ _dbus_initialize (Context *context, const char *name, const char *path)
         return FALSE;
     }
 
-    if (!dbus_connection_register_object_path (context->session_bus, path, &method, context))
+    if (!dbus_connection_register_object_path (context->system_bus, path, &method, context))
         return FALSE;
 
     return TRUE;
@@ -283,6 +283,6 @@ dbus_if_send_status (Context *context, guint id, guint status)
         DBUS_TYPE_UINT32, &status,
         DBUS_TYPE_INVALID);
 
-    dbus_connection_send (context->session_bus, msg, NULL);
+    dbus_connection_send (context->system_bus, msg, NULL);
     dbus_message_unref (msg);
 }
