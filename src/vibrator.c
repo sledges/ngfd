@@ -55,8 +55,6 @@ static gboolean pattern_is_repeating (gpointer data, gint pattern_id);
 static gboolean
 pattern_poll_cb (gpointer userdata)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
-
     Pattern  *p        = (Pattern*) userdata;
     Vibrator *vibrator = p->vibrator;
 
@@ -113,7 +111,7 @@ pattern_free (Pattern *p)
 static Pattern*
 pattern_lookup (Vibrator *vibrator, guint id)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_DEBUG ("%s >> entering (id %u)", __FUNCTION__, id);
 
     GList   *iter = NULL;
     Pattern *p    = NULL;
@@ -121,7 +119,6 @@ pattern_lookup (Vibrator *vibrator, guint id)
     for (iter = g_list_first (vibrator->patterns); iter; iter = g_list_next (iter)) {
         p = (Pattern*) iter->data;
         if (p->id == id) {
-            LOG_DEBUG ("%s >> found match", __FUNCTION__);
             return p;
         }
     }
@@ -223,6 +220,7 @@ vibrator_start (Vibrator *vibrator, gpointer data, gint pattern_id, VibratorComp
     if (VIBE_SUCCEEDED (ImmVibePlayIVTEffect (vibrator->device, effects, pattern_id, &id))) {
         p = pattern_new (vibrator, id, effects, pattern_id, callback, userdata);
         vibrator->patterns = g_list_append (vibrator->patterns, p);
+        LOG_DEBUG ("%s >> started pattern with id %d", __FUNCTION__, p->id);
         return p->id;
     }
 
@@ -230,7 +228,7 @@ vibrator_start (Vibrator *vibrator, gpointer data, gint pattern_id, VibratorComp
 }
 
 void
-vibrator_stop (Vibrator *vibrator, gint id)
+vibrator_stop (Vibrator *vibrator, guint id)
 {
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
@@ -238,15 +236,12 @@ vibrator_stop (Vibrator *vibrator, gint id)
     VibeInt32   effect_state = 0;
     Pattern    *p            = NULL;
 
-    if (vibrator == NULL || id < 0)
+    if (vibrator == NULL || id == 0)
         return;
 
     if ((p = pattern_lookup (vibrator, id))) {
-        status = ImmVibeGetEffectState (vibrator->device, id, &effect_state);
-        if (VIBE_SUCCEEDED (status)) {
-            ImmVibeStopPlayingEffect (vibrator->device, id);
-        }
-
+        LOG_DEBUG ("%s >> stopping effect %d", __FUNCTION__, id);
+        ImmVibeStopPlayingEffect (vibrator->device, id);
         vibrator->patterns = g_list_remove (vibrator->patterns, p);
         pattern_free (p);
     }
@@ -262,7 +257,7 @@ pattern_is_completed (Vibrator *vibrator, gint id)
 
     status = ImmVibeGetEffectState (vibrator->device, id, &effect_state);
     if (VIBE_SUCCEEDED (status)) {
-        if (status == VIBE_EFFECT_STATE_PLAYING)
+        if (status != VIBE_EFFECT_STATE_PLAYING)
             return FALSE;
     }
 
