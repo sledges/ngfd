@@ -20,6 +20,7 @@
 #include <pulse/ext-stream-restore.h>
 
 #define APPLICATION_NAME "pulse-context"
+#define VOLUME_SCALE_VALUE 50000
 
 #include "log.h"
 #include "pulse-context.h"
@@ -224,7 +225,7 @@ pulse_context_set_volume (PulseContext *self,
     volume = volume > 100 ? 100 : volume;
     v = (gdouble) volume / 100.0;
 
-    pa_cvolume_set (&vol, 1, v * PA_VOLUME_NORM);
+    pa_cvolume_set (&vol, 1, v * VOLUME_SCALE_VALUE);
 
     info.name                 = role;
     info.channel_map.channels = 1;
