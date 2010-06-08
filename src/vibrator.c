@@ -64,8 +64,7 @@ pattern_poll_cb (gpointer userdata)
         if (p->callback)
             p->callback (vibrator, p->userdata);
 
-        vibrator->patterns = g_list_remove (vibrator->patterns, p);
-        pattern_free (p);
+        p->poll_id = 0;
         return FALSE;
     }
 
@@ -232,9 +231,7 @@ vibrator_stop (Vibrator *vibrator, guint id)
 {
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
-    VibeStatus  status       = 0;
-    VibeInt32   effect_state = 0;
-    Pattern    *p            = NULL;
+    Pattern *p = NULL;
 
     if (vibrator == NULL || id == 0)
         return;
@@ -250,8 +247,6 @@ vibrator_stop (Vibrator *vibrator, guint id)
 static gboolean
 pattern_is_completed (Vibrator *vibrator, gint id)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
-
     VibeStatus status;
     VibeInt32 effect_state = 0;
 

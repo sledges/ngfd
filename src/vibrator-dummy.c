@@ -105,7 +105,7 @@ vibrator_start (Vibrator *vibrator, gpointer data, gint pattern_id, VibratorComp
 }
 
 void
-vibrator_stop (Vibrator *vibrator, gint id)
+vibrator_stop (Vibrator *vibrator, guint id)
 {
     (void) vibrator;
     (void) id;

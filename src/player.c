@@ -152,8 +152,6 @@ clear_stream_volume (Request *request)
 static void
 set_stream_role_from_volume (AudioStream *stream, Volume *volume)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
-
     if (!stream || (stream && !stream->properties))
         return;
 
