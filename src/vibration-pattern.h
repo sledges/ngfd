@@ -22,6 +22,7 @@
 enum
 {
     VIBRATION_PATTERN_TYPE_FILENAME,
+    VIBRATION_PATTERN_TYPE_PROFILE,
     VIBRATION_PATTERN_TYPE_INTERNAL
 };
 
@@ -32,6 +33,8 @@ struct _VibrationPattern
     guint     type;         /* VIBRATION_PATTERN_TYPE_FILENAME or VIBRATION_PATTERN_TYPE_INTERNAL */
     gchar    *filename;     /* absolute path to IVT filename */
     guint     pattern;      /* pattern id within the IVT file */
+    gchar    *key;          /* profile key */
+    gchar    *profile;      /* profile to get the key from */
     gpointer  data;         /* vibration pattern data from the IVT file */
 };
 

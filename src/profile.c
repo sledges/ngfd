@@ -28,6 +28,7 @@
 
 #define TONE_SUFFIX           ".tone"
 #define VOLUME_SUFFIX         ".volume"
+#define PATTERN_SUFFIX        ".pattern"
 
 static void
 resolve_sound_path (Context    *context,
@@ -54,10 +55,8 @@ resolve_sound_path (Context    *context,
             continue;
 
         if ((!s->profile && g_str_equal (context->active_profile, profile)) || (s->profile && g_str_equal (s->profile, profile))) {
-            g_print ("+ filename changed %s -> %s\n", s->filename, value);
             g_free (s->filename);
             s->filename = g_strdup (value);
-            g_print ("sound_path <type=%d, filename=%s, key=%s, profile=%s\n", s->type, s->filename, s->key, s->profile);
             break;
         }
     }
@@ -88,12 +87,40 @@ resolve_volume (Context    *context,
             continue;
 
         if ((!s->profile && g_str_equal (context->active_profile, profile)) || (s->profile && g_str_equal (s->profile, profile))) {
-            g_print ("+ volume changed %d -> %d\n", s->level, profile_parse_int (value));
             s->level = profile_parse_int (value);
-            g_print ("volume <type=%d, level=%d, key=%s, profile=%s\n",
-                s->type, s->level, s->key, s->profile);
-
             volume_controller_update (context, s);
+            break;
+        }
+    }
+}
+
+static void
+resolve_vibration (Context    *context,
+                   const char *profile,
+                   const char *key,
+                   const char *value)
+{
+    VibrationPattern **i = NULL;
+    VibrationPattern  *p = NULL;
+
+    if (context->active_profile == NULL)
+        return;
+
+    if (!g_str_has_suffix (key, PATTERN_SUFFIX))
+        return;
+
+    for (i = context->patterns; *i; ++i) {
+        p = (VibrationPattern*) (*i);
+
+        if (p->type != VIBRATION_PATTERN_TYPE_PROFILE)
+            continue;
+
+        if (!g_str_equal (p->key, key))
+            continue;
+
+        if ((!p->profile && g_str_equal (context->active_profile, profile)) || (p->profile && g_str_equal (p->profile, profile))) {
+            g_free (p->filename);
+            p->filename = g_strdup (value);
             break;
         }
     }
@@ -134,6 +161,7 @@ value_changed_cb (const char *profile,
 
     resolve_sound_path (context, profile, key, value);
     resolve_volume     (context, profile, key, value);
+    resolve_vibration  (context, profile, key, value);
 }
 
 static void
@@ -160,8 +188,9 @@ profile_create (Context *context)
 int
 profile_resolve (Context *context)
 {
-    SoundPath **i = NULL;
-    Volume    **j = NULL;
+    SoundPath        **i     = NULL;
+    Volume           **j     = NULL;
+    VibrationPattern **p     = NULL;
 
     context->active_profile    = profile_get_profile ();
     context->vibration_enabled = profile_get_value_as_bool (NULL, KEY_VIBRATION_ENABLED);
@@ -180,7 +209,7 @@ profile_resolve (Context *context)
                 continue;
 
             g_free (s->filename);
-            s->filename = g_strdup (profile_get_value (s->profile, s->key));
+            s->filename = profile_get_value (s->profile, s->key);
         }
     }
 
@@ -192,6 +221,19 @@ profile_resolve (Context *context)
                 continue;
 
             v->level = profile_get_value_as_int (v->profile, v->key);
+        }
+    }
+
+    if (context->patterns) {
+        for (p = context->patterns; *p; ++p) {
+            VibrationPattern *pattern = (VibrationPattern*) (*p);
+
+            if (pattern->type != VIBRATION_PATTERN_TYPE_PROFILE)
+                continue;
+
+            g_free (pattern->filename);
+            pattern->filename = profile_get_value (pattern->profile, pattern->key);
+            pattern->pattern  = 0;
         }
     }
 

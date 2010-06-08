@@ -9,6 +9,8 @@ vibration_pattern_new ()
 void
 vibration_pattern_free (VibrationPattern *pattern)
 {
+    g_free (pattern->key);
+    g_free (pattern->profile);
     g_free (pattern->filename);
     g_free (pattern->data);
     g_free (pattern);
@@ -31,7 +33,21 @@ vibration_pattern_equals (VibrationPattern *a, VibrationPattern *b)
             }
             break;
 
-        case VIBRATION_PATTERN_TYPE_INTERNAL:
+        case VIBRATION_PATTERN_TYPE_PROFILE:
+            if (a->key == NULL || b->key == NULL)
+                return FALSE;
+
+            if (g_str_equal (a->key, b->key)) {
+                if (a->profile && b->profile && g_str_equal (a->profile, b->profile))
+                    return TRUE;
+
+                if (a->profile == NULL && b->profile == NULL)
+                    return TRUE;
+
+                return FALSE;
+            }
+
+         case VIBRATION_PATTERN_TYPE_INTERNAL:
             if (a->pattern == b->pattern)
                 return TRUE;
             break;

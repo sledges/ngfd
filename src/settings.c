@@ -481,7 +481,20 @@ _parse_pattern (Context *context, const gchar *str)
     if (str == NULL)
         return NULL;
 
-    if (g_str_has_prefix (str, "filename:")) {
+    if (g_str_has_prefix (str, "profile:")) {
+        stripped = _strip_prefix (str, "profile:");
+
+        pattern = vibration_pattern_new ();
+        pattern->type     = VIBRATION_PATTERN_TYPE_PROFILE;
+
+        if (!_parse_profile_key (stripped, &pattern->profile, &pattern->key)) {
+            g_free (stripped);
+            return NULL;
+        }
+
+        g_free (stripped);
+    }
+    else if (g_str_has_prefix (str, "filename:")) {
         stripped = _strip_prefix (str, "filename:");
 
         pattern = vibration_pattern_new ();
