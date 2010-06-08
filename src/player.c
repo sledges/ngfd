@@ -152,10 +152,15 @@ clear_stream_volume (Request *request)
 static void
 set_stream_role_from_volume (AudioStream *stream, Volume *volume)
 {
-    if (!stream || (stream && stream->properties))
+    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+
+    if (!stream || (stream && !stream->properties))
         return;
 
-    pa_proplist_sets (stream->properties, "module-stream-restore.id", volume->role ? volume->role : "sink-input-by-name:x-maemo");
+    if (volume->role) {
+        LOG_DEBUG ("%s >> set stream role to %s", __FUNCTION__, volume->role);
+        pa_proplist_sets (stream->properties, "module-stream-restore.id", volume->role);
+    }
 }
 
 static const gchar*
