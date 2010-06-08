@@ -27,6 +27,7 @@ static void              remove_timeout                   (Request *request);
 static void              controller_set_volume            (Controller *controller, guint t, guint v, gboolean is_last, gpointer userdata);
 static void              set_stream_volume                (Request *request);
 static void              clear_stream_volume              (Request *request);
+static void              set_stream_event_id              (AudioStream *stream, const char *event_id);
 static void              set_stream_role_from_volume      (AudioStream *stream, Volume *volume);
 
 static const gchar*      get_uncompressed_tone            (ToneMapper *mapper, const char *tone);
@@ -146,6 +147,18 @@ clear_stream_volume (Request *request)
     if (request->controller_id > 0) {
         controller_stop (volume->controller, request->controller_id);
         request->controller_id = 0;
+    }
+}
+
+static void
+set_stream_event_id (AudioStream *stream, const char *event_id)
+{
+    if (!stream || (stream && !stream->properties))
+        return;
+
+    if (event_id) {
+        LOG_DEBUG ("%s >> set stream event id to %s", __FUNCTION__, event_id);
+        pa_proplist_sets (stream->properties, "event.id", event_id);
     }
 }
 
@@ -431,13 +444,14 @@ prepare_stream (Request *request, SoundPath *sound_path)
     stream = audio_create_stream (context->audio, stream_type);
 
     stream->source         = g_strdup (stream_source);
-    stream->properties     = pa_proplist_copy (event->stream_properties);
+    stream->properties     = pa_proplist_new ();
     stream->callback       = stream_state_cb;
     stream->userdata       = request;
 
     request->stream       = stream;
     request->active_sound = sound_path;
 
+    set_stream_event_id         (stream, event->event_id);
     set_stream_role_from_volume (stream, event->volume);
 
     if (!audio_prepare (context->audio, request->stream)) {

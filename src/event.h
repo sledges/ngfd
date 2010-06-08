@@ -29,7 +29,6 @@ typedef struct _Event Event;
 struct _Event
 {
     GHashTable       *properties;               /* Collection of properties. */
-    pa_proplist      *stream_properties;        /* Stream properties. */
 
     gboolean          allow_custom;             /* allow custom sound */
     gint              max_timeout;              /* maximum timeout for event */
@@ -39,6 +38,7 @@ struct _Event
     gboolean          silent_enabled;           /* play in silent mode */
     gboolean          repeat;                   /* repeat sound */
     gint              num_repeats;              /* number of times to repeat or 0 for infinite */
+    gchar            *event_id;                 /* event id for stream */
 
     gboolean          lookup_pattern;           /* lookup a custom vibration pattern */
     GList            *patterns;                 /* vibration patterns in the order of importance */
@@ -56,9 +56,6 @@ struct _Event
 };
 
 Event* event_new   ();
-Event* event_copy  (Event *source);
-void   event_merge (Event *target, Event *source);
 void   event_free  (Event *event);
-void   event_dump  (Event *event);
 
 #endif /* EVENT_H */

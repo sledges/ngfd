@@ -31,31 +31,7 @@ event_new ()
         return NULL;
     }
 
-    if ((event->stream_properties = pa_proplist_new ()) == NULL) {
-        g_hash_table_destroy (event->properties);
-        g_free (event);
-        return NULL;
-    }
-
     return event;
-}
-
-Event*
-event_copy (Event *source)
-{
-    Event *event = NULL;
-
-    event = event_new ();
-    event->properties = properties_copy (source->properties);
-    event->stream_properties = pa_proplist_copy (source->stream_properties);
-    return event;
-}
-
-void
-event_merge (Event *target, Event *source)
-{
-    properties_merge (target->properties, source->properties);
-    pa_proplist_update (target->stream_properties, PA_UPDATE_REPLACE, source->stream_properties);
 }
 
 void
@@ -63,16 +39,6 @@ event_free (Event *event)
 {
     if (event == NULL)
         return;
-
-    if (event->properties) {
-        g_hash_table_destroy (event->properties);
-        event->properties = NULL;
-    }
-
-    if (event->stream_properties) {
-        pa_proplist_free (event->stream_properties);
-        event->stream_properties = NULL;
-    }
 
     if (event->sounds) {
         g_list_free (event->sounds);
@@ -84,6 +50,7 @@ event_free (Event *event)
         event->patterns = NULL;
     }
 
+    g_free (event->event_id);
     g_free (event->led_pattern);
     g_free (event);
 }

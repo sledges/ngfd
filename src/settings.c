@@ -30,19 +30,63 @@
 #define GROUP_DEFINITION "definition"
 #define GROUP_EVENT      "event"
 
-#define STREAM_RESTORE_ID "module-stream-restore.id"
+#define ARRAY_SIZE(x) (sizeof (x) / sizeof (x[0]))
+
+enum
+{
+    KEY_ENTRY_TYPE_STRING,
+    KEY_ENTRY_TYPE_INT,
+    KEY_ENTRY_TYPE_BOOL
+};
+
+typedef struct _KeyEntry
+{
+    guint       type;
+    const char *key;
+    gint        def_int;
+    const char *def_str;
+} KeyEntry;
 
 typedef struct _SettingsData
 {
-    Context *context;
+    Context    *context;
+    GHashTable *groups;
+    GHashTable *events;
 } SettingsData;
 
-/**
- * Strip the group type (event, event) from the group name.
- *
- * @param group Group name
- * @returns Newly allocated string without the group type or NULL.
- */
+static KeyEntry event_entries[] = {
+    /* general */
+    { KEY_ENTRY_TYPE_INT   , "max_timeout"          , 0    , NULL },
+    { KEY_ENTRY_TYPE_BOOL  , "allow_custom"         , FALSE, NULL },
+    { KEY_ENTRY_TYPE_INT   , "dummy"                , 0    , NULL },
+
+    /* sound */
+    { KEY_ENTRY_TYPE_BOOL  , "audio_enabled"        , FALSE, NULL },
+    { KEY_ENTRY_TYPE_BOOL  , "audio_repeat"         , FALSE, NULL },
+    { KEY_ENTRY_TYPE_INT   , "audio_max_repeats"    , 0    , NULL },
+    { KEY_ENTRY_TYPE_STRING, "sound"                , 0    , NULL },
+    { KEY_ENTRY_TYPE_BOOL  , "silent_enabled"       , FALSE, NULL },
+    { KEY_ENTRY_TYPE_STRING, "volume"               , 0    , NULL },
+    { KEY_ENTRY_TYPE_STRING, "event_id"             , 0    , NULL },
+
+    /* tonegen */
+    { KEY_ENTRY_TYPE_INT   , "audio_tonegen_pattern", -1   , NULL },
+
+    /* vibration */
+    { KEY_ENTRY_TYPE_BOOL  , "vibration_enabled"    , FALSE, NULL },
+    { KEY_ENTRY_TYPE_BOOL  , "lookup_pattern"       , FALSE, NULL },
+    { KEY_ENTRY_TYPE_STRING, "vibration"            , FALSE, NULL },
+
+    /* led */
+    { KEY_ENTRY_TYPE_BOOL  , "led_enabled"          , FALSE, NULL },
+    { KEY_ENTRY_TYPE_STRING, "led_pattern"          , 0    , NULL },
+
+    /* backlight */
+    { KEY_ENTRY_TYPE_BOOL  , "backlight_enabled"    , FALSE, NULL },
+    { KEY_ENTRY_TYPE_BOOL  , "unlock_tklock"        , FALSE, NULL },
+};
+
+
 
 static gchar*
 _strip_group_type (const char *group)
@@ -61,19 +105,6 @@ _strip_group_type (const char *group)
 
     return g_strdup (ptr);
 }
-
-/**
- * Get the name from the group. The name represents the name in the group
- * name without the optional parent inheritance.
- *
- * @param group Group name
- * @returns Newly allocated string with name or NULL if no name.
- *
- * @code
- * name = _parse_group_name ("event my_event@parent_event");
- * g_assert (g_str_equal (name, "my_event");
- * @endcode
- */
 
 static gchar*
 _parse_group_name (const char *group)
@@ -96,19 +127,6 @@ _parse_group_name (const char *group)
     g_free (name);
     return result;
 }
-
-/**
- * Get the parent name of the group. To support simple inheritance, optional
- * parent name can be provided by using the "@" character as a separator.
- *
- * @param group Group name
- * @returns Newly allocated string with parent name or NULL if no parent.
- *
- * @code
- * parent = _parse_group_parent ("event my_event@parent_event");
- * g_assert (g_str_equal (parent, "parent_event");
- * @endcode
- */
 
 static gchar*
 _parse_group_parent (const char *group)
@@ -193,12 +211,12 @@ _event_is_done (GList *done_list, const char *name)
 }
 
 static void
-_add_property_int (Event *event,
-                   GKeyFile          *k,
-                   const char        *group,
-                   const char        *key,
-                   gint               def_value,
-                   gboolean           set_default)
+_add_property_int (GHashTable *target,
+                   GKeyFile   *k,
+                   const char *group,
+                   const char *key,
+                   gint        def_value,
+                   gboolean    set_default)
 {
     GError   *error  = NULL;
     gint      result = 0;
@@ -209,26 +227,25 @@ _add_property_int (Event *event,
         if (error->code == G_KEY_FILE_ERROR_INVALID_VALUE)
             LOG_WARNING ("Invalid value for property %s, expected integer. Using default value %d", key, def_value);
         g_error_free (error);
+        result = def_value;
 
         if (!set_default)
             return;
-
-        result = def_value;
     }
 
     value = property_new ();
     property_set_int (value, result);
 
-    g_hash_table_insert (event->properties, g_strdup (key), value);
+    g_hash_table_insert (target, g_strdup (key), value);
 }
 
 static void
-_add_property_bool (Event *event,
-                    GKeyFile          *k,
-                    const char        *group,
-                    const char        *key,
-                    gboolean           def_value,
-                    gboolean           set_default)
+_add_property_bool (GHashTable *target,
+                    GKeyFile   *k,
+                    const char *group,
+                    const char *key,
+                    gboolean    def_value,
+                    gboolean    set_default)
 {
     GError   *error  = NULL;
     gboolean  result = FALSE;
@@ -239,26 +256,25 @@ _add_property_bool (Event *event,
         if (error->code == G_KEY_FILE_ERROR_INVALID_VALUE)
             LOG_WARNING ("Invalid value for property %s, expected boolean. Using default value %s", key, def_value ? "TRUE" : "FALSE");
         g_error_free (error);
+        result = def_value;
 
         if (!set_default)
             return;
-
-        result = def_value;
     }
 
     value = property_new ();
     property_set_boolean (value, result);
 
-    g_hash_table_insert (event->properties, g_strdup (key), value);
+    g_hash_table_insert (target, g_strdup (key), value);
 }
 
 static void
-_add_property_string (Event *event,
-                      GKeyFile          *k,
-                      const char        *group,
-                      const char        *key,
-                      const char        *def_value,
-                      gboolean           set_default)
+_add_property_string (GHashTable *target,
+                      GKeyFile   *k,
+                      const char *group,
+                      const char *key,
+                      const char *def_value,
+                      gboolean    set_default)
 {
     GError   *error  = NULL;
     gchar    *result = NULL;
@@ -279,17 +295,9 @@ _add_property_string (Event *event,
     value = property_new ();
     property_set_string (value, result);
 
-    g_hash_table_insert (event->properties, g_strdup (key), value);
+    g_hash_table_insert (target, g_strdup (key), value);
     g_free (result);
 }
-
-/**
- * Strip a prefix out of the given string.
- *
- * @param str Original string
- * @param prefix Prefix to strip
- * @returns Newly allocated string without prefix.
- */
 
 static gchar*
 _strip_prefix (const gchar *str, const gchar *prefix)
@@ -299,47 +307,6 @@ _strip_prefix (const gchar *str, const gchar *prefix)
 
     size_t prefix_length = strlen (prefix);
     return g_strdup (str + prefix_length);
-}
-
-/**
- * Parse all stream properties and create a Pulseaudio property
- * list out of them.
- *
- * @param event Event
- * @param k GKeyFile
- * @param group Group name
- * @param prefix Prefix to match the properties
- * @param default_role Default audio stream role
- * @post New pa_proplist set to the Event.
- */
-
-static void
-_parse_stream_properties (Event *event,
-                          GKeyFile          *k,
-                          const char        *group,
-                          const char        *prefix)
-{
-    gchar **keys = NULL, **iter = NULL, *stream_prop = NULL, *stream_value = NULL;
-    pa_proplist *p = NULL;
-
-    keys = g_key_file_get_keys (k, group, NULL, NULL);
-
-    p = pa_proplist_new ();
-    for (iter = keys; *iter; iter++) {
-        if ((stream_prop = _strip_prefix (*iter, prefix)) != NULL) {
-            stream_value = g_key_file_get_string (k, group, *iter, NULL);
-
-            if (stream_value != NULL)
-               pa_proplist_sets (p, stream_prop, stream_value);
-
-            g_free (stream_value);
-            g_free (stream_prop);
-        }
-    }
-
-    g_strfreev (keys);
-
-    event->stream_properties = p;
 }
 
 static gboolean
@@ -537,170 +504,105 @@ _create_patterns (Context *context, const gchar *str)
     return result;
 }
 
-/**
- * Parse a single event. If the event has a parent, make sure that
- * we parse it first. Once done, merge the parent's and new events
- * properties and add the event to the events_done list to ensure
- * that we don't parse it again.
- *
- * @param context Context
- * @param k GKeyFile
- * @param events_done GList of strings containing parsed events.
- * @param events GHashTable of mapping of event name to group.
- * @param name Name of event.
- * @post New event registered to the daemon.
- */
-
 static void
-_dump_sound_path (gpointer data, gpointer userdata)
+_parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, const char *name)
 {
-    SoundPath *sound_path = (SoundPath*) data;
-
-    LOG_DEBUG ("sound_path <type=%d, filename=%s, key=%s, profile=%s>\n",
-        sound_path->type, sound_path->filename, sound_path->key, sound_path->profile);
-}
-
-static void
-_dump_vibration (gpointer data, gpointer userdata)
-{
-    VibrationPattern *pattern = (VibrationPattern*) data;
-    
-    LOG_DEBUG ("vibration_pattern <type=%d, filename=%s, pattern=%d>\n",
-            pattern->type, pattern->filename, pattern->pattern);
-}
-
-static void
-_dump_volume (Volume *volume)
-{
-    if (!volume)
-        return;
-	
-    LOG_DEBUG ("volume <type=%d, level=%d, role=%s, key=%s, profile=%s>",
-        volume->type, volume->level, volume->role, volume->key, volume->profile);
-}
-
-static void
-_parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, GHashTable *events, const char *name)
-{
-    Context *context = data->context;
-
-    const gchar       *group        = NULL;
-    gchar             *parent       = NULL;
-    Event             *p            = NULL;
-    Event             *copy         = NULL;
-    gboolean           set_default  = FALSE;
+    const gchar *group      = NULL;
+    gchar       *parent     = NULL;
+    KeyEntry    *entry      = NULL;
+    gboolean     is_base    = FALSE;
+    GHashTable  *properties = NULL;
+    GHashTable  *copy       = NULL;
+    guint        i          = 0;
 
     if (_event_is_done (*events_done, name))
         return;
 
-    if ((group = g_hash_table_lookup (events, name)) == NULL)
+    if ((group = g_hash_table_lookup (data->groups, name)) == NULL)
         return;
 
     if ((parent = _parse_group_parent (group)) != NULL)
-        _parse_single_event (data, k, events_done, events, parent);
+        _parse_single_event (data, k, events_done, parent);
 
     if (name == NULL)
         return;
 
-    /* set_default flag is set if the event does not have a parent element (ie. it is a parent
-       element by itcontext). */
+    properties = properties_new ();
 
-    set_default = (parent == NULL) ? TRUE : FALSE;
+    for (i = 0; i < ARRAY_SIZE(event_entries); ++i) {
+        entry = &event_entries[i];
 
-    p = event_new ();
-
-    /* Begin parsing of event */
-
-    _add_property_int        (p, k, group, "max_timeout", FALSE, set_default);
-    _add_property_bool       (p, k, group, "audio_enabled", FALSE, set_default);
-    _add_property_bool       (p, k, group, "audio_repeat", FALSE, set_default);
-    _add_property_int        (p, k, group, "audio_max_repeats", 0, set_default);
-    _add_property_string     (p, k, group, "sound", NULL, set_default);
-    _add_property_bool       (p, k, group, "silent_enabled", FALSE, set_default);
-    _add_property_string     (p, k, group, "volume", NULL, set_default);
-    _add_property_bool       (p, k, group, "audio_tonegen_enabled", FALSE, set_default);
-    _add_property_int        (p, k, group, "audio_tonegen_pattern", -1, set_default);
-    _add_property_bool       (p, k, group, "vibration_enabled", FALSE, set_default);
-    _add_property_bool       (p, k, group, "lookup_pattern", FALSE, set_default);
-    _add_property_string     (p, k, group, "vibration", NULL, set_default);
-    _add_property_bool       (p, k, group, "led_enabled", FALSE, set_default);
-    _add_property_string     (p, k, group, "led_pattern", NULL, set_default);
-    _add_property_bool       (p, k, group, "backlight_enabled", FALSE, set_default);
-    _add_property_bool       (p, k, group, "allow_custom", FALSE, set_default);
-    _add_property_bool       (p, k, group, "unlock_tklock", FALSE, set_default);
-
-    /* Parse the stream properties (all properties beginning with "stream.") */
-    _parse_stream_properties (p, k, group, "stream.");
-
-    /* If we have a parent event, make a copy of it and merge our new event
-       to the copy. */
-
-    if (parent != NULL) {
-        copy = event_copy (g_hash_table_lookup (context->events, parent));
-
-        if (copy != NULL) {
-            event_merge (copy, p);
-            event_free (p);
-            p = copy;
+        is_base = (parent == NULL) ? TRUE : FALSE;
+        switch (entry->type) {
+            case KEY_ENTRY_TYPE_STRING:
+                _add_property_string (properties, k, group, entry->key, entry->def_str, is_base);
+                break;
+            case KEY_ENTRY_TYPE_INT:
+                _add_property_int (properties, k, group, entry->key, entry->def_int, is_base);
+                break;
+            case KEY_ENTRY_TYPE_BOOL:
+                _add_property_bool (properties, k, group, entry->key, entry->def_int, is_base);
+                break;
+            default:
+                break;
         }
     }
 
-    /* translate the event */
+    /* if a parent was defined, merge */
+    if (parent != NULL) {
+        copy = properties_copy (g_hash_table_lookup (data->events, parent));
+        properties_merge (copy, properties);
+        g_hash_table_destroy (properties);
+        properties = copy;
+    }
 
-    p->audio_enabled     = properties_get_bool (p->properties, "audio_enabled");
-    p->vibration_enabled = properties_get_bool (p->properties, "vibration_enabled");
-    p->leds_enabled      = properties_get_bool (p->properties, "led_enabled");
-    p->backlight_enabled = properties_get_bool (p->properties, "backlight_enabled");
-    p->unlock_tklock     = properties_get_bool (p->properties, "unlock_tklock");
-
-    p->allow_custom      = properties_get_bool (p->properties, "allow_custom");
-    p->max_timeout       = properties_get_int  (p->properties, "max_timeout");
-    p->lookup_pattern    = properties_get_bool (p->properties, "lookup_pattern");
-    p->silent_enabled    = properties_get_bool (p->properties, "silent_enabled");
-
-    p->tone_generator_enabled = properties_get_bool (p->properties, "audio_tonegen_enabled");
-    p->tone_generator_pattern = properties_get_int (p->properties, "audio_tonegen_pattern");
-
-    p->repeat            = properties_get_bool (p->properties, "audio_repeat");
-    p->num_repeats       = properties_get_int (p->properties, "audio_max_repeats");
-    p->led_pattern       = g_strdup (properties_get_string (p->properties, "led_pattern"));
-
-    p->sounds   = _create_sound_paths (context, properties_get_string (p->properties, "sound"));
-    p->volume   = _create_volume      (context, properties_get_string (p->properties, "volume"));
-    p->patterns = _create_patterns    (context, properties_get_string (p->properties, "vibration"));
-
-    g_list_foreach (p->sounds, _dump_sound_path, NULL);
-    g_list_foreach (p->patterns, _dump_vibration, NULL);
-    _dump_volume (p->volume);
-
-    /* We're done, let's register the new event. */
-    g_hash_table_replace (context->events, g_strdup (name), p);
-
-    LOG_DEBUG ("<new event %s>", name);
-
+    g_hash_table_insert (data->events, g_strdup (name), properties);
     *events_done = g_list_append (*events_done, g_strdup (name));
     g_free (parent);
 }
 
-/**
- * Parse all events. Get a list of available groups and make a mapping
- * of event name to group name. Once done, iterate through the list
- * and parse every event.
- *
- * @param context Context
- * @param k GKeyFile
- * @post All available and valid events registered to daemon.
- */
+static void
+finalize_event (SettingsData *data, const char *name, GHashTable *properties)
+{
+    Context *context = data->context;
+    Event   *event   = event_new ();
+
+    event->audio_enabled          = properties_get_bool (properties, "audio_enabled");
+    event->vibration_enabled      = properties_get_bool (properties, "vibration_enabled");
+    event->leds_enabled           = properties_get_bool (properties, "led_enabled");
+    event->backlight_enabled      = properties_get_bool (properties, "backlight_enabled");
+    event->unlock_tklock          = properties_get_bool (properties, "unlock_tklock");
+
+    event->allow_custom           = properties_get_bool (properties, "allow_custom");
+    event->max_timeout            = properties_get_int  (properties, "max_timeout");
+    event->lookup_pattern         = properties_get_bool (properties, "lookup_pattern");
+    event->silent_enabled         = properties_get_bool (properties, "silent_enabled");
+    event->event_id               = g_strdup (properties_get_string (properties, "event_id"));
+
+    event->tone_generator_enabled = properties_get_bool (properties, "audio_tonegen_enabled");
+    event->tone_generator_pattern = properties_get_int (properties, "audio_tonegen_pattern");
+
+    event->repeat                 = properties_get_bool (properties, "audio_repeat");
+    event->num_repeats            = properties_get_int (properties, "audio_max_repeats");
+    event->led_pattern            = g_strdup (properties_get_string (properties, "led_pattern"));
+
+    event->sounds                 = _create_sound_paths (context, properties_get_string (properties, "sound"));
+    event->volume                 = _create_volume      (context, properties_get_string (properties, "volume"));
+    event->patterns               = _create_patterns    (context, properties_get_string (properties, "vibration"));
+
+    g_hash_table_replace (context->events, g_strdup (name), event);
+}
 
 static void
 _parse_events (SettingsData *data, GKeyFile *k)
 {
-    gchar         **group_list = NULL;
-    gchar         **group      = NULL;
-    gchar          *name       = NULL;
-    GHashTable *events = NULL;
+    gchar      **group_list = NULL;
+    gchar      **group      = NULL;
+    gchar       *name       = NULL;
+    GHashTable  *evtdata    = NULL;
 
-    events = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+    data->events = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) g_hash_table_destroy);
+    data->groups = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
 
     /* Get the available events and map name to group */
 
@@ -710,7 +612,7 @@ _parse_events (SettingsData *data, GKeyFile *k)
             continue;
 
         if ((name = _parse_group_name (*group)) != NULL)
-            g_hash_table_insert (events, name, g_strdup (*group));
+            g_hash_table_insert (data->groups, name, g_strdup (*group));
     }
 
     g_strfreev (group_list);
@@ -721,14 +623,19 @@ _parse_events (SettingsData *data, GKeyFile *k)
     gchar *key, *value;
     GList *events_done = NULL;
 
-    g_hash_table_iter_init (&iter, events);
+    g_hash_table_iter_init (&iter, data->groups);
     while (g_hash_table_iter_next (&iter, (gpointer) &key, (gpointer) &value))
-        _parse_single_event (data, k, &events_done, events, key);
+        _parse_single_event (data, k, &events_done, key);
 
     g_list_foreach (events_done, (GFunc) g_free, NULL);
     g_list_free (events_done);
 
-    g_hash_table_destroy (events);
+    g_hash_table_iter_init (&iter, data->events);
+    while (g_hash_table_iter_next (&iter, (gpointer) &key, (gpointer) &evtdata))
+        finalize_event (data, key, evtdata);
+
+    g_hash_table_destroy (data->groups);
+    g_hash_table_destroy (data->events);
 }
 
 gboolean
