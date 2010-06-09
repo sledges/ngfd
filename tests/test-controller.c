@@ -17,7 +17,6 @@ static const StepData step_data[] = {
     { 2000, 2 },
     { 3000, 3 },
     { 4000, 4 },
-    NULL
 };
 
 #define ARRAY_SIZE(array) (sizeof (array) / sizeof (array[0]))
@@ -38,7 +37,7 @@ START_TEST (test_add_steps)
     /* Verify that added steps are in order */
 
     for (i = 0; i < ARRAY_SIZE (step_data); i++)
-        controller_add_step (controller, step_data[i].step_time, step_data[i].step_value);
+        controller_add_step (controller, step_data[i].step_time, step_data[i].step_value, FALSE);
 
     steps = controller_get_steps (controller);
     fail_unless (steps != NULL);
@@ -58,11 +57,10 @@ END_TEST
 static gboolean test_execute_steps_loop_started = FALSE;
 static gint test_execute_steps_counter = 0;
 
-static gboolean
-_controller_cb (Controller *controller, guint id, guint step_time, guint step_value, gpointer userdata)
+static void
+_controller_cb (Controller *controller, guint step_time, guint step_value, gboolean is_last, gpointer userdata)
 {
-    GMainLoop *loop    = (GMainLoop*) userdata;
-    gint       counter = test_execute_steps_counter++;
+    gint counter = test_execute_steps_counter++;
 
     fail_unless (GPOINTER_TO_INT (userdata) == 0xB000BEEF);
     fail_unless (step_time == step_data[counter].step_time);
@@ -72,8 +70,6 @@ _controller_cb (Controller *controller, guint id, guint step_time, guint step_va
         fail_unless (test_execute_steps_loop_started == FALSE);
     else
         fail_unless (test_execute_steps_loop_started == TRUE);
-
-    return TRUE;
 }
 
 START_TEST (test_execute_steps)
@@ -86,7 +82,7 @@ START_TEST (test_execute_steps)
     fail_unless (controller != NULL);
 
     for (i = 0; i < ARRAY_SIZE (step_data); i++)
-        controller_add_step (controller, step_data[i].step_time, step_data[i].step_value);
+        controller_add_step (controller, step_data[i].step_time, step_data[i].step_value, FALSE);
 
     /* Verify that the first step is executed immediately. */
     id = controller_start (controller, _controller_cb, (gpointer) 0xB000BEEF);
