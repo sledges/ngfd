@@ -252,7 +252,7 @@ pattern_is_completed (Vibrator *vibrator, gint id)
 
     status = ImmVibeGetEffectState (vibrator->device, id, &effect_state);
     if (VIBE_SUCCEEDED (status)) {
-        if (status != VIBE_EFFECT_STATE_PLAYING)
+        if (status == VIBE_EFFECT_STATE_PLAYING)
             return FALSE;
     }
 
