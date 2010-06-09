@@ -61,10 +61,10 @@ pattern_poll_cb (gpointer userdata)
     if (pattern_is_completed (vibrator, p->id)) {
         LOG_DEBUG ("%s >> vibration has been completed.", __FUNCTION__);
 
+        p->poll_id = 0;
         if (p->callback)
             p->callback (vibrator, p->userdata);
 
-        p->poll_id = 0;
         return FALSE;
     }
 
