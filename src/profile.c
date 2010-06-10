@@ -17,18 +17,19 @@
 #include <stdlib.h>
 #include <profiled/libprofile.h>
 
+#include "log.h"
 #include "volume-controller.h"
 #include "sound-path.h"
 #include "volume.h"
 #include "profile.h"
 
-#define KEY_VIBRATION_ENABLED "vibrating.alert.enabled"
-#define SILENT_PROFILE        "silent"
-#define MEETING_PROFILE       "meeting"
+#define KEY_VIBRATION_ENABLED   "vibrating.alert.enabled"
+#define SILENT_PROFILE          "silent"
+#define MEETING_PROFILE         "meeting"
 
-#define TONE_SUFFIX           ".tone"
-#define VOLUME_SUFFIX         ".volume"
-#define PATTERN_SUFFIX        ".pattern"
+#define TONE_SUFFIX             ".tone"
+#define VOLUME_SUFFIX           ".volume"
+#define PATTERN_SUFFIX          ".pattern"
 
 static void
 resolve_sound_path (Context    *context,
@@ -176,6 +177,9 @@ profile_changed_cb (const char *profile,
 int
 profile_create (Context *context)
 {
+    profile_connection_disable_autoconnect ();
+    profile_reconnect (context);
+
     profile_track_add_active_cb  (value_changed_cb, context, NULL);
     profile_track_add_change_cb  (value_changed_cb, context, NULL);
     profile_track_add_profile_cb (profile_changed_cb, context, NULL);
@@ -199,7 +203,6 @@ profile_resolve (Context *context)
         context->silent_mode = TRUE;
     else if (g_str_equal (context->active_profile, MEETING_PROFILE))
         context->meeting_mode = TRUE;
-
 
     if (context->sounds) {
         for (i = context->sounds; *i; ++i) {
@@ -238,6 +241,23 @@ profile_resolve (Context *context)
     }
 
     return TRUE;
+}
+
+int
+profile_reconnect (Context *context)
+{
+    if (!context->session_bus) {
+        LOG_DEBUG ("%s >> no session bus available.", __FUNCTION__);
+        return FALSE;
+    }
+
+    profile_connection_set (context->session_bus);
+
+    /* resolve again and update volumes */
+    profile_resolve              (context);
+    volume_controller_update_all (context);
+
+    return FALSE;
 }
 
 void

@@ -20,8 +20,9 @@
 #include <glib.h>
 #include "context.h"
 
-int  profile_create  (Context *context);
-int  profile_resolve (Context *context);
-void profile_destroy (Context *context);
+int  profile_create    (Context *context);
+int  profile_resolve   (Context *context);
+int  profile_reconnect (Context *context);
+void profile_destroy   (Context *context);
 
 #endif /* PROFILE_H */
