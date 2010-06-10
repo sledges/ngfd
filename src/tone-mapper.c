@@ -222,7 +222,7 @@ tone_mapper_reconnect (Context *context)
 
     if (!context->session_bus) {
         LOG_DEBUG ("%s >> failed to connect to session bus.", __FUNCTION__);
-        return;
+        return FALSE;
     }
 
     success = query_tone_path (context);

@@ -158,8 +158,8 @@ _parse_group_parent (const char *group)
 static void
 _parse_general (SettingsData *data, GKeyFile *k)
 {
-    (void) data;
-    (void) k;
+    Context *context = data->context;
+    context->patterns_path = g_key_file_get_string (k, GROUP_GENERAL, "vibration_search_path", NULL);
 }
 
 static void
