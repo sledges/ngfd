@@ -81,6 +81,7 @@ PKG_CHECK_MODULES(NGFD,
 		  [glib-2.0
 		   gobject-2.0
 		   gthread-2.0
+		   gio-2.0
 		   dbus-1
 		   dbus-glib-1
 		   libpulse
