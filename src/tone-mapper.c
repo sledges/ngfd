@@ -23,17 +23,11 @@
 #define TONE_MANAGER_DBUS_NAME          "com.nokia.ToneManager1"
 #define TONE_MANAGER_DBUS_PATH          "/com/nokia/ToneManager1"
 #define TONE_MANAGER_DBUS_IFACE         "com.nokia.ToneManager1"
+
 #define TONE_MANAGER_SIGNAL_COMPLETED   "Completed"
 #define TONE_MANAGER_SIGNAL_REMOVED     "Removed"
 #define TONE_MANAGER_METHOD_GETALL      "GetAll"
 #define TONE_MANAGER_METHOD_GETTONEPATH "GetTonePath"
-
-struct _ToneMapper
-{
-    DBusConnection  *connection;
-    GHashTable      *tones;
-    gchar           *tone_path;
-};
 
 static const char *signal_matches[] = {
     "type=signal,interface=" TONE_MANAGER_DBUS_IFACE ",member=" TONE_MANAGER_SIGNAL_COMPLETED,
@@ -42,24 +36,25 @@ static const char *signal_matches[] = {
 };
 
 static DBusHandlerResult
-_filter_cb (DBusConnection *c, DBusMessage *msg, void *userdata)
+filter_cb (DBusConnection *connection, DBusMessage *msg, void *userdata)
 {
-    ToneMapper *self = (ToneMapper*) userdata;
-    const char *key = NULL, *value = NULL;
-    gchar *tone_path = NULL;
+    Context    *context  = (Context*) userdata;
+    const char *key      = NULL;
+    const char *value    = NULL;
+    gchar      *mapped_tone_path = NULL;
 
     if (dbus_message_is_signal (msg, TONE_MANAGER_DBUS_IFACE, TONE_MANAGER_SIGNAL_COMPLETED)) {
         if (dbus_message_get_args (msg, NULL, DBUS_TYPE_STRING, &key, DBUS_TYPE_STRING, &value, DBUS_TYPE_INVALID)) {
-            tone_path = g_build_filename (self->tone_path, value, NULL);
-            g_hash_table_replace (self->tones, g_strdup (key), tone_path);
-            LOG_DEBUG ("New mapped tone: %s = %s\n", key, tone_path);
+            mapped_tone_path = g_build_filename (context->mapped_tone_path, value, NULL);
+            g_hash_table_replace (context->mapped_tones, g_strdup (key), mapped_tone_path);
+            LOG_DEBUG ("%s >> new mapped tone: %s = %s\n", __FUNCTION__, key, mapped_tone_path);
         }
      }
 
     else if (dbus_message_is_signal (msg, TONE_MANAGER_DBUS_IFACE, TONE_MANAGER_SIGNAL_REMOVED)) {
         if (dbus_message_get_args (msg, NULL, DBUS_TYPE_STRING, &key, DBUS_TYPE_STRING, &value, DBUS_TYPE_INVALID)) {
-            g_hash_table_remove (self->tones, key);
-            LOG_DEBUG ("Removed mapped tone: %s\n", key);
+            g_hash_table_remove (context->mapped_tones, key);
+            LOG_DEBUG ("%s >> removed mapped tone: %s\n", __FUNCTION__, key);
         }
     }
 
@@ -67,27 +62,27 @@ _filter_cb (DBusConnection *c, DBusMessage *msg, void *userdata)
 }
 
 static void
-_add_signal_matches (ToneMapper *self)
+add_signal_matches (Context *context)
 {
     const char **p = NULL;
     for (p = signal_matches; *p; p++)
-        dbus_bus_add_match (self->connection, *p, NULL);
+        dbus_bus_add_match (context->session_bus, *p, NULL);
 
-    dbus_connection_add_filter (self->connection, _filter_cb, self, NULL);
+    dbus_connection_add_filter (context->session_bus, filter_cb, context, NULL);
 }
 
 static void
-_remove_signal_matches (ToneMapper *self)
+remove_signal_matches (Context *context)
 {
     const char **p = NULL;
     for (p = signal_matches; *p; p++)
-        dbus_bus_remove_match (self->connection, *p, NULL);
+        dbus_bus_remove_match (context->session_bus, *p, NULL);
 
-    dbus_connection_remove_filter (self->connection, _filter_cb, self);
+    dbus_connection_remove_filter (context->session_bus, filter_cb, context);
 }
 
 static const char*
-_get_string (DBusMessageIter *iter)
+get_string (DBusMessageIter *iter)
 {
     const char *str = NULL;
 
@@ -101,14 +96,15 @@ _get_string (DBusMessageIter *iter)
 }
 
 static void
-_get_all_reply_cb (DBusPendingCall *pending, void *userdata)
+get_all_reply_cb (DBusPendingCall *pending, void *userdata)
 {
-    ToneMapper *self = (ToneMapper*) userdata;
+    Context     *context       = (Context*) userdata;
+    DBusMessage *msg           = NULL;
+    const char  *key           = NULL;
+    const char  *value         = NULL;
+    gchar       *tone_filename = NULL;
 
-    DBusMessage *msg = NULL;
     DBusMessageIter iter, array, dict;
-    const char *key = NULL, *value = NULL;
-    gchar *tone_filename = NULL;
 
     if ((msg = dbus_pending_call_steal_reply (pending)) == NULL)
         goto done;
@@ -120,13 +116,13 @@ _get_all_reply_cb (DBusPendingCall *pending, void *userdata)
         while (dbus_message_iter_get_arg_type (&array) == DBUS_TYPE_DICT_ENTRY) {
             dbus_message_iter_recurse (&array, &dict);
 
-            key = _get_string (&dict);
-            value = _get_string (&dict);
+            key   = get_string (&dict);
+            value = get_string (&dict);
 
             if (key && value) {
-                tone_filename = g_build_filename (self->tone_path, value, NULL);
-                g_hash_table_replace (self->tones, g_strdup (key), tone_filename);
-                LOG_DEBUG ("key = %s, value = %s\n", key, tone_filename);
+                tone_filename = g_build_filename (context->mapped_tone_path, value, NULL);
+                g_hash_table_replace (context->mapped_tones, g_strdup (key), tone_filename);
+                LOG_DEBUG ("%s >> mapped file %s => %s\n", __FUNCTION__, key, tone_filename);
             }
 
             dbus_message_iter_next (&array);
@@ -143,58 +139,59 @@ done:
 }
 
 static gboolean
-_query_tones (ToneMapper *self)
+query_tones (Context *context)
 {
-    DBusMessage *msg = NULL;
+    DBusMessage     *msg     = NULL;
     DBusPendingCall *pending = NULL;
 
     msg = dbus_message_new_method_call (TONE_MANAGER_DBUS_NAME, TONE_MANAGER_DBUS_PATH,
         TONE_MANAGER_DBUS_IFACE, TONE_MANAGER_METHOD_GETALL);
 
     if (msg == NULL) {
-        LOG_ERROR ("Failed to create msg!");
+        LOG_WARNING ("%s >> failed to create msg!", __FUNCTION__);
         return FALSE;
     }
 
-    dbus_connection_send_with_reply (self->connection, msg, &pending, -1);
+    dbus_connection_send_with_reply (context->session_bus, msg, &pending, -1);
     dbus_message_unref (msg);
 
     if (pending == NULL) {
-        LOG_ERROR ("failed to get pending!");
+        LOG_WARNING ("%s >> failed to get pending!", __FUNCTION__);
         return FALSE;
     }
 
-    dbus_pending_call_set_notify (pending, _get_all_reply_cb, self, NULL);
+    dbus_pending_call_set_notify (pending, get_all_reply_cb, context, NULL);
     return TRUE;
 }
 
 static gboolean
-_query_tone_path (ToneMapper *self)
+query_tone_path (Context *context)
 {
-    DBusMessage *msg = NULL, *reply = NULL;
-    const char *tone_path = NULL;
-    DBusError error;
+    DBusMessage *msg       = NULL;
+    DBusMessage *reply     = NULL;
+    const char  *mapped_tone_path = NULL;
+    DBusError    error;
 
     msg = dbus_message_new_method_call (TONE_MANAGER_DBUS_NAME, TONE_MANAGER_DBUS_PATH,
         TONE_MANAGER_DBUS_IFACE, TONE_MANAGER_METHOD_GETTONEPATH);
 
     if (msg == NULL) {
-        LOG_ERROR ("Failed to create msg!");
+        LOG_WARNING ("%s >> failed to create msg!", __FUNCTION__);
         return FALSE;
     }
 
     dbus_error_init (&error);
-    reply = dbus_connection_send_with_reply_and_block (self->connection, msg, -1, &error);
+    reply = dbus_connection_send_with_reply_and_block (context->session_bus, msg, -1, &error);
 
     if (reply) {
-        if (dbus_message_get_args (reply, NULL, DBUS_TYPE_STRING, &tone_path, DBUS_TYPE_INVALID)) {
-            LOG_DEBUG ("Got tone path: %s", tone_path);
-            self->tone_path = g_strdup (tone_path);
+        if (dbus_message_get_args (reply, NULL, DBUS_TYPE_STRING, &mapped_tone_path, DBUS_TYPE_INVALID)) {
+            LOG_DEBUG ("%s >> got tone path: %s", __FUNCTION__, mapped_tone_path);
+            context->mapped_tone_path = g_strdup (mapped_tone_path);
         }
     }
 
     if (dbus_error_is_set (&error)) {
-        LOG_ERROR ("%s: %s", __FUNCTION__, error.message);
+        LOG_ERROR ("%s >> query tone path failed: %s", __FUNCTION__, error.message);
         dbus_error_free (&error);
     }
 
@@ -204,82 +201,63 @@ _query_tone_path (ToneMapper *self)
     return TRUE;
 }
 
-ToneMapper*
-tone_mapper_create ()
+int
+tone_mapper_create (Context *context)
 {
-    ToneMapper *self = NULL;
-    DBusError error;
+    gboolean success = FALSE;
 
-    if ((self = g_new0 (ToneMapper, 1)) == NULL) {
-        goto failed;
+    if ((context->mapped_tones = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free)) == NULL)
+        return FALSE;
+
+    success = tone_mapper_reconnect (context);
+    (void) success;
+
+    return TRUE;
+}
+
+int
+tone_mapper_reconnect (Context *context)
+{
+    int success = FALSE;
+
+    if (!context->session_bus) {
+        LOG_DEBUG ("%s >> failed to connect to session bus.", __FUNCTION__);
+        return;
     }
 
-    dbus_error_init (&error);
-    self->connection = dbus_bus_get (DBUS_BUS_SESSION, &error);
-    if (self->connection == NULL) {
-        if (dbus_error_is_set (&error)) {
-            LOG_ERROR ("Failed to get session bus: %s", error.message);
-            dbus_error_free (&error);
-        }
+    success = query_tone_path (context);
+    success = query_tones     (context);
 
-        goto failed;
-    }
+    add_signal_matches (context);
 
-    dbus_connection_setup_with_g_main (self->connection, NULL);
-
-    if ((self->tones = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free)) == NULL)
-        goto failed;
-
-    /* Do the initial query of tone path and mapped tones. */
-    if (!_query_tone_path (self)) {
-        LOG_ERROR ("Failed to query tone path!");
-        goto failed;
-    }
-
-    if (!_query_tones (self)) {
-        LOG_ERROR ("Failed to query tones!");
-        goto failed;
-    }
-
-    _add_signal_matches (self);
-
-    return self;
-
-failed:
-    tone_mapper_destroy (self);
-    return NULL;
+    (void) success;
+    return TRUE;
 }
 
 void
-tone_mapper_destroy (ToneMapper *self)
+tone_mapper_destroy (Context *context)
 {
-    if (self == NULL)
+    if (!context->session_bus)
         return;
 
-    if (self->connection) {
-        _remove_signal_matches (self);
-        dbus_connection_unref (self->connection);
-        self->connection = NULL;
+    remove_signal_matches (context);
+
+    if (context->mapped_tones) {
+        g_hash_table_destroy (context->mapped_tones);
+        context->mapped_tones = NULL;
     }
 
-    if (self->tones) {
-        g_hash_table_destroy (self->tones);
-        self->tones = NULL;
-    }
-
-    g_free (self->tone_path);
-
-    g_free (self);
+    g_free (context->mapped_tone_path);
 }
 
 const char*
-tone_mapper_get_tone (ToneMapper *self, const char *uri)
+tone_mapper_get_tone (Context *context, const char *orig)
 {
-    if (self == NULL || uri == NULL)
+    if (context == NULL || orig == NULL)
         return NULL;
 
-    if (self->tones == NULL)
+    if (context->mapped_tones == NULL)
         return NULL;
 
-    return (const char*) g_hash_table_lookup (self->tones, uri);
+    return (const char*) g_hash_table_lookup (context->mapped_tones, orig);
 }

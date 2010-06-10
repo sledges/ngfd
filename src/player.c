@@ -30,7 +30,7 @@ static void              clear_stream_volume              (Request *request);
 static void              set_stream_event_id              (AudioStream *stream, const char *event_id);
 static void              set_stream_role_from_volume      (AudioStream *stream, Volume *volume);
 
-static const gchar*      get_uncompressed_tone            (ToneMapper *mapper, const char *tone);
+static const gchar*      get_uncompressed_tone            (Context *context, const char *tone);
 static SoundPath*        resolve_sound_path               (Request *request, gboolean advance);
 
 static gchar*            build_vibration_filename         (const char *source);
@@ -175,14 +175,14 @@ set_stream_role_from_volume (AudioStream *stream, Volume *volume)
 }
 
 static const gchar*
-get_uncompressed_tone (ToneMapper *mapper, const char *tone)
+get_uncompressed_tone (Context *context, const char *tone)
 {
     const char *uncompressed = NULL;
 
-    if (mapper == NULL || tone == NULL)
+    if (context == NULL || tone == NULL)
         return NULL;
 
-    uncompressed = tone_mapper_get_tone (mapper, tone);
+    uncompressed = tone_mapper_get_tone (context, tone);
     if (uncompressed) {
         LOG_DEBUG ("%s >> resolved uncompressed tone: %s", __FUNCTION__, uncompressed);
         return uncompressed;
@@ -429,7 +429,7 @@ prepare_stream (Request *request, SoundPath *sound_path)
     /* tone mapper provides an uncompressed file for us to play
        if available. */
 
-    uncompressed = get_uncompressed_tone (context->tone_mapper, sound_path->filename);
+    uncompressed = get_uncompressed_tone (context, sound_path->filename);
     if (uncompressed) {
         stream_source = g_strdup (uncompressed);
         stream_type   = AUDIO_STREAM_UNCOMPRESSED;

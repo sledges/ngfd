@@ -17,12 +17,11 @@
 #ifndef TONE_MAPPER_H
 #define TONE_MAPPER_H
 
-#include <glib.h>
+#include "context.h"
 
-typedef struct _ToneMapper ToneMapper;
-
-ToneMapper* tone_mapper_create   ();
-void        tone_mapper_destroy  (ToneMapper *self);
-const char* tone_mapper_get_tone (ToneMapper *self, const char *uri);
+int         tone_mapper_create    (Context *context);
+int         tone_mapper_reconnect (Context *context);
+void        tone_mapper_destroy   (Context *context);
+const char* tone_mapper_get_tone  (Context *context,  const char *orig);
 
 #endif /* TONE_MAPPER_H */

@@ -91,8 +91,9 @@ context_create (Context **context)
         return FALSE;
     }
 
-    if ((c->tone_mapper = tone_mapper_create ()) == NULL) {
-        LOG_WARNING ("Failed to create tone mapper!");
+    if (!tone_mapper_create (c)) {
+        LOG_ERROR ("Failed to create tone mapper!");
+        return FALSE;
     }
 
     if ((c->audio = audio_create ()) == NULL) {
@@ -127,8 +128,9 @@ context_create (Context **context)
 void
 context_destroy (Context *context)
 {
-    dbus_if_destroy (context);
-    profile_destroy (context);
+    dbus_if_destroy     (context);
+    profile_destroy     (context);
+    tone_mapper_destroy (context);
 
     if (context->session_bus) {
         dbus_connection_unref (context->session_bus);
@@ -148,11 +150,6 @@ context_destroy (Context *context)
     if (context->audio) {
         audio_destroy (context->audio);
         context->audio = NULL;
-    }
-
-    if (context->tone_mapper) {
-        tone_mapper_destroy (context->tone_mapper);
-        context->tone_mapper = NULL;
     }
 
     _request_manager_destroy (context);
