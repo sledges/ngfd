@@ -21,6 +21,7 @@
 
 #define APPLICATION_NAME "pulse-context"
 #define VOLUME_SCALE_VALUE 50000
+#define PULSE_RECONNECT_DELAY 2
 
 #include "log.h"
 #include "pulse-context.h"
@@ -42,6 +43,7 @@ struct _PulseContext
     gpointer              userdata;
     GQueue               *actions;
     guint                 volume_id;
+    guint                 reconnect_id;
 };
 
 /* Function pre-declarations */
@@ -49,6 +51,16 @@ static gboolean _pulseaudio_initialize (PulseContext *self);
 static void     _pulseaudio_shutdown   (PulseContext *self);
 static void     _context_state_cb      (pa_context *context, void *userdata);
 static gboolean _process_volume_action (gpointer userdata);
+
+static gboolean
+_reconnect_cb (gpointer userdata)
+{
+    PulseContext *self = (PulseContext*) userdata;
+    
+    _pulseaudio_initialize (self);
+    
+    return FALSE;
+}
 
 /**
  * Pulseaudio context handling. Pulseaudio will trigger this callback
@@ -87,13 +99,8 @@ _context_state_cb (pa_context *context,
             break;
 
         case PA_CONTEXT_FAILED:
-            if (self->callback)
-                self->callback (self, PULSE_CONTEXT_STATE_FAILED, self->userdata);
-            break;
-
         case PA_CONTEXT_TERMINATED:
-            if (self->callback)
-                self->callback (self, PULSE_CONTEXT_STATE_TERMINATED, self->userdata);
+            self->reconnect_id = g_timeout_add_seconds (PULSE_RECONNECT_DELAY, _reconnect_cb, self);
             break;
 
         default:
@@ -116,7 +123,12 @@ _pulseaudio_initialize (PulseContext *self)
     pa_mainloop_api *api      = NULL;
 
     g_assert (self != NULL);
-
+    
+    if (self->mainloop) {
+        pa_glib_mainloop_free (self->mainloop);
+        self->mainloop = NULL;
+    }
+    
     if ((self->mainloop = pa_glib_mainloop_new (g_main_context_default ())) == NULL)
         return FALSE;
 
@@ -127,6 +139,11 @@ _pulseaudio_initialize (PulseContext *self)
     pa_proplist_sets (proplist, PA_PROP_APPLICATION_NAME, APPLICATION_NAME);
     pa_proplist_sets (proplist, PA_PROP_APPLICATION_ID, APPLICATION_NAME);
     pa_proplist_sets (proplist, PA_PROP_APPLICATION_VERSION, PACKAGE_VERSION);
+    
+    if (self->context) {
+        pa_context_unref (self->context);
+        self->context = NULL;
+    }
 
     self->context = pa_context_new_with_proplist (api, APPLICATION_NAME, proplist);
     if (self->context == NULL) {
@@ -138,7 +155,7 @@ _pulseaudio_initialize (PulseContext *self)
     pa_context_set_state_callback (self->context, _context_state_cb, self);
 
     if (pa_context_connect (self->context, NULL,
-        /*PA_CONTEXT_NOFAIL |*/ PA_CONTEXT_NOAUTOSPAWN, NULL) < 0)
+        PA_CONTEXT_NOFAIL | PA_CONTEXT_NOAUTOSPAWN, NULL) < 0)
     {
         return FALSE;
     }
@@ -174,6 +191,11 @@ _pulseaudio_shutdown (PulseContext *self)
         g_queue_foreach (self->actions, _free_queue_item, NULL);
         g_queue_free    (self->actions);
         self->actions = NULL;
+    }
+    
+    if (self->reconnect_id) {
+        g_source_remove (self->reconnect_id);
+        self->reconnect_id = 0;
     }
 
     if (self->context) {
