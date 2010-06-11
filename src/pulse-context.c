@@ -26,18 +26,29 @@
 #include "pulse-context.h"
 #include "config.h"
 
+typedef struct _VolumeAction VolumeAction;
+
+struct _VolumeAction
+{
+    gchar *role;
+    gint   level;
+};
+
 struct _PulseContext
 {
-    pa_glib_mainloop        *mainloop;
-    pa_context              *context;
+    pa_glib_mainloop     *mainloop;
+    pa_context           *context;
     PulseContextCallback  callback;
-    gpointer                 userdata;
+    gpointer              userdata;
+    GQueue               *actions;
+    guint                 volume_id;
 };
 
 /* Function pre-declarations */
 static gboolean _pulseaudio_initialize (PulseContext *self);
 static void     _pulseaudio_shutdown   (PulseContext *self);
 static void     _context_state_cb      (pa_context *context, void *userdata);
+static gboolean _process_volume_action (gpointer userdata);
 
 /**
  * Pulseaudio context handling. Pulseaudio will trigger this callback
@@ -64,6 +75,13 @@ _context_state_cb (pa_context *context,
             break;
 
         case PA_CONTEXT_READY:
+            if (self->volume_id > 0) {
+                g_source_remove (self->volume_id);
+                self->volume_id = 0;
+            }
+
+            self->volume_id = g_idle_add (_process_volume_action, self);
+
             if (self->callback)
                 self->callback (self, PULSE_CONTEXT_STATE_READY, self->userdata);
             break;
@@ -136,9 +154,27 @@ _pulseaudio_initialize (PulseContext *self)
  */
 
 static void
+_free_queue_item (gpointer data, gpointer userdata)
+{
+    VolumeAction *action = (VolumeAction*) data;
+
+    if (!action)
+        return;
+
+    g_free       (action->role);
+    g_slice_free (VolumeAction, action);
+}
+
+static void
 _pulseaudio_shutdown (PulseContext *self)
 {
     g_assert (self != NULL);
+
+    if (self->actions) {
+        g_queue_foreach (self->actions, _free_queue_item, NULL);
+        g_queue_free    (self->actions);
+        self->actions = NULL;
+    }
 
     if (self->context) {
         pa_context_set_state_callback (self->context, NULL, NULL);
@@ -159,6 +195,9 @@ pulse_context_create ()
     PulseContext *self = NULL;
 
     if ((self = g_new0 (PulseContext, 1)) == NULL)
+        goto failed;
+
+    if ((self->actions = g_queue_new ()) == NULL)
         goto failed;
 
     if (!_pulseaudio_initialize (self))
@@ -202,28 +241,20 @@ pulse_context_get_context (PulseContext *self)
     return self->context;
 }
 
-void
-pulse_context_set_volume (PulseContext *self,
-                              const char      *role,
-                              gint             volume)
+static void
+_set_volume (PulseContext *self, const char *role, gint volume)
 {
-#ifdef HAVE_STREAMRESTORE
-    pa_ext_stream_restore2_info *stream_restore_info[1], info;
-
-    gdouble       v = 0.0;
-    pa_operation *o = NULL;
-    pa_cvolume    vol;
-
-    if (self->context == NULL || role == NULL || volume < 0)
+    if (!self || !role)
         return;
 
-    if (pa_context_get_state (self->context) != PA_CONTEXT_READY) {
-        while (pa_context_get_state (self->context) != PA_CONTEXT_READY)
-            g_main_context_iteration (NULL, 0);
-    }
-
+    gdouble v = 0.0;
     volume = volume > 100 ? 100 : volume;
     v = (gdouble) volume / 100.0;
+
+#ifdef HAVE_STREAMRESTORE
+    pa_ext_stream_restore2_info *stream_restore_info[1], info;
+    pa_operation *o = NULL;
+    pa_cvolume    vol;
 
     pa_cvolume_set (&vol, 1, v * VOLUME_SCALE_VALUE);
 
@@ -243,5 +274,49 @@ pulse_context_set_volume (PulseContext *self,
         LOG_DEBUG ("%s >> volume for role %s set to %d", __FUNCTION__, role, (guint) (v * PA_VOLUME_NORM));
         pa_operation_unref (o);
     }
+    else {
+        LOG_DEBUG ("%s >> failed to set volume for role %s (%d)", __FUNCTION__, role, (guint) (v * PA_VOLUME_NORM));
+    }
 #endif
+
+}
+
+static gboolean
+_process_volume_action (gpointer userdata)
+{
+    PulseContext *self   = (PulseContext*) userdata;
+    VolumeAction *action = NULL;
+
+    if (!self->actions)
+        return FALSE;
+
+    while ((action = (VolumeAction*) g_queue_pop_head (self->actions)) != NULL) {
+        _set_volume  (self, action->role, action->level);
+        g_free       (action->role);
+        g_slice_free (VolumeAction, action);
+    }
+
+    self->volume_id = 0;
+    return FALSE;
+}
+
+void
+pulse_context_set_volume (PulseContext *self,
+                          const char   *role,
+                          gint          volume)
+{
+    VolumeAction *action = NULL;
+
+    if (!self || !role)
+        return;
+
+    if (pa_context_get_state (self->context) == PA_CONTEXT_READY) {
+        _set_volume (self, role, volume);
+    }
+    else {
+        action = g_slice_new0 (VolumeAction);
+        action->role  = g_strdup (role);
+        action->level = volume;
+        g_queue_push_tail (self->actions, action);
+    }
 }
