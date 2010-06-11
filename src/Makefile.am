@@ -16,6 +16,8 @@ ngfd_SOURCES = \
 	profile.h \
 	dbus-if.h \
 	dbus-if.c \
+	session.h \
+	session.c \
 	state.h \
 	state.c \
 	property.h \

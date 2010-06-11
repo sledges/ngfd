@@ -30,10 +30,10 @@ static void              clear_stream_volume              (Request *request);
 static void              set_stream_event_id              (AudioStream *stream, const char *event_id);
 static void              set_stream_role_from_volume      (AudioStream *stream, Volume *volume);
 
-static const gchar*      get_uncompressed_tone            (ToneMapper *mapper, const char *tone);
+static const gchar*      get_uncompressed_tone            (Context *context, const char *tone);
 static SoundPath*        resolve_sound_path               (Request *request, gboolean advance);
 
-static gchar*            build_vibration_filename         (const char *source);
+static gchar*            build_vibration_filename         (const char *path, const char *source);
 static VibrationPattern* resolve_custom_pattern           (Request *request, SoundPath *sound_path);
 static VibrationPattern* resolve_vibration_pattern        (Request *request, gboolean advance);
 
@@ -175,14 +175,14 @@ set_stream_role_from_volume (AudioStream *stream, Volume *volume)
 }
 
 static const gchar*
-get_uncompressed_tone (ToneMapper *mapper, const char *tone)
+get_uncompressed_tone (Context *context, const char *tone)
 {
     const char *uncompressed = NULL;
 
-    if (mapper == NULL || tone == NULL)
+    if (context == NULL || tone == NULL)
         return NULL;
 
-    uncompressed = tone_mapper_get_tone (mapper, tone);
+    uncompressed = tone_mapper_get_tone (context, tone);
     if (uncompressed) {
         LOG_DEBUG ("%s >> resolved uncompressed tone: %s", __FUNCTION__, uncompressed);
         return uncompressed;
@@ -232,29 +232,45 @@ resolve_sound_path (Request *request, gboolean advance)
 }
 
 static gchar*
-build_vibration_filename (const char *source)
+build_vibration_filename (const char *path, const char *source)
 {
     gchar *separator = NULL;
-    gchar *output = NULL;
-    size_t size;
+    gchar *output    = NULL;
+    gchar *basename  = NULL;
+    gchar *result    = NULL;
 
-    if (source == NULL)
+    if (!source)
         return NULL;
 
-    separator = g_strrstr (source, ".");
-    size = (separator != NULL) ? (size_t) (separator - source) : strlen (source);
+    if (!path) {
+        basename = g_strdup (source);
+        if ((separator = g_strrstr (basename, ".")) == NULL) {
+            g_free (basename);
+            return NULL;
+        }
 
-    if (size == 0)
-        return NULL;
+        *separator = '\0';
+        result = g_strdup_printf ("%s.ivt", basename);
 
-    output = g_try_malloc0 (size + 5);
-    if (output == NULL)
-        return NULL;
+        g_free (output);
+        g_free (basename);
+    }
+    else {
+        basename = g_path_get_basename (source);
+        if ((separator = g_strrstr (basename, ".")) == NULL) {
+            g_free (basename);
+            return NULL;
+        }
 
-    strncpy (output, source, size);
-    strncat (output, ".ivt", 4);
+        *separator = '\0';
+        output = g_strdup_printf ("%s.ivt", basename);
+        result = g_build_filename (path, output, NULL);
 
-    return output;
+        g_free (output);
+        g_free (basename);
+    }
+
+    return result;
 }
 
 static VibrationPattern*
@@ -262,6 +278,7 @@ resolve_custom_pattern (Request *request, SoundPath *sound_path)
 {
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
+    Context          *context  = request->context;
     VibrationPattern *pattern  = NULL;
     gpointer          data     = NULL;
     gchar            *filename = NULL;
@@ -269,7 +286,7 @@ resolve_custom_pattern (Request *request, SoundPath *sound_path)
     if (!sound_path || (sound_path && !sound_path->filename))
         return NULL;
 
-    if ((filename = build_vibration_filename (sound_path->filename)) == NULL)
+    if ((filename = build_vibration_filename (context->patterns_path, sound_path->filename)) == NULL)
         return NULL;
 
     if ((data = vibrator_load (filename)) == NULL) {
@@ -429,7 +446,7 @@ prepare_stream (Request *request, SoundPath *sound_path)
     /* tone mapper provides an uncompressed file for us to play
        if available. */
 
-    uncompressed = get_uncompressed_tone (context->tone_mapper, sound_path->filename);
+    uncompressed = get_uncompressed_tone (context, sound_path->filename);
     if (uncompressed) {
         stream_source = g_strdup (uncompressed);
         stream_type   = AUDIO_STREAM_UNCOMPRESSED;

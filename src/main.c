@@ -26,6 +26,7 @@
 #include "dbus-if.h"
 #include "profile.h"
 #include "settings.h"
+#include "session.h"
 #include "volume-controller.h"
 
 static gboolean _request_manager_create         (Context *context);
@@ -40,7 +41,7 @@ _get_dbus_connection (DBusBusType bus_type)
     dbus_error_init (&error);
     bus = dbus_bus_get (bus_type, &error);
     if (bus == NULL) {
-        LOG_WARNING ("Failed to get %s bus: %s", bus_type == DBUS_BUS_SYSTEM ? "system" : "session", error.message);
+        LOG_WARNING ("%s >> failed to get %s bus: %s", bus_type == DBUS_BUS_SYSTEM ? "system" : "session", error.message);
         dbus_error_free (&error);
         return NULL;
     }
@@ -63,19 +64,10 @@ context_create (Context **context)
         return FALSE;
     }
 
-    /* setup the dbus connections. we will hook up to the session bus, but use
-       the system bus too for led, backlight and tone generator. */
-
-    c->system_bus  = _get_dbus_connection (DBUS_BUS_SYSTEM);
-    c->session_bus = _get_dbus_connection (DBUS_BUS_SESSION);
-
-    if (!c->system_bus || !c->session_bus) {
-        LOG_ERROR ("Failed to get system/session bus!");
+    if ((c->system_bus = _get_dbus_connection (DBUS_BUS_SYSTEM)) == NULL)
         return FALSE;
-    }
 
     dbus_connection_setup_with_g_main (c->system_bus, NULL);
-    dbus_connection_setup_with_g_main (c->session_bus, NULL);
 
     /* setup the interface */
 
@@ -91,8 +83,9 @@ context_create (Context **context)
         return FALSE;
     }
 
-    if ((c->tone_mapper = tone_mapper_create ()) == NULL) {
-        LOG_WARNING ("Failed to create tone mapper!");
+    if (!tone_mapper_create (c)) {
+        LOG_ERROR ("Failed to create tone mapper!");
+        return FALSE;
     }
 
     if ((c->audio = audio_create ()) == NULL) {
@@ -117,8 +110,12 @@ context_create (Context **context)
         return FALSE;
     }
 
-    profile_resolve              (c);
-    volume_controller_update_all (c);
+    /* hook up the session watcher */
+
+    if (!session_create (c)) {
+        LOG_WARNING ("%s >> failed to setup session watcher.", __FUNCTION__);
+        return FALSE;
+    }
 
     *context = c;
     return TRUE;
@@ -127,8 +124,10 @@ context_create (Context **context)
 void
 context_destroy (Context *context)
 {
-    dbus_if_destroy (context);
-    profile_destroy (context);
+    dbus_if_destroy     (context);
+    profile_destroy     (context);
+    tone_mapper_destroy (context);
+    session_destroy     (context);
 
     if (context->session_bus) {
         dbus_connection_unref (context->session_bus);
@@ -150,11 +149,6 @@ context_destroy (Context *context)
         context->audio = NULL;
     }
 
-    if (context->tone_mapper) {
-        tone_mapper_destroy (context->tone_mapper);
-        context->tone_mapper = NULL;
-    }
-
     _request_manager_destroy (context);
 
     if (context->loop) {
@@ -165,6 +159,7 @@ context_destroy (Context *context)
     sound_path_array_free        (context->sounds);
     vibration_pattern_array_free (context->patterns);
     volume_array_free            (context->volumes);
+    g_free                       (context->patterns_path);
 
     g_free (context);
 }

@@ -14,14 +14,12 @@
  * written consent of Nokia.
  */
 
-#ifndef TONE_MAPPER_H
-#define TONE_MAPPER_H
+#ifndef SESSION_H
+#define SESSION_H
 
 #include "context.h"
 
-int         tone_mapper_create    (Context *context);
-int         tone_mapper_reconnect (Context *context);
-void        tone_mapper_destroy   (Context *context);
-const char* tone_mapper_get_tone  (Context *context,  const char *orig);
+int  session_create  (Context *context);
+void session_destroy (Context *context);
 
-#endif /* TONE_MAPPER_H */
+#endif /* SESSION_H */

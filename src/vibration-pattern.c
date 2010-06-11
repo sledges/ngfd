@@ -46,6 +46,7 @@ vibration_pattern_equals (VibrationPattern *a, VibrationPattern *b)
 
                 return FALSE;
             }
+            break;
 
          case VIBRATION_PATTERN_TYPE_INTERNAL:
             if (a->pattern == b->pattern)

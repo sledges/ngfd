@@ -44,7 +44,6 @@ struct _Context
     GHashTable    *events;
     GList         *request_list;
 
-    ToneMapper    *tone_mapper;
     Audio         *audio;
     Vibrator      *vibrator;
 
@@ -59,11 +58,15 @@ struct _Context
 
     VibrationPattern **patterns;        /* NULL terminated array of all vibration patterns defined in the configuration */  
     guint              num_patterns;
+    gchar             *patterns_path;
 
     gchar             *active_profile;
     gboolean           silent_mode;
     gboolean           meeting_mode;
     gboolean           vibration_enabled;
+
+    gchar             *mapped_tone_path;
+    GHashTable        *mapped_tones;
 };
 
 SoundPath*        context_add_sound_path (Context *context, SoundPath *sound_path);

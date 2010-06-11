@@ -125,25 +125,39 @@ pattern_lookup (Vibrator *vibrator, guint id)
     return NULL;
 }
 
+static gboolean
+vibrator_reconnect (Vibrator *vibrator)
+{
+    if (vibrator->device != VIBE_INVALID_DEVICE_HANDLE_VALUE) {
+        ImmVibeCloseDevice (vibrator->device);
+        ImmVibeTerminate   ();
+
+        vibrator->device = VIBE_INVALID_DEVICE_HANDLE_VALUE;
+    }
+
+    if (VIBE_FAILED (ImmVibeInitialize (VIBE_CURRENT_VERSION_NUMBER)))
+        return FALSE;
+
+    if (VIBE_FAILED (ImmVibeOpenDevice (0, &vibrator->device)))
+        return FALSE;
+
+    return TRUE;
+}
+
 Vibrator*
 vibrator_create ()
 {
     Vibrator *vibrator = NULL;
 
-    if ((vibrator = g_new0 (Vibrator, 1)) == NULL)
-        goto failed;
+    if ((vibrator = g_new0 (Vibrator, 1)) == NULL) {
+        g_free (vibrator);
+        return NULL;
+    }
 
-    if (VIBE_FAILED (ImmVibeInitialize (VIBE_CURRENT_VERSION_NUMBER)))
-        goto failed;
-
-    if (VIBE_FAILED (ImmVibeOpenDevice (0, &vibrator->device)))
-        goto failed;
+    if (!vibrator_reconnect (vibrator))
+        LOG_WARNING ("%s >> failed to connect to vibrator daemon.", __FUNCTION__);
 
     return vibrator;
-
-failed:
-    vibrator_destroy (vibrator);
-    return NULL;
 }
 
 void
@@ -212,16 +226,37 @@ vibrator_start (Vibrator *vibrator, gpointer data, gint pattern_id, VibratorComp
     VibeUInt8 *effects = data ? (VibeUInt8*) data : g_pVibeIVTBuiltInEffects;
     gint       id      = 0;
     Pattern   *p       = NULL;
+    VibeInt32  ret     = 0;
+    gboolean   retry   = FALSE;
 
     if (vibrator == NULL)
         return 0;
 
-    if (VIBE_SUCCEEDED (ImmVibePlayIVTEffect (vibrator->device, effects, pattern_id, &id))) {
-        p = pattern_new (vibrator, id, effects, pattern_id, callback, userdata);
-        vibrator->patterns = g_list_append (vibrator->patterns, p);
-        LOG_DEBUG ("%s >> started pattern with id %d", __FUNCTION__, p->id);
-        return p->id;
-    }
+    do {
+        ret = ImmVibePlayIVTEffect (vibrator->device, effects, pattern_id, &id);
+
+        if (VIBE_SUCCEEDED (ret)) {
+            p = pattern_new (vibrator, id, effects, pattern_id, callback, userdata);
+            vibrator->patterns = g_list_append (vibrator->patterns, p);
+            LOG_DEBUG ("%s >> started pattern with id %d", __FUNCTION__, p->id);
+            return p->id;
+        }
+        else if (ret == VIBE_E_NOT_INITIALIZED) {
+            if (retry)
+                return 0;
+
+            LOG_DEBUG ("%s >> vibrator is not initialized.", __FUNCTION__);
+            if (!vibrator_reconnect (vibrator)) {
+                LOG_WARNING ("%s >> failed to reconnect to vibrator.", __FUNCTION__);
+                return 0;
+            }
+            else
+                LOG_DEBUG ("%s >> reconnected to vibrator.", __FUNCTION__);
+
+            retry = TRUE;
+        }
+
+    } while (retry);
 
     return 0;
 }
