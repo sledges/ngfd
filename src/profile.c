@@ -19,6 +19,7 @@
 
 #include "log.h"
 #include "volume-controller.h"
+#include "vibrator.h"
 #include "sound-path.h"
 #include "volume.h"
 #include "profile.h"
@@ -121,7 +122,12 @@ resolve_vibration (Context    *context,
 
         if ((!p->profile && g_str_equal (context->active_profile, profile)) || (p->profile && g_str_equal (p->profile, profile))) {
             g_free (p->filename);
+            g_free (p->data);
+
             p->filename = g_strdup (value);
+            if ((p->data = vibrator_load (p->filename)) == NULL)
+                LOG_WARNING ("%s >> failed to load vibrator pattern data: %s", __FUNCTION__, p->filename);
+
             break;
         }
     }
@@ -235,8 +241,13 @@ profile_resolve (Context *context)
                 continue;
 
             g_free (pattern->filename);
+            g_free (pattern->data);
+
             pattern->filename = profile_get_value (pattern->profile, pattern->key);
             pattern->pattern  = 0;
+
+            if ((pattern->data = vibrator_load (pattern->filename)) == NULL)
+                LOG_WARNING ("%s >> failed to load vibrator pattern data: %s", __FUNCTION__, pattern->filename);
         }
     }
 
