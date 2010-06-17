@@ -56,7 +56,7 @@ struct _Context
     Volume           **volumes;         /* all volumes defined in the configuration, NULL terminated */
     guint              num_volumes;
 
-    VibrationPattern **patterns;        /* NULL terminated array of all vibration patterns defined in the configuration */  
+    VibrationPattern **patterns;        /* NULL terminated array of all vibration patterns defined in the configuration */
     guint              num_patterns;
     gchar             *patterns_path;
 
@@ -67,6 +67,10 @@ struct _Context
 
     gchar             *mapped_tone_path;
     GHashTable        *mapped_tones;
+
+    DBusConnection    *volume_bus;      /* DBus connection to Pulseaudio */
+    guint              volume_retry_id; /* source id for retry connection */
+    GQueue            *volume_queue;    /* queued volume ops while Pulseaudio DBus connection is down */
 };
 
 SoundPath*        context_add_sound_path (Context *context, SoundPath *sound_path);

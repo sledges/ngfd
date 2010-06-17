@@ -20,7 +20,9 @@
 #include "context.h"
 #include "volume.h"
 
-int volume_controller_update     (Context *context, Volume *volume);
-int volume_controller_update_all (Context *context);
+int  volume_controller_create     (Context *context);
+void volume_controller_destroy    (Context *context);
+int  volume_controller_update     (Context *context, Volume *volume);
+int  volume_controller_update_all (Context *context);
 
 #endif /* VOLUME_CONTROLLER_H */

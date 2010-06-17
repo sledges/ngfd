@@ -78,6 +78,10 @@ context_create (Context **context)
 
     /* setup the backends */
 
+    if (!volume_controller_create (c)) {
+        LOG_WARNING ("%s >> failed to create volume control.", __FUNCTION__);
+    }
+
     if (!profile_create (c)) {
         LOG_ERROR ("Failed to create profile tracking!");
         return FALSE;
@@ -124,10 +128,11 @@ context_create (Context **context)
 void
 context_destroy (Context *context)
 {
-    dbus_if_destroy     (context);
-    profile_destroy     (context);
-    tone_mapper_destroy (context);
-    session_destroy     (context);
+    dbus_if_destroy           (context);
+    profile_destroy           (context);
+    tone_mapper_destroy       (context);
+    session_destroy           (context);
+    volume_controller_destroy (context);
 
     if (context->session_bus) {
         dbus_connection_unref (context->session_bus);
