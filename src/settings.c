@@ -26,7 +26,6 @@
 
 #define GROUP_GENERAL    "general"
 #define GROUP_VIBRATOR   "vibra"
-#define GROUP_VOLUME     "volume_pattern"
 #define GROUP_DEFINITION "definition"
 #define GROUP_EVENT      "event"
 
@@ -394,6 +393,9 @@ _create_volume (Context *context, const gchar *str)
 {
     Volume *volume = NULL;
     gchar *stripped = NULL;
+    gchar **split = NULL;
+    gchar **item = NULL;
+    gint i = 0;
 
     if (str == NULL)
         return NULL;
@@ -433,6 +435,33 @@ _create_volume (Context *context, const gchar *str)
             return NULL;
         }
 
+        g_free (stripped);
+    }
+    else if (g_str_has_prefix (str, "linear:")) {
+        stripped = _strip_prefix (str, "linear:");
+
+        volume             = volume_new ();
+        volume->type       = VOLUME_TYPE_LINEAR;
+        volume->level = 100;
+
+        if ((split = g_strsplit (stripped, ";", -1)) == NULL) {
+            g_free (stripped);
+            return NULL;
+        }
+
+        item = split;
+
+        for (i=0;i<3;i++) {
+            if (*item == NULL) {
+                g_strfreev (split);
+                g_free (stripped);
+                return NULL;
+            }
+            volume->linear[i] = atoi (*item);        
+            item++;
+        }
+
+        g_strfreev (split);
         g_free (stripped);
     }
 

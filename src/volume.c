@@ -61,6 +61,14 @@ volume_equals (Volume *a, Volume *b)
                 return TRUE;
 
             break;
+            
+        case VOLUME_TYPE_LINEAR:
+            if ((a->linear[0] && b->linear[0]) &&
+                (a->linear[1] && b->linear[1]) &&
+                (a->linear[2] && b->linear[2]))
+                return TRUE;
+
+            break;
 
         default:
             break;
@@ -126,6 +134,10 @@ volume_generate_role (Volume *volume)
 
         case VOLUME_TYPE_CONTROLLER:
             volume->role = g_strdup_printf ("x-meego-controller");
+            break;
+        
+        case VOLUME_TYPE_LINEAR:
+            volume->role = g_strdup_printf ("x-meego-linear");
             break;
 
         default:

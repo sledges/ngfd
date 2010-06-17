@@ -16,6 +16,8 @@
 
 #include <glib.h>
 #include <gst/gst.h>
+#include <gst/controller/gstcontroller.h>
+#include <gst/controller/gstinterpolationcontrolsource.h>
 #include <gio/gio.h>
 
 #include "log.h"
@@ -133,20 +135,22 @@ _gst_initialize (AudioInterface * iface, PulseContext * context)
 	(void) iface;
 	(void) context;
 
-	gst_init_check (NULL, NULL, NULL);
+    gst_init_check (NULL, NULL, NULL);
+    gst_controller_init (NULL, NULL);
 
-	_gst_element_preload ("aacparse");
-	_gst_element_preload ("nokiaaacdec");
-	_gst_element_preload ("id3demux");
-	_gst_element_preload ("uridecodebin");
-	_gst_element_preload ("mp3parse");
-	_gst_element_preload ("nokiamp3dec");
-	_gst_element_preload ("wavparse");
-	_gst_element_preload ("oggdemux");
-	_gst_element_preload ("ivorbisdec");
-	_gst_element_preload ("filesrc");
-	_gst_element_preload ("decodebin2");
-	_gst_element_preload ("pulsesink");
+    _gst_element_preload ("aacparse");
+    _gst_element_preload ("nokiaaacdec");
+    _gst_element_preload ("id3demux");
+    _gst_element_preload ("uridecodebin");
+    _gst_element_preload ("mp3parse");
+    _gst_element_preload ("nokiamp3dec");
+    _gst_element_preload ("wavparse");
+    _gst_element_preload ("oggdemux");
+    _gst_element_preload ("ivorbisdec");
+    _gst_element_preload ("filesrc");
+    _gst_element_preload ("decodebin2");
+    _gst_element_preload ("volume");
+    _gst_element_preload ("pulsesink");
 
 	return TRUE;
 }
@@ -168,9 +172,14 @@ _gst_prepare (AudioInterface *iface,
     GstElement  *element   = NULL;
     GstElement  *source    = NULL;
     GstElement  *decodebin = NULL;
+    GstElement  *volume    = NULL;
     GstElement  *sink      = NULL;
     GstBus      *bus       = NULL;
     pa_proplist *proplist  = NULL;
+    GstController *controller = NULL;
+    GstInterpolationControlSource *csource = NULL;
+    gdouble val = 0;
+    GValue vol = { 0, };
 
     if (!stream->source)
         return FALSE;
@@ -184,7 +193,35 @@ _gst_prepare (AudioInterface *iface,
     if (element == NULL || source == NULL || decodebin == NULL || sink == NULL)
         goto failed;
 
-    gst_bin_add_many (GST_BIN (element), source, decodebin, sink, NULL);
+    if (stream->volume->type == VOLUME_TYPE_LINEAR) {
+        if ((volume = gst_element_factory_make ("volume", NULL)) == NULL)
+            goto failed;
+
+        if (!(controller = gst_controller_new (G_OBJECT (volume), "volume", NULL)))
+            goto failed;
+        csource = gst_interpolation_control_source_new ();
+        gst_controller_set_control_source (controller, "volume", GST_CONTROL_SOURCE (csource));
+        gst_interpolation_control_source_set_interpolation_mode (csource, GST_INTERPOLATE_LINEAR);
+
+        g_value_init (&vol, G_TYPE_DOUBLE);
+
+        val = (gdouble)stream->volume->linear[0];
+        g_value_set_double (&vol, val / 100.0);
+        gst_interpolation_control_source_set (csource, 0 * GST_SECOND, &vol);
+
+        val = (gdouble)stream->volume->linear[1];
+        g_value_set_double (&vol, val / 100.0);
+        gst_interpolation_control_source_set (csource, stream->volume->linear[2] * GST_SECOND, &vol);
+
+        g_object_unref (csource);
+        gst_bin_add_many (GST_BIN (element), source, decodebin, volume, sink, NULL);
+        if (!gst_element_link (volume, sink))
+            goto failed_link;
+        g_signal_connect (G_OBJECT (decodebin), "new-decoded-pad", G_CALLBACK (_new_decoded_pad_cb), volume);
+    } else {
+        gst_bin_add_many (GST_BIN (element), source, decodebin, sink, NULL);
+        g_signal_connect (G_OBJECT (decodebin), "new-decoded-pad", G_CALLBACK (_new_decoded_pad_cb), sink);
+    }
 
     if (!gst_element_link (source, decodebin))
         goto failed_link;
@@ -203,13 +240,12 @@ _gst_prepare (AudioInterface *iface,
         pa_proplist_free (proplist);
     }
 
-    g_signal_connect (G_OBJECT (decodebin), "new-decoded-pad", G_CALLBACK (_new_decoded_pad_cb), sink);
-
     bus = gst_element_get_bus (element);
     gst_bus_add_watch (bus, _bus_cb, stream);
     gst_object_unref (bus);
 
     stream->data = (gpointer) element;
+    stream->data2 = (gpointer) controller;
     gst_element_set_state (element, GST_STATE_PAUSED);
 
     return TRUE;
@@ -218,7 +254,9 @@ failed:
     if (element)   gst_object_unref (element);
     if (source)    gst_object_unref (source);
     if (decodebin) gst_object_unref (decodebin);
+    if (volume)     gst_object_unref (volume);
     if (sink)      gst_object_unref (sink);
+    if (controller) gst_object_unref (controller);
     return FALSE;
 
 failed_link:
@@ -244,11 +282,17 @@ _gst_stop (AudioInterface *iface,
     LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
     GstElement *element = (GstElement*) stream->data;
+    GstController *controller = (GstController*) stream->data2;
 
     if (element) {
         gst_element_set_state (element, GST_STATE_NULL);
         gst_object_unref (element);
         stream->data = NULL;
+    }
+
+    if (controller) {
+        g_object_unref (controller);
+        stream->data2 = NULL;
     }
 }
 

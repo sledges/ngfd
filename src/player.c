@@ -444,10 +444,12 @@ prepare_stream (Request *request, SoundPath *sound_path)
     AudioStream *stream        = NULL;
 
     /* tone mapper provides an uncompressed file for us to play
-       if available. */
+       if available. If volume controller is to be used, force gstreamer
+       playback.
+    */
 
     uncompressed = get_uncompressed_tone (context, sound_path->filename);
-    if (uncompressed) {
+    if (request->event->volume->type != VOLUME_TYPE_LINEAR && uncompressed) {
         stream_source = g_strdup (uncompressed);
         stream_type   = AUDIO_STREAM_UNCOMPRESSED;
     }
@@ -464,6 +466,7 @@ prepare_stream (Request *request, SoundPath *sound_path)
     stream->properties     = pa_proplist_new ();
     stream->callback       = stream_state_cb;
     stream->userdata       = request;
+    stream->volume         = event->volume;
 
     request->stream       = stream;
     request->active_sound = sound_path;

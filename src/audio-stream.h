@@ -20,6 +20,8 @@
 #include <glib.h>
 #include <pulse/proplist.h>
 
+#include "volume.h"
+
 typedef struct _AudioStream      AudioStream;
 typedef enum   _AudioStreamState AudioStreamState;
 typedef enum   _AudioStreamType  AudioStreamType;
@@ -48,11 +50,13 @@ struct _AudioStream
     pa_proplist            *properties;
     AudioStreamCallback     callback;
     gpointer                userdata;
+    Volume                  *volume;
 
     /** Private implementation data */
     AudioStreamType         type;
     gpointer                iface;
     gpointer                data;
+    gpointer                data2;
 };
 
 #endif /* AUDIO_STREAM_H */

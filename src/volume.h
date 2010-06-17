@@ -24,7 +24,8 @@ enum
 {
     VOLUME_TYPE_FIXED,
     VOLUME_TYPE_PROFILE,
-    VOLUME_TYPE_CONTROLLER
+    VOLUME_TYPE_CONTROLLER,
+    VOLUME_TYPE_LINEAR
 };
 
 typedef struct _Volume Volume;
@@ -33,6 +34,7 @@ struct _Volume
 {
     guint       type;           /* FIXED, PROFILE or CONTROLLER */
     gint        level;          /* volume level, range 0-100 */
+    gint        linear[3];
     gchar      *role;           /* volume role */
     gchar      *key;
     gchar      *profile;
