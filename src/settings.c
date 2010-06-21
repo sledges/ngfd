@@ -69,6 +69,7 @@ static KeyEntry event_entries[] = {
     { KEY_ENTRY_TYPE_STRING, "event_id"             , 0    , NULL },
 
     /* tonegen */
+    { KEY_ENTRY_TYPE_BOOL  , "audio_tonegen_enabled", FALSE, NULL },
     { KEY_ENTRY_TYPE_INT   , "audio_tonegen_pattern", -1   , NULL },
 
     /* vibration */
