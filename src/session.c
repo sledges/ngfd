@@ -85,9 +85,8 @@ setup_file_polling (Context *context)
 static void
 stop_file_polling ()
 {
-    LOG_DEBUG ("%s >> stopping session bus address file polling.", __FUNCTION__);
-
     if (poll_id > 0) {
+        LOG_DEBUG ("%s >> stopping session bus address file polling.", __FUNCTION__);
         g_source_remove (poll_id);
         poll_id = 0;
     }
@@ -350,4 +349,6 @@ session_create (Context *context)
 void
 session_destroy (Context *context)
 {
+    stop_file_polling  (context);
+    close_file_watcher (context);
 }
