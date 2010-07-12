@@ -20,20 +20,16 @@
  */
 
 #include "pulse-context.h"
-#include "audio-pulse.h"
 #include "audio-stream.h"
 #include "audio.h"
 #include "config.h"
 
-#ifdef HAVE_GST
 #include "audio-gstreamer.h"
-#endif
 
 struct _Audio
 {
     PulseContext   *context;
     AudioInterface *gst;
-    AudioInterface *pulse;
 };
 
 Audio*
@@ -47,14 +43,8 @@ audio_create ()
     if ((self->context = pulse_context_create ()) == NULL)
         goto failed;
 
-#ifdef HAVE_GST
     self->gst = audio_gstreamer_create ();
     if (!audio_interface_initialize (self->gst, self->context))
-        goto failed;
-#endif
-
-    self->pulse = audio_pulse_create ();
-    if (!audio_interface_initialize (self->pulse, self->context))
         goto failed;
 
     return self;
@@ -69,11 +59,6 @@ audio_destroy (Audio *self)
 {
     if (self == NULL)
         return;
-
-    if (self->pulse) {
-        audio_interface_shutdown (self->pulse);
-        self->pulse = NULL;
-    }
 
     if (self->gst) {
         audio_interface_shutdown (self->gst);
@@ -106,12 +91,7 @@ audio_create_stream (Audio *self, AudioStreamType type)
     if (self == NULL)
         return NULL;
 
-#ifdef HAVE_GST
-    iface = (type == AUDIO_STREAM_UNCOMPRESSED) ? self->pulse : self->gst;
-#else
-    iface = self->pulse;
-#endif
-
+    iface = self->gst;
     stream = audio_interface_create_stream (iface);
     stream->type = type;
 

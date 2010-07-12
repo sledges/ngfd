@@ -1,7 +1,7 @@
 bin_PROGRAMS = ngfd
 
-ngfd_CFLAGS = $(NGFD_CFLAGS)
-ngfd_LDFLAGS = $(NGFD_LIBS)
+ngfd_CFLAGS = $(NGFD_CFLAGS) $(GST_CFLAGS)
+ngfd_LDFLAGS = $(NGFD_LIBS) $(GST_LIBS)
 
 ngfd_SOURCES = \
 	main.c \
@@ -40,8 +40,6 @@ ngfd_SOURCES = \
 	audio.c \
 	audio-interface.h \
 	audio-interface.c \
-	audio-pulse.h \
-	audio-pulse.c \
 	controller.h \
 	controller.c \
 	vibrator.h \
@@ -54,14 +52,9 @@ ngfd_SOURCES = \
 	tone-mapper.h \
 	pulse-context.h \
 	pulse-context.c \
-	timestamp.h
-
-if HAVE_GST
-ngfd_CFLAGS += $(GST_CFLAGS)
-ngfd_LDFLAGS += $(GST_LIBS)
-ngfd_SOURCES += audio-gstreamer.h \
+	timestamp.h \
+	audio-gstreamer.h \
 	audio-gstreamer.c
-endif
 
 if HAVE_PROFILE
 ngfd_CFLAGS += $(PROFILE_CFLAGS)

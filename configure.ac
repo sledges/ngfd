@@ -88,39 +88,13 @@ PKG_CHECK_MODULES(NGFD,
 		   libpulse-mainloop-glib
 		   sndfile])
 
-#### Gstreamer support (optional) ####
-
-AC_ARG_ENABLE([gstreamer],
-    AS_HELP_STRING([--disable-gstreamer],[Disable optional Gstreamer support]),
-        [
-            case "${enableval}" in
-                yes) gstreamer=true ;;
-                no) gstreamer=false ;;
-                *) AC_MSG_ERROR(bad value ${enableval} for --disable-gstreamer) ;;
-            esac
-        ],
-        [gstreamer=true])
-
-if test "x${gstreamer}" != xfalse ; then
-    PKG_CHECK_MODULES(GST, [gstreamer-0.10 gio-2.0 gstreamer-controller-0.10],
-        [
-            HAVE_GST=1
-            AC_DEFINE([HAVE_GST], 1, [Have Gstreamer?])
-        ],
-        [
-            HAVE_GST=0
-            if test "x$gstreamer" = xtrue ; then
-                AC_MSG_ERROR([*** Needed Gstreamer support not found])
-            fi
-        ])
-else
-    HAVE_GST=0
-fi
+PKG_CHECK_MODULES(GST,
+		  [gstreamer-0.10
+		   gio-2.0
+		   gstreamer-controller-0.10])
 
 AC_SUBST(GST_CFLAGS)
 AC_SUBST(GST_LIBS)
-AC_SUBST(HAVE_GST)
-AM_CONDITIONAL([HAVE_GST], [test "x$HAVE_GST" = x1])
 
 #### Profile support (optional) ####
 
