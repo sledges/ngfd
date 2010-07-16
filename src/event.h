@@ -56,7 +56,6 @@ struct _Event
     gboolean          vibration_enabled;
     gboolean          leds_enabled;
 
-    gboolean          unlock_tklock;            /* unlock touchscreen and keyboard lock */
     gboolean          backlight_enabled;        /* keep the backlight alive */
 };
 

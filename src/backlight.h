@@ -25,7 +25,6 @@
 #include <glib.h>
 #include <dbus/dbus.h>
 
-gboolean backlight_unlock_tklock        (DBusConnection *system_bus);
 gboolean backlight_display_on           (DBusConnection *system_bus);
 gboolean backlight_prevent_blank        (DBusConnection *system_bus);
 gboolean backlight_cancel_prevent_blank (DBusConnection *system_bus);

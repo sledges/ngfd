@@ -59,30 +59,6 @@ prevent_display_blank (gpointer userdata)
 }
 
 gboolean
-backlight_unlock_tklock (DBusConnection *system_bus)
-{
-    DBusMessage *msg     = NULL;
-    gboolean     ret     = FALSE;
-    const gchar *command = MCE_TK_UNLOCKED;
-
-    if (system_bus == NULL)
-        return FALSE;
-
-    msg = dbus_message_new_method_call (MCE_SERVICE, MCE_REQUEST_PATH, MCE_REQUEST_IF, MCE_TKLOCK_MODE_CHANGE_REQ);
-    if (msg == NULL)
-        return FALSE;
-
-    if (!dbus_message_append_args (msg, DBUS_TYPE_STRING, &command, DBUS_TYPE_INVALID)) {
-        dbus_message_unref (msg);
-        return FALSE;
-    }
-
-    ret = call_dbus_method (system_bus, msg);
-    dbus_message_unref (msg);
-    return ret;
-}
-
-gboolean
 backlight_display_on (DBusConnection *system_bus)
 {
     DBusMessage *msg = NULL;

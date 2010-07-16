@@ -87,8 +87,7 @@ static KeyEntry event_entries[] = {
     { KEY_ENTRY_TYPE_STRING, "led_pattern"          , 0    , NULL },
 
     /* backlight */
-    { KEY_ENTRY_TYPE_BOOL  , "backlight_enabled"    , FALSE, NULL },
-    { KEY_ENTRY_TYPE_BOOL  , "unlock_tklock"        , FALSE, NULL },
+    { KEY_ENTRY_TYPE_BOOL  , "backlight_enabled"    , FALSE, NULL }
 };
 
 
@@ -606,7 +605,6 @@ finalize_event (SettingsData *data, const char *name, GHashTable *properties)
     event->vibration_enabled      = properties_get_bool (properties, "vibration_enabled");
     event->leds_enabled           = properties_get_bool (properties, "led_enabled");
     event->backlight_enabled      = properties_get_bool (properties, "backlight_enabled");
-    event->unlock_tklock          = properties_get_bool (properties, "unlock_tklock");
 
     event->allow_custom           = properties_get_bool (properties, "allow_custom");
     event->max_timeout            = properties_get_int  (properties, "max_timeout");

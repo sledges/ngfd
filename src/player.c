@@ -660,10 +660,6 @@ playback_path_leds_and_backlight (Request *request)
     }
 
     if (event->backlight_enabled && BACKLIGHT_RESOURCE_ENABLED (request)) {
-
-        if (event->unlock_tklock)
-            backlight_unlock_tklock (context->system_bus);
-
         backlight_display_on (context->system_bus);
         backlight_prevent_blank (context->system_bus);
         request->backlight_active = TRUE;

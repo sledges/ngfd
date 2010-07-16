@@ -23,13 +23,6 @@
 #include "backlight.h"
 
 gboolean
-backlight_unlock_tklock (DBusConnection *system_bus)
-{
-    (void) system_bus;
-    return TRUE;
-}
-
-gboolean
 backlight_display_on (DBusConnection *system_bus)
 {
     (void) system_bus;
