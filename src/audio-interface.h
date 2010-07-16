@@ -24,14 +24,13 @@
 
 #include <glib.h>
 
-#include "pulse-context.h"
 #include "audio-stream.h"
 
 typedef struct _AudioInterface AudioInterface;
 
 struct _AudioInterface
 {
-    gboolean (*initialize) (AudioInterface *iface, PulseContext *context);
+    gboolean (*initialize) (AudioInterface *iface);
     void     (*shutdown)   (AudioInterface *iface);
     gboolean (*prepare)    (AudioInterface *iface, AudioStream *stream);
     gboolean (*play)       (AudioInterface *iface, AudioStream *stream);
@@ -40,7 +39,7 @@ struct _AudioInterface
     gpointer data;
 };
 
-gboolean        audio_interface_initialize     (AudioInterface *iface, PulseContext *context);
+gboolean        audio_interface_initialize     (AudioInterface *iface);
 void            audio_interface_shutdown       (AudioInterface *iface);
 AudioStream*    audio_interface_create_stream  (AudioInterface *iface);
 void            audio_interface_destroy_stream (AudioInterface *iface, AudioStream *stream);

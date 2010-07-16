@@ -28,7 +28,7 @@
 #include "log.h"
 #include "audio-gstreamer.h"
 
-static gboolean _gst_initialize (AudioInterface *iface, PulseContext *context);
+static gboolean _gst_initialize (AudioInterface *iface);
 static void     _gst_shutdown   (AudioInterface *iface);
 static gboolean _gst_prepare    (AudioInterface *iface, AudioStream *stream);
 static gboolean _gst_play       (AudioInterface *iface, AudioStream *stream);
@@ -133,12 +133,11 @@ _gst_element_preload (gchar * name)
 }
 
 static gboolean
-_gst_initialize (AudioInterface * iface, PulseContext * context)
+_gst_initialize (AudioInterface * iface)
 {
 	LOG_DEBUG ("%s >> entering", __FUNCTION__);
 
 	(void) iface;
-	(void) context;
 
     gst_init_check (NULL, NULL, NULL);
     gst_controller_init (NULL, NULL);

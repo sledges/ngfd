@@ -30,7 +30,6 @@ typedef struct _Audio Audio;
 
 Audio*       audio_create              ();
 void         audio_destroy             (Audio *self);
-void         audio_set_volume          (Audio *self, const char *role, gint volume);
 
 AudioStream* audio_create_stream       (Audio *self, AudioStreamType type);
 void         audio_destroy_stream      (Audio *self, AudioStream *stream);

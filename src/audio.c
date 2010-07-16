@@ -19,7 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include "pulse-context.h"
 #include "audio-stream.h"
 #include "audio.h"
 #include "config.h"
@@ -28,7 +27,6 @@
 
 struct _Audio
 {
-    PulseContext   *context;
     AudioInterface *gst;
 };
 
@@ -40,11 +38,8 @@ audio_create ()
     if ((self = g_new0 (Audio, 1)) == NULL)
         goto failed;
 
-    if ((self->context = pulse_context_create ()) == NULL)
-        goto failed;
-
     self->gst = audio_gstreamer_create ();
-    if (!audio_interface_initialize (self->gst, self->context))
+    if (!audio_interface_initialize (self->gst))
         goto failed;
 
     return self;
@@ -65,21 +60,7 @@ audio_destroy (Audio *self)
         self->gst = NULL;
     }
 
-    if (self->context) {
-        pulse_context_destroy (self->context);
-        self->context = NULL;
-    }
-
     g_free (self);
-}
-
-void
-audio_set_volume (Audio *self, const char *role, gint volume)
-{
-    if (self == NULL || role == NULL || volume < 0)
-        return;
-
-    pulse_context_set_volume (self->context, role, volume);
 }
 
 AudioStream*

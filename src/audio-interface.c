@@ -22,9 +22,9 @@
 #include "audio-interface.h"
 
 gboolean
-audio_interface_initialize (AudioInterface *iface, PulseContext *context)
+audio_interface_initialize (AudioInterface *iface)
 {
-    return iface->initialize (iface, context);
+    return iface->initialize (iface);
 }
 
 void

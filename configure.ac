@@ -84,9 +84,7 @@ PKG_CHECK_MODULES(NGFD,
 		   gio-2.0
 		   dbus-1
 		   dbus-glib-1
-		   libpulse
-		   libpulse-mainloop-glib
-		   sndfile])
+		   libpulse])
 
 PKG_CHECK_MODULES(GST,
 		  [gstreamer-0.10

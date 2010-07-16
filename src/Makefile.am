@@ -48,8 +48,6 @@ ngfd_SOURCES = \
 	log.h \
 	log.c \
 	tone-mapper.h \
-	pulse-context.h \
-	pulse-context.c \
 	timestamp.h \
 	audio-gstreamer.h \
 	audio-gstreamer.c
