@@ -36,12 +36,6 @@ volume_free (Volume *v)
     g_free (v->role);
     g_free (v->key);
     g_free (v->profile);
-
-    if (v->controller) {
-        controller_free (v->controller);
-        v->controller = NULL;
-    }
-
     g_free (v);
 }
 
@@ -77,12 +71,6 @@ volume_equals (Volume *a, Volume *b)
 
             break;
 
-        case VOLUME_TYPE_CONTROLLER:
-            if (a->controller && b->controller && g_str_equal (a->controller, b->controller))
-                return TRUE;
-
-            break;
-            
         case VOLUME_TYPE_LINEAR:
             if ((a->linear[0] && b->linear[0]) &&
                 (a->linear[1] && b->linear[1]) &&
@@ -153,10 +141,6 @@ volume_generate_role (Volume *volume)
             g_free (format_profile);
             break;
 
-        case VOLUME_TYPE_CONTROLLER:
-            volume->role = g_strdup_printf ("x-meego-controller");
-            break;
-        
         case VOLUME_TYPE_LINEAR:
             volume->role = g_strdup_printf ("x-meego-linear");
             break;

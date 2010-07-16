@@ -68,7 +68,6 @@ struct _Request
     Event            *event;                        /* event the request is based on */
 
     guint             max_timeout_id;               /* maximum timeout source id */
-    guint             controller_id;                /* volume controller id */
     gint              repeat_count;                 /* number of times audio has been repeated */
 
     SoundPath        *active_sound;                 /* currently active sound path */

@@ -45,9 +45,6 @@ static gboolean          max_timeout_cb                   (gpointer userdata);
 static void              setup_timeout                    (Request *request);
 static void              remove_timeout                   (Request *request);
 
-static void              controller_set_volume            (Controller *controller, guint t, guint v, gboolean is_last, gpointer userdata);
-static void              set_stream_volume                (Request *request);
-static void              clear_stream_volume              (Request *request);
 static void              set_stream_event_id              (AudioStream *stream, const char *event_id);
 static void              set_stream_role_from_volume      (AudioStream *stream, Volume *volume);
 
@@ -123,51 +120,6 @@ remove_timeout (Request *request)
     if (request->max_timeout_id > 0) {
         g_source_remove (request->max_timeout_id);
         request->max_timeout_id = 0;
-    }
-}
-
-static void
-controller_set_volume (Controller *controller, guint t, guint v, gboolean is_last, gpointer userdata)
-{
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
-
-    Request *request = (Request*) userdata;
-    Context *context = request->context;
-    Event   *event   = request->event;
-    Volume  *volume  = event->volume;
-
-    (void) t;
-    (void) is_last;
-
-    audio_set_volume (context->audio, volume->role, v);
-}
-
-static void
-set_stream_volume (Request *request)
-{
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
-
-    Event   *event   = request->event;
-    Volume  *volume  = event->volume;
-
-    if (!volume)
-        return;
-
-    if (volume->type == VOLUME_TYPE_CONTROLLER)
-        request->controller_id = controller_start (volume->controller, controller_set_volume, request);
-}
-
-static void
-clear_stream_volume (Request *request)
-{
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
-
-    Event   *event   = request->event;
-    Volume  *volume  = event->volume;
-
-    if (request->controller_id > 0) {
-        controller_stop (volume->controller, request->controller_id);
-        request->controller_id = 0;
     }
 }
 
@@ -360,7 +312,6 @@ synchronize_resources (Request *request)
         request->synchronize_done = TRUE;
 
         setup_timeout                    (request);
-        set_stream_volume                (request);
         playback_path_leds_and_backlight (request);
         playback_path_vibration          (request);
         play_stream                      (request);
@@ -730,7 +681,6 @@ stop_request (Request *request)
     Event   *event   = request->event;
 
     remove_timeout      (request);
-    clear_stream_volume (request);
     stop_vibration      (request);
     stop_stream         (request);
 

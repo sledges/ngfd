@@ -24,7 +24,6 @@
 
 #include <glib.h>
 
-#include "controller.h"
 #include "audio-stream.h"
 
 typedef struct _Audio Audio;

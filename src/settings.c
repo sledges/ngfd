@@ -25,7 +25,6 @@
 #include "log.h"
 #include "property.h"
 #include "properties.h"
-#include "controller.h"
 #include "event.h"
 #include "context.h"
 
@@ -427,21 +426,6 @@ _create_volume (Context *context, const gchar *str)
         volume        = volume_new ();
         volume->type  = VOLUME_TYPE_FIXED;
         volume->level = atoi (stripped);
-
-        g_free (stripped);
-    }
-    else if (g_str_has_prefix (str, "controller:")) {
-        stripped = _strip_prefix (str, "controller:");
-
-        volume             = volume_new ();
-        volume->type       = VOLUME_TYPE_CONTROLLER;
-        volume->controller = controller_new_from_string (stripped);
-
-        if (volume->controller == NULL) {
-            volume_free (volume);
-            g_free (stripped);
-            return NULL;
-        }
 
         g_free (stripped);
     }

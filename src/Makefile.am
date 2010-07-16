@@ -40,8 +40,6 @@ ngfd_SOURCES = \
 	audio.c \
 	audio-interface.h \
 	audio-interface.c \
-	controller.h \
-	controller.c \
 	vibrator.h \
 	tone-generator.h \
 	tone-generator.c \

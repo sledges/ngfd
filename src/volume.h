@@ -23,13 +23,11 @@
 #define VOLUME_H
 
 #include <glib.h>
-#include "controller.h"
 
 enum
 {
     VOLUME_TYPE_FIXED,
     VOLUME_TYPE_PROFILE,
-    VOLUME_TYPE_CONTROLLER,
     VOLUME_TYPE_LINEAR
 };
 
@@ -37,13 +35,12 @@ typedef struct _Volume Volume;
 
 struct _Volume
 {
-    guint       type;           /* FIXED, PROFILE or CONTROLLER */
+    guint       type;           /* FIXED, PROFILE or LINEAR */
     gint        level;          /* volume level, range 0-100 */
     gint        linear[3];
     gchar      *role;           /* volume role */
     gchar      *key;
     gchar      *profile;
-    Controller *controller;     /* controller instance for the specific pattern */
 };
 
 Volume*  volume_new           ();
