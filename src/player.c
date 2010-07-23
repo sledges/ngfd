@@ -321,8 +321,8 @@ synchronize_resources (Request *request)
 
     if (request->active_pattern && request->custom_pattern)
         (void) play_vibration (request, request->active_pattern);
-
-    (void) play_stream (request);
+    else
+        playback_path_vibration          (request);
 }
 
 static gboolean
@@ -350,19 +350,17 @@ repeat_current_stream (Request *request)
     if (request->custom_pattern)
         stop_vibration (request);
 
-    stop_stream (request);
-
-    if (!event->repeat)
+    if (!event->repeat) {
+        stop_stream (request);
         return FALSE;
+    }
 
     if (event->num_repeats == 0 || (request->repeat_count < event->num_repeats)) {
         request->repeat_count++;
-
-        if ((sound_path = resolve_sound_path (request, FALSE)) == NULL)
-            return FALSE;
-
-        return prepare_stream (request, sound_path);
-    }
+        synchronize_resources (request);
+        return TRUE;
+    } else
+        stop_stream (request);
 
     return FALSE;
 }
@@ -445,6 +443,10 @@ prepare_stream (Request *request, SoundPath *sound_path)
     stream->callback       = stream_state_cb;
     stream->userdata       = request;
     stream->volume         = event->volume;
+    if (event->repeat)
+        stream->repeating = TRUE;
+    else
+        stream->repeating = FALSE;
 
     request->stream       = stream;
     request->active_sound = sound_path;

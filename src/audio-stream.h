@@ -64,6 +64,7 @@ struct _AudioStream
     gpointer                iface;
     gpointer                data;
     gpointer                data2;
+    gboolean                repeating;
 };
 
 #endif /* AUDIO_STREAM_H */

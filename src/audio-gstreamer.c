@@ -80,8 +80,13 @@ _bus_cb (GstBus     *bus,
             if (stream->callback)
                 stream->callback (stream, AUDIO_STREAM_STATE_COMPLETED, stream->userdata);
 
-            _gst_stop (stream->iface, stream);
-            return FALSE;
+            if (stream->repeating) {
+                gst_element_seek_simple (element, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT, 0);
+                return TRUE;
+            } else {
+                _gst_stop (stream->iface, stream);
+                return FALSE;
+            }
         }
 
         default:
