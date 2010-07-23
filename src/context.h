@@ -43,25 +43,28 @@ typedef struct _Context Context;
 
 struct _Context
 {
-    GMainLoop     *loop;
+    GMainLoop         *loop;
 
-    GHashTable    *definitions;
-    GHashTable    *events;
-    GList         *request_list;
+    GHashTable        *definitions;
+    GHashTable        *events;
+    GList             *request_list;
 
-    Audio         *audio;
-    Vibrator      *vibrator;
+    Audio             *audio;
+    Vibrator          *vibrator;
 
-    DBusConnection    *system_bus;      /* system bus */
-    DBusConnection    *session_bus;     /* session bus */
+    gint               audio_buffer_time;   /* buffer time */
+    gint               audio_latency_time;  /* backend latency time */
 
-    SoundPath        **sounds;          /* all sound defined in the configuration, NULL terminated */
+    DBusConnection    *system_bus;          /* system bus */
+    DBusConnection    *session_bus;         /* session bus */
+
+    SoundPath        **sounds;              /* all sound defined in the configuration, NULL terminated */
     guint              num_sounds;
 
-    Volume           **volumes;         /* all volumes defined in the configuration, NULL terminated */
+    Volume           **volumes;             /* all volumes defined in the configuration, NULL terminated */
     guint              num_volumes;
 
-    VibrationPattern **patterns;        /* NULL terminated array of all vibration patterns defined in the configuration */
+    VibrationPattern **patterns;            /* NULL terminated array of all vibration patterns defined in the configuration */
     guint              num_patterns;
     gchar             *patterns_path;
 
@@ -73,9 +76,9 @@ struct _Context
     gchar             *mapped_tone_path;
     GHashTable        *mapped_tones;
 
-    DBusConnection    *volume_bus;      /* DBus connection to Pulseaudio */
-    guint              volume_retry_id; /* source id for retry connection */
-    GQueue            *volume_queue;    /* queued volume ops while Pulseaudio DBus connection is down */
+    DBusConnection    *volume_bus;          /* DBus connection to Pulseaudio */
+    guint              volume_retry_id;     /* source id for retry connection */
+    GQueue            *volume_queue;        /* queued volume ops while Pulseaudio DBus connection is down */
 };
 
 SoundPath*        context_add_sound_path (Context *context, SoundPath *sound_path);

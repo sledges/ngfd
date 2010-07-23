@@ -245,6 +245,12 @@ _gst_prepare (AudioInterface *iface,
         pa_proplist_free (proplist);
     }
 
+    if (stream->buffer_time > 0)
+        g_object_set (G_OBJECT (sink), "buffer-time", stream->buffer_time, NULL);
+
+    if (stream->latency_time > 0)
+        g_object_set (G_OBJECT (sink), "latency-time", stream->latency_time, NULL);
+
     bus = gst_element_get_bus (element);
     gst_bus_add_watch (bus, _bus_cb, stream);
     gst_object_unref (bus);

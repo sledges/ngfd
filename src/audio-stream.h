@@ -53,6 +53,8 @@ struct _AudioStream
     guint                   id;
     gchar                  *source;
     pa_proplist            *properties;
+    gint                    buffer_time;
+    gint                    latency_time;
     AudioStreamCallback     callback;
     gpointer                userdata;
     Volume                  *volume;

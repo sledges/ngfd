@@ -163,7 +163,10 @@ static void
 _parse_general (SettingsData *data, GKeyFile *k)
 {
     Context *context = data->context;
-    context->patterns_path = g_key_file_get_string (k, GROUP_GENERAL, "vibration_search_path", NULL);
+
+    context->patterns_path      = g_key_file_get_string (k, GROUP_GENERAL, "vibration_search_path", NULL);
+    context->audio_buffer_time  = g_key_file_get_integer (k, GROUP_GENERAL, "buffer_time", NULL);
+    context->audio_latency_time = g_key_file_get_integer (k, GROUP_GENERAL, "latency_time", NULL);
 }
 
 static void

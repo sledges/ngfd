@@ -488,6 +488,8 @@ prepare_stream (Request *request, SoundPath *sound_path)
     stream = audio_create_stream (context->audio, stream_type);
 
     stream->source         = g_strdup (stream_source);
+    stream->buffer_time    = context->audio_buffer_time;
+    stream->latency_time   = context->audio_latency_time;
     stream->properties     = pa_proplist_new ();
     stream->callback       = stream_state_cb;
     stream->userdata       = request;
