@@ -189,9 +189,13 @@ set_stream_role_from_volume (AudioStream *stream, Volume *volume)
     if (!stream || (stream && !stream->properties))
         return;
 
-    if (volume->role) {
+    if (volume && volume->role) {
         LOG_DEBUG ("%s >> set stream role to %s", __FUNCTION__, volume->role);
         pa_proplist_sets (stream->properties, "module-stream-restore.id", volume->role);
+    }
+    else {
+        LOG_DEBUG ("%s >> set stream role to x-maemo (default)", __FUNCTION__);
+        pa_proplist_sets (stream->properties, "media.role", "x-maemo");
     }
 }
 

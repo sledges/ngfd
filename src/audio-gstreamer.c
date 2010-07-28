@@ -198,7 +198,7 @@ _gst_prepare (AudioInterface *iface,
     if (element == NULL || source == NULL || decodebin == NULL || sink == NULL)
         goto failed;
 
-    if (stream->volume->type == VOLUME_TYPE_LINEAR) {
+    if (stream->volume && stream->volume->type == VOLUME_TYPE_LINEAR) {
         if ((volume = gst_element_factory_make ("volume", NULL)) == NULL)
             goto failed;
 
