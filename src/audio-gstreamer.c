@@ -41,6 +41,15 @@ _bus_cb (GstBus     *bus,
 {
     AudioStream *stream     = (AudioStream*) userdata;
     GstElement     *element    = (GstElement*) stream->data;
+    GstQuery *query = NULL;
+    gboolean res = FALSE;
+    gdouble volume = 0;
+    gint64 duration = 0;
+    GstController *controller = (GstController*) stream->data2;
+    GstInterpolationControlSource *csource = NULL;
+    gdouble val = 0;
+    GValue vol = { 0, };
+
 
     switch (GST_MESSAGE_TYPE (msg)) {
         case GST_MESSAGE_ERROR: {
@@ -67,6 +76,7 @@ _bus_cb (GstBus     *bus,
             }
 
             if (old_state == GST_STATE_PAUSED && new_state == GST_STATE_PLAYING) {
+                stream->num_repeat++;
                 if (stream->callback)
                     stream->callback (stream, AUDIO_STREAM_STATE_STARTED, stream->userdata);
             }
@@ -81,7 +91,44 @@ _bus_cb (GstBus     *bus,
                 stream->callback (stream, AUDIO_STREAM_STATE_COMPLETED, stream->userdata);
 
             if (stream->repeating) {
+                if (stream->volume->type == VOLUME_TYPE_LINEAR) {
+                    query = gst_query_new_duration (GST_FORMAT_TIME);
+                    res = gst_element_query (element, query);
+                    if (res) {
+                        gst_query_parse_duration (query, NULL, &duration);
+                        duration /= 1000000000;
+                        duration *= stream->num_repeat;
+                    } else {
+                        LOG_WARNING ("Audio duration query failed");
+                        gst_query_unref (query);
+                        return TRUE;
+                    }
+                    gst_query_unref (query);
+
+                    if (controller) {
+                        if (duration >= stream->volume->linear[2]) {
+                            gst_controller_set_disabled (controller, TRUE);
+                        } else {
+                            volume=(gdouble)duration*(((gdouble)stream->volume->linear[1]-(gdouble)stream->volume->linear[0])/(gdouble)stream->volume->linear[2]);
+                            csource = gst_interpolation_control_source_new ();
+                            gst_controller_set_control_source (controller, "volume", GST_CONTROL_SOURCE (csource));
+                            gst_interpolation_control_source_set_interpolation_mode (csource, GST_INTERPOLATE_LINEAR);
+                            g_value_init (&vol, G_TYPE_DOUBLE);
+
+                            g_value_set_double (&vol, volume / 100.0);
+                            gst_interpolation_control_source_set (csource, duration * GST_SECOND, &vol);
+
+                            val = (gdouble)stream->volume->linear[1];
+                            g_value_set_double (&vol, val / 100.0);
+                            gst_interpolation_control_source_set (csource, (stream->volume->linear[2]-duration) * GST_SECOND, &vol);
+
+                            g_object_unref (csource);
+                        }
+                    }
+                }
+
                 gst_element_seek_simple (element, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT, 0);
+
                 return TRUE;
             } else {
                 _gst_stop (stream->iface, stream);
@@ -261,6 +308,7 @@ _gst_prepare (AudioInterface *iface,
 
     stream->data = (gpointer) element;
     stream->data2 = (gpointer) controller;
+    stream->num_repeat = 0;
     gst_element_set_state (element, GST_STATE_PAUSED);
 
     return TRUE;
