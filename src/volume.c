@@ -72,9 +72,9 @@ volume_equals (Volume *a, Volume *b)
             break;
 
         case VOLUME_TYPE_LINEAR:
-            if ((a->linear[0] && b->linear[0]) &&
-                (a->linear[1] && b->linear[1]) &&
-                (a->linear[2] && b->linear[2]))
+            if ((a->linear[0] == b->linear[0]) &&
+                (a->linear[1] == b->linear[1]) &&
+                (a->linear[2] == b->linear[2]))
                 return TRUE;
 
             break;
