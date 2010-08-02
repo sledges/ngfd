@@ -93,12 +93,12 @@ context_create (Context **context)
     Context *c = NULL;
 
     if ((c = g_try_malloc0 (sizeof (Context))) == NULL) {
-        LOG_ERROR ("Failed to allocate memory for context!");
+        LOG_WARNING ("Failed to allocate memory for context!");
         return FALSE;
     }
 
     if ((c->loop = g_main_loop_new (NULL, 0)) == NULL) {
-        LOG_ERROR ("Failed to create the GLib mainloop!");
+        LOG_WARNING ("Failed to create the GLib mainloop!");
         return FALSE;
     }
 
@@ -110,7 +110,7 @@ context_create (Context **context)
     /* setup the interface */
 
     if (!dbus_if_create (c)) {
-        LOG_ERROR ("Failed to create D-Bus interface!");
+        LOG_WARNING ("Failed to create D-Bus interface!");
         return FALSE;
     }
 
@@ -121,34 +121,34 @@ context_create (Context **context)
     }
 
     if (!profile_create (c)) {
-        LOG_ERROR ("Failed to create profile tracking!");
+        LOG_WARNING ("Failed to create profile tracking!");
         return FALSE;
     }
 
     if (!tone_mapper_create (c)) {
-        LOG_ERROR ("Failed to create tone mapper!");
+        LOG_WARNING ("Failed to create tone mapper!");
         return FALSE;
     }
 
     if ((c->audio = audio_create ()) == NULL) {
-        LOG_ERROR ("Failed to create Pulseaudio backend!");
+        LOG_WARNING ("Failed to create Pulseaudio backend!");
         return FALSE;
     }
 
     if ((c->vibrator = vibrator_create ()) == NULL) {
-        LOG_ERROR ("Failed to create Immersion backend!");
+        LOG_WARNING ("Failed to create Immersion backend!");
         return FALSE;
     }
 
     /* create the hash tables to hold definitions and events */
 
     if (!_request_manager_create (c)) {
-        LOG_ERROR ("Failed to create request manager!");
+        LOG_WARNING ("Failed to create request manager!");
         return FALSE;
     }
 
     if (!load_settings (c)) {
-        LOG_ERROR ("Failed to load settings!");
+        LOG_WARNING ("Failed to load settings!");
         return FALSE;
     }
 
@@ -248,6 +248,7 @@ static gboolean
 parse_cmdline (int argc, char **argv)
 {
     int opt, opt_index;
+    int level = LOG_LEVEL_NONE;
 
     static struct option long_opts[] = {
         { "verbose", 0, 0, 'v' },
@@ -257,14 +258,16 @@ parse_cmdline (int argc, char **argv)
     while ((opt = getopt_long (argc, argv, "v", long_opts, &opt_index)) != -1) {
         switch (opt) {
             case 'v':
-                log_set_level (LOG_LEVEL_DEBUG);
-                LOG_INFO ("Verbose mode set, enabling debug output.");
+                if (level)
+                    level--;
                 break;
 
             default:
                 break;
         }
     }
+
+    log_set_level (level);
 
     return TRUE;
 }

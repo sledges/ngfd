@@ -23,14 +23,18 @@
 #include <stdlib.h>
 #include "log.h"
 
-static LogLevel _log_level = LOG_LEVEL_INFO;
+#ifdef ENABLE_DEBUG
+static LogLevel _log_level = LOG_LEVEL_ENTER;
+#else
+static LogLevel _log_level = LOG_LEVEL_NONE;
+#endif
 
 static const char*
 level_to_string (LogLevel category)
 {
     switch (category) {
-        case LOG_LEVEL_REQUEST:
-            return "REQUEST";
+        case LOG_LEVEL_ENTER:
+            return "ENTER";
 
         case LOG_LEVEL_INFO:
             return "INFO";
@@ -40,9 +44,6 @@ level_to_string (LogLevel category)
 
         case LOG_LEVEL_WARNING:
             return "WARNING";
-
-        case LOG_LEVEL_ERROR:
-            return "ERROR";
 
         default:
             break;
@@ -74,4 +75,7 @@ void
 log_set_level (LogLevel level)
 {
     _log_level = level;
+
+    if (level < LOG_LEVEL_NONE)
+        fprintf (stdout, "Log level set to %s\n", level_to_string (level));
 }

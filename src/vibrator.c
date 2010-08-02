@@ -79,7 +79,7 @@ pattern_poll_cb (gpointer userdata)
 static Pattern*
 pattern_new (Vibrator *vibrator, guint id, gpointer data, guint pattern_id, VibratorCompletedCallback callback, gpointer userdata)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Pattern *p = NULL;
 
@@ -102,7 +102,7 @@ pattern_new (Vibrator *vibrator, guint id, gpointer data, guint pattern_id, Vibr
 static void
 pattern_free (Pattern *p)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     if (p->poll_id > 0) {
         g_source_remove (p->poll_id);
@@ -115,7 +115,7 @@ pattern_free (Pattern *p)
 static Pattern*
 pattern_lookup (Vibrator *vibrator, guint id)
 {
-    LOG_DEBUG ("%s >> entering (id %u)", __FUNCTION__, id);
+    LOG_ENTER ("%s >> entering (id %u)", __FUNCTION__, id);
 
     GList   *iter = NULL;
     Pattern *p    = NULL;
@@ -226,7 +226,7 @@ failed:
 guint
 vibrator_start (Vibrator *vibrator, gpointer data, gint pattern_id, VibratorCompletedCallback callback, gpointer userdata)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     VibeUInt8 *effects = data ? (VibeUInt8*) data : g_pVibeIVTBuiltInEffects;
     gint       id      = 0;
@@ -269,7 +269,7 @@ vibrator_start (Vibrator *vibrator, gpointer data, gint pattern_id, VibratorComp
 void
 vibrator_stop (Vibrator *vibrator, guint id)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Pattern *p = NULL;
 
@@ -302,7 +302,7 @@ pattern_is_completed (Vibrator *vibrator, gint id)
 static gboolean
 pattern_is_repeating (gpointer data, gint pattern_id)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     VibeInt32 duration = 0;
 

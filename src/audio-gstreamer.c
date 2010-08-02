@@ -187,7 +187,7 @@ _gst_element_preload (gchar * name)
 static gboolean
 _gst_initialize (AudioInterface * iface)
 {
-	LOG_DEBUG ("%s >> entering", __FUNCTION__);
+	LOG_ENTER ("%s >> entering", __FUNCTION__);
 
 	(void) iface;
 
@@ -214,7 +214,7 @@ _gst_initialize (AudioInterface * iface)
 static void
 _gst_shutdown (AudioInterface *iface)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     (void) iface;
 }
@@ -223,7 +223,7 @@ static gboolean
 _gst_prepare (AudioInterface *iface,
               AudioStream    *stream)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     GstElement  *element   = NULL;
     GstElement  *source    = NULL;
@@ -331,7 +331,7 @@ static gboolean
 _gst_play (AudioInterface *iface,
            AudioStream    *stream)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     GstElement *element = (GstElement*) stream->data;
     gst_element_set_state (element, GST_STATE_PLAYING);
@@ -342,7 +342,7 @@ static void
 _gst_stop (AudioInterface *iface,
            AudioStream    *stream)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     GstElement *element = (GstElement*) stream->data;
     GstController *controller = (GstController*) stream->data2;

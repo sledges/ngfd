@@ -79,7 +79,7 @@ static gboolean          playback_path_no_sound           (Request *request);
 static gboolean
 max_timeout_cb (gpointer userdata)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Request *request = (Request*) userdata;
 
@@ -96,7 +96,7 @@ max_timeout_cb (gpointer userdata)
 static void
 setup_timeout (Request *request)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Event   *event   = request->event;
     guint    timeout = 0;
@@ -115,7 +115,7 @@ setup_timeout (Request *request)
 static void
 remove_timeout (Request *request)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     if (request->max_timeout_id > 0) {
         g_source_remove (request->max_timeout_id);
@@ -171,7 +171,7 @@ get_uncompressed_tone (Context *context, const char *tone)
 static SoundPath*
 resolve_sound_path (Request *request, gboolean advance)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     SoundPath *sound_path = NULL;
 
@@ -253,7 +253,7 @@ build_vibration_filename (const char *path, const char *source)
 static VibrationPattern*
 resolve_custom_pattern (Request *request, SoundPath *sound_path)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Context          *context  = request->context;
     VibrationPattern *pattern  = NULL;
@@ -285,7 +285,7 @@ resolve_custom_pattern (Request *request, SoundPath *sound_path)
 static VibrationPattern*
 resolve_vibration_pattern (Request *request, gboolean advance)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     VibrationPattern *pattern = NULL;
 
@@ -306,7 +306,7 @@ resolve_vibration_pattern (Request *request, gboolean advance)
 static void
 synchronize_resources (Request *request)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     if (!request->synchronize_done) {
         request->synchronize_done = TRUE;
@@ -328,7 +328,7 @@ synchronize_resources (Request *request)
 static gboolean
 restart_next_stream (Request *request)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     SoundPath *sound_path = NULL;
     stop_stream (request);
@@ -342,7 +342,7 @@ restart_next_stream (Request *request)
 static gboolean
 repeat_current_stream (Request *request)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Event     *event      = request->event;
     SoundPath *sound_path = NULL;
@@ -368,7 +368,7 @@ repeat_current_stream (Request *request)
 static void
 stream_state_cb (AudioStream *stream, AudioStreamState state, gpointer userdata)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Request *request        = (Request*) userdata;
     guint    callback_state = REQUEST_STATE_NONE;
@@ -408,7 +408,7 @@ stream_state_cb (AudioStream *stream, AudioStreamState state, gpointer userdata)
 static gboolean
 prepare_stream (Request *request, SoundPath *sound_path)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Context     *context       = request->context;
     Event       *event         = request->event;
@@ -467,7 +467,7 @@ prepare_stream (Request *request, SoundPath *sound_path)
 static gboolean
 play_stream (Request *request)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Context *context = request->context;
 
@@ -483,7 +483,7 @@ play_stream (Request *request)
 static void
 stop_stream (Request *request)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Context *context = request->context;
 
@@ -497,7 +497,7 @@ stop_stream (Request *request)
 static void
 vibration_completed_cb (Vibrator *vibrator, gpointer userdata)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Request *request = (Request*) userdata;
 
@@ -513,7 +513,7 @@ vibration_completed_cb (Vibrator *vibrator, gpointer userdata)
 static gboolean
 play_vibration (Request *request, VibrationPattern *pattern)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Context *context = request->context;
 
@@ -529,7 +529,7 @@ play_vibration (Request *request, VibrationPattern *pattern)
 static void
 stop_vibration (Request *request)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Context *context = request->context;
 
@@ -542,7 +542,7 @@ stop_vibration (Request *request)
 static gboolean
 playback_path_tone_generator (Request *request)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Context *context = request->context;
     Event   *event   = request->event;
@@ -556,7 +556,7 @@ playback_path_tone_generator (Request *request)
 static gboolean
 playback_path_synchronize (Request *request)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     SoundPath *sound_path = NULL;
 
@@ -573,7 +573,7 @@ playback_path_synchronize (Request *request)
 static gboolean
 playback_path_vibration (Request *request)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Context          *context = request->context;
     Event            *event   = request->event;
@@ -608,7 +608,7 @@ playback_path_vibration (Request *request)
 static gboolean
 playback_path_leds_and_backlight (Request *request)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Context *context = request->context;
     Event   *event   = request->event;
@@ -630,7 +630,7 @@ playback_path_leds_and_backlight (Request *request)
 static gboolean
 playback_path_no_sound (Request *request)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     setup_timeout                    (request);
     playback_path_vibration          (request);
@@ -642,7 +642,7 @@ playback_path_no_sound (Request *request)
 int
 play_request (Request *request)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Context *context = request->context;
     Event   *event   = request->event;
@@ -677,7 +677,7 @@ play_request (Request *request)
 int
 stop_request (Request *request)
 {
-    LOG_DEBUG ("%s >> entering", __FUNCTION__);
+    LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Context *context = request->context;
     Event   *event   = request->event;

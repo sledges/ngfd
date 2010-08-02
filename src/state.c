@@ -184,7 +184,7 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
        short requests. If not found, then it is an unrecognized request. */
 
     if ((def = g_hash_table_lookup (context->definitions, request_name)) == NULL) {
-        LOG_ERROR ("No request definition for request %s", request_name);
+        LOG_WARNING ("No request definition for request %s", request_name);
         return 0;
     }
 
@@ -193,7 +193,7 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
        If no play mode then this is an invalid request. */
 
     if ((play_mode = _properties_get_play_mode (properties)) == 0) {
-        LOG_ERROR ("No play.mode property for request %s", request_name);
+        LOG_WARNING ("No play.mode property for request %s", request_name);
         return 0;
     }
 
@@ -209,7 +209,7 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
     }
 
     if ((event = g_hash_table_lookup (context->events, event_name)) == 0) {
-        LOG_ERROR ("Failed to get request event %s for request %s", event_name, request_name);
+        LOG_WARNING ("Failed to get request event %s for request %s", event_name, request_name);
         return 0;
     }
 
@@ -221,11 +221,11 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
     resources    = _properties_get_resources (properties);
 
     if (policy_id == 0 || resources == 0) {
-        LOG_ERROR ("No policy.id or resources defined for request %s", request_name);
+        LOG_WARNING ("No policy.id or resources defined for request %s", request_name);
         return 0;
     }
 
-    LOG_REQUEST ("request_name=%s, event_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d (%s))",
+    LOG_INFO ("request_name=%s, event_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d (%s))",
         request_name, event_name, policy_id, play_timeout, resources, play_mode, play_mode == REQUEST_PLAY_MODE_LONG ? "LONG" : "SHORT");
 
     TIMESTAMP ("Request parsing completed");

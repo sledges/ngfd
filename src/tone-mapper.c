@@ -196,7 +196,7 @@ query_tone_path (Context *context)
     }
 
     if (dbus_error_is_set (&error)) {
-        LOG_ERROR ("%s >> query tone path failed: %s", __FUNCTION__, error.message);
+        LOG_WARNING ("%s >> query tone path failed: %s", __FUNCTION__, error.message);
         dbus_error_free (&error);
     }
 

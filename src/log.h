@@ -27,38 +27,24 @@
 
 typedef enum _LogLevel
 {
-    LOG_LEVEL_NONE    = 0,
+    LOG_LEVEL_ENTER    = 0,
     LOG_LEVEL_DEBUG   = 1,
     LOG_LEVEL_INFO    = 2,
-    LOG_LEVEL_REQUEST = 3,
-    LOG_LEVEL_WARNING = 4,
-    LOG_LEVEL_ERROR   = 5
+    LOG_LEVEL_WARNING = 3,
+    LOG_LEVEL_NONE    = 4,
 } LogLevel;
 
 void log_message   (LogLevel level, const char *function, int line, const char *fmt, ...);
 void log_set_level (LogLevel level);
 
-#ifdef ENABLE_DEBUG
-
-#define LOG_REQUEST(...) \
-    { log_message (LOG_LEVEL_REQUEST, __FUNCTION__, __LINE__, __VA_ARGS__); }
+#define LOG_ENTER(...) \
+    { log_message (LOG_LEVEL_ENTER, __FUNCTION__, __LINE__, __VA_ARGS__); }
 #define LOG_INFO(...) \
     { log_message (LOG_LEVEL_INFO, __FUNCTION__, __LINE__, __VA_ARGS__); }
 #define LOG_DEBUG(...) \
     { log_message (LOG_LEVEL_DEBUG, __FUNCTION__, __LINE__, __VA_ARGS__); }
 #define LOG_WARNING(...) \
     { log_message (LOG_LEVEL_WARNING, __FUNCTION__, __LINE__, __VA_ARGS__); }
-#define LOG_ERROR(...) \
-    { log_message (LOG_LEVEL_ERROR, __FUNCTION__, __LINE__, __VA_ARGS__); }
 
-#else
-
-#define LOG_REQUEST(...)   do { } while (0)
-#define LOG_INFO(...) do { } while (0)
-#define LOG_DEBUG(...)   do { } while (0)
-#define LOG_WARNING(...) do { } while (0)
-#define LOG_ERROR(...)   do { } while (0)
-
-#endif
 
 #endif /* LOG_H */
