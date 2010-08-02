@@ -273,7 +273,7 @@ stop_handler (Context *context, guint policy_id)
 
     for (iter = g_list_first (context->request_list); iter; iter = g_list_next (context->request_list)) {
         request = (Request*) iter->data;
-        if (request->policy_id == policy_id) {
+        if (policy_id == 0 || (request->policy_id == policy_id)) {
             LOG_INFO ("request (%d) >> stop received", policy_id);
 
             context->request_list = g_list_remove (context->request_list, request);

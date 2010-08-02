@@ -36,6 +36,8 @@
 
 static gboolean _request_manager_create         (Context *context);
 static void     _request_manager_destroy        (Context *context);
+static DBusHandlerResult _dbus_event            (DBusConnection * connection, DBusMessage * message,
+	      void *userdata);
 
 static DBusConnection*
 _get_dbus_connection (DBusBusType bus_type)
@@ -52,6 +54,37 @@ _get_dbus_connection (DBusBusType bus_type)
     }
 
     return bus;
+}
+
+static DBusHandlerResult _dbus_event (DBusConnection * connection, DBusMessage * message,
+	      void *userdata)
+{
+    Context *context = (Context *) userdata;
+    DBusError error = DBUS_ERROR_INIT;
+    gchar *component = NULL;
+    gchar *s1 = NULL;
+    gchar *s2 = NULL;
+
+    if (dbus_message_is_signal
+	    (message, "org.freedesktop.DBus", "NameOwnerChanged")) {
+        if (!dbus_message_get_args
+            (message, &error,
+            DBUS_TYPE_STRING, &component,
+            DBUS_TYPE_STRING, &s1,
+            DBUS_TYPE_STRING, &s2,
+            DBUS_TYPE_INVALID)) {
+            if (error.message)
+                LOG_WARNING ("D-Bus error: %s",error.message);
+        } else {
+            if (component && g_str_equal (component, "org.freedesktop.ohm")) {
+                LOG_INFO ("Ohmd restarted, stopping all requests");
+                stop_handler (context, 0);
+            }
+        }
+        dbus_error_free (&error);
+    }
+
+    return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
 int
@@ -119,6 +152,14 @@ context_create (Context **context)
         return FALSE;
     }
 
+    /* hook cleanup function to ohmd restarts */
+
+    dbus_bus_add_match (c->system_bus,
+    "type='signal',sender='org.freedesktop.DBus',member='NameOwnerChanged',arg0='org.freedesktop.ohm'",
+	NULL);
+
+    dbus_connection_add_filter (c->system_bus, _dbus_event, c, NULL);
+
     /* hook up the session watcher */
 
     if (!session_create (c)) {
@@ -133,6 +174,7 @@ context_create (Context **context)
 void
 context_destroy (Context *context)
 {
+    dbus_connection_remove_filter (context->system_bus, _dbus_event, context);
     dbus_if_destroy           (context);
     profile_destroy           (context);
     tone_mapper_destroy       (context);
