@@ -64,7 +64,7 @@ pattern_poll_cb (gpointer userdata)
     Vibrator *vibrator = p->vibrator;
 
     if (pattern_is_completed (vibrator, p->id)) {
-        LOG_DEBUG ("%s >> vibration has been completed.", __FUNCTION__);
+        NGF_LOG_DEBUG ("%s >> vibration has been completed.", __FUNCTION__);
 
         p->poll_id = 0;
         if (p->callback)
@@ -79,7 +79,7 @@ pattern_poll_cb (gpointer userdata)
 static Pattern*
 pattern_new (Vibrator *vibrator, guint id, gpointer data, guint pattern_id, VibratorCompletedCallback callback, gpointer userdata)
 {
-    LOG_ENTER ("%s >> entering", __FUNCTION__);
+    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Pattern *p = NULL;
 
@@ -92,7 +92,7 @@ pattern_new (Vibrator *vibrator, guint id, gpointer data, guint pattern_id, Vibr
     p->vibrator   = vibrator;
 
     if (!pattern_is_repeating (p->data, p->pattern_id)) {
-        LOG_DEBUG ("%s >> pattern is finite, poll for completion.", __FUNCTION__);
+        NGF_LOG_DEBUG ("%s >> pattern is finite, poll for completion.", __FUNCTION__);
         p->poll_id = g_timeout_add (POLL_TIMEOUT, pattern_poll_cb, p);
     }
 
@@ -102,7 +102,7 @@ pattern_new (Vibrator *vibrator, guint id, gpointer data, guint pattern_id, Vibr
 static void
 pattern_free (Pattern *p)
 {
-    LOG_ENTER ("%s >> entering", __FUNCTION__);
+    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     if (p->poll_id > 0) {
         g_source_remove (p->poll_id);
@@ -115,7 +115,7 @@ pattern_free (Pattern *p)
 static Pattern*
 pattern_lookup (Vibrator *vibrator, guint id)
 {
-    LOG_ENTER ("%s >> entering (id %u)", __FUNCTION__, id);
+    NGF_LOG_ENTER ("%s >> entering (id %u)", __FUNCTION__, id);
 
     GList   *iter = NULL;
     Pattern *p    = NULL;
@@ -160,7 +160,7 @@ vibrator_create ()
     }
 
     if (!vibrator_reconnect (vibrator))
-        LOG_WARNING ("%s >> failed to connect to vibrator daemon.", __FUNCTION__);
+        NGF_LOG_WARNING ("%s >> failed to connect to vibrator daemon.", __FUNCTION__);
 
     return vibrator;
 }
@@ -226,7 +226,7 @@ failed:
 guint
 vibrator_start (Vibrator *vibrator, gpointer data, gint pattern_id, VibratorCompletedCallback callback, gpointer userdata)
 {
-    LOG_ENTER ("%s >> entering", __FUNCTION__);
+    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     VibeUInt8 *effects = data ? (VibeUInt8*) data : g_pVibeIVTBuiltInEffects;
     gint       id      = 0;
@@ -243,20 +243,20 @@ vibrator_start (Vibrator *vibrator, gpointer data, gint pattern_id, VibratorComp
         if (VIBE_SUCCEEDED (ret)) {
             p = pattern_new (vibrator, id, effects, pattern_id, callback, userdata);
             vibrator->patterns = g_list_append (vibrator->patterns, p);
-            LOG_DEBUG ("%s >> started pattern with id %d", __FUNCTION__, p->id);
+            NGF_LOG_DEBUG ("%s >> started pattern with id %d", __FUNCTION__, p->id);
             return p->id;
         }
         else if (ret == VIBE_E_NOT_INITIALIZED) {
             if (retry)
                 return 0;
 
-            LOG_DEBUG ("%s >> vibrator is not initialized.", __FUNCTION__);
+            NGF_LOG_DEBUG ("%s >> vibrator is not initialized.", __FUNCTION__);
             if (!vibrator_reconnect (vibrator)) {
-                LOG_WARNING ("%s >> failed to reconnect to vibrator.", __FUNCTION__);
+                NGF_LOG_WARNING ("%s >> failed to reconnect to vibrator.", __FUNCTION__);
                 return 0;
             }
             else
-                LOG_DEBUG ("%s >> reconnected to vibrator.", __FUNCTION__);
+                NGF_LOG_DEBUG ("%s >> reconnected to vibrator.", __FUNCTION__);
 
             retry = TRUE;
         }
@@ -269,7 +269,7 @@ vibrator_start (Vibrator *vibrator, gpointer data, gint pattern_id, VibratorComp
 void
 vibrator_stop (Vibrator *vibrator, guint id)
 {
-    LOG_ENTER ("%s >> entering", __FUNCTION__);
+    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Pattern *p = NULL;
 
@@ -277,7 +277,7 @@ vibrator_stop (Vibrator *vibrator, guint id)
         return;
 
     if ((p = pattern_lookup (vibrator, id))) {
-        LOG_DEBUG ("%s >> stopping effect %d", __FUNCTION__, id);
+        NGF_LOG_DEBUG ("%s >> stopping effect %d", __FUNCTION__, id);
         ImmVibeStopPlayingEffect (vibrator->device, id);
         vibrator->patterns = g_list_remove (vibrator->patterns, p);
         pattern_free (p);
@@ -302,7 +302,7 @@ pattern_is_completed (Vibrator *vibrator, gint id)
 static gboolean
 pattern_is_repeating (gpointer data, gint pattern_id)
 {
-    LOG_ENTER ("%s >> entering", __FUNCTION__);
+    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     VibeInt32 duration = 0;
 
@@ -311,7 +311,7 @@ pattern_is_repeating (gpointer data, gint pattern_id)
             return TRUE;
     }
     else
-        LOG_WARNING ("%s >> failed to query pattern duration", __FUNCTION__);
+        NGF_LOG_WARNING ("%s >> failed to query pattern duration", __FUNCTION__);
 
     return FALSE;
 }

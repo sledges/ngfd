@@ -21,6 +21,8 @@
 
 #include <stdarg.h>
 #include <stdlib.h>
+#include <signal.h>
+#include <syslog.h>
 #include "log.h"
 
 #ifdef ENABLE_DEBUG
@@ -28,6 +30,8 @@ static LogLevel _log_level = LOG_LEVEL_ENTER;
 #else
 static LogLevel _log_level = LOG_LEVEL_NONE;
 #endif
+
+static gboolean _log_syslog = FALSE;
 
 static const char*
 level_to_string (LogLevel category)
@@ -52,6 +56,29 @@ level_to_string (LogLevel category)
     return "UNKNOWN";
 }
 
+static int
+level_to_syslevel (LogLevel category)
+{
+    switch (category) {
+        case LOG_LEVEL_ENTER:
+            return LOG_DEBUG;
+
+        case LOG_LEVEL_INFO:
+            return LOG_INFO;
+
+        case LOG_LEVEL_DEBUG:
+            return LOG_DEBUG;
+
+        case LOG_LEVEL_WARNING:
+            return LOG_WARNING;
+
+        default:
+            break;
+    }
+
+    return LOG_INFO;
+}
+
 void
 log_message (LogLevel category, const char *function, int line, const char *fmt, ...)
 {
@@ -68,7 +95,25 @@ log_message (LogLevel category, const char *function, int line, const char *fmt,
     vsnprintf (buf, 256, fmt, fmt_args);
     va_end (fmt_args);
 
-    fprintf (stdout, "[%s] %s\n", level_to_string (category), buf);
+    if (_log_syslog)
+        syslog (level_to_syslevel (category), "[%s] %s\n", level_to_string (category), buf);
+    else
+        fprintf (stdout, "[%s] %s\n", level_to_string (category), buf);
+}
+
+void
+log_signal (int signum, siginfo_t *info, void *ptr)
+{
+    if (!_log_syslog) {
+        _log_syslog = TRUE;
+        openlog ("ngfd", 0, LOG_DAEMON);
+    } else {
+        closelog();
+        _log_syslog = FALSE;
+    }
+
+    _log_level = LOG_LEVEL_ENTER;
+    NGF_LOG_INFO ("Logging enabled");
 }
 
 void
@@ -76,6 +121,10 @@ log_set_level (LogLevel level)
 {
     _log_level = level;
 
-    if (level < LOG_LEVEL_NONE)
-        fprintf (stdout, "Log level set to %s\n", level_to_string (level));
+    if (level < LOG_LEVEL_NONE) {
+        if (_log_syslog)
+            syslog (LOG_INFO, "Log level set to %s\n", level_to_string (level));
+        else
+            fprintf (stdout, "Log level set to %s\n", level_to_string (level));
+    }
 }

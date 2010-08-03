@@ -99,7 +99,7 @@ _bus_cb (GstBus     *bus,
                         duration /= 1000000000;
                         duration *= stream->num_repeat;
                     } else {
-                        LOG_WARNING ("Audio duration query failed");
+                        NGF_LOG_WARNING ("Audio duration query failed");
                         gst_query_unref (query);
                         return TRUE;
                     }
@@ -177,7 +177,7 @@ _gst_element_preload (gchar * name)
 	GstElement *element = NULL;
 
 	if ((element = gst_element_factory_make (name, NULL)) == NULL) {
-		LOG_WARNING ("Preloading element %s failed", name);
+		NGF_LOG_WARNING ("Preloading element %s failed", name);
 		return;
 	}
 
@@ -187,7 +187,7 @@ _gst_element_preload (gchar * name)
 static gboolean
 _gst_initialize (AudioInterface * iface)
 {
-	LOG_ENTER ("%s >> entering", __FUNCTION__);
+	NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
 
 	(void) iface;
 
@@ -214,7 +214,7 @@ _gst_initialize (AudioInterface * iface)
 static void
 _gst_shutdown (AudioInterface *iface)
 {
-    LOG_ENTER ("%s >> entering", __FUNCTION__);
+    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     (void) iface;
 }
@@ -223,7 +223,7 @@ static gboolean
 _gst_prepare (AudioInterface *iface,
               AudioStream    *stream)
 {
-    LOG_ENTER ("%s >> entering", __FUNCTION__);
+    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     GstElement  *element   = NULL;
     GstElement  *source    = NULL;
@@ -288,11 +288,11 @@ _gst_prepare (AudioInterface *iface,
     pa_proplist_sets (proplist, PA_PROP_MEDIA_FILENAME, stream->source);
 
     if (g_object_class_find_property (G_OBJECT_GET_CLASS (sink), "proplist") != NULL) {
-        LOG_DEBUG ("Setting property list for pulsesink.");
+        NGF_LOG_DEBUG ("Setting property list for pulsesink.");
         g_object_set (G_OBJECT (sink), "proplist", proplist, NULL);
     }
     else {
-        LOG_DEBUG ("No 'proplist' property on pulsesink, ignoring property list.");
+        NGF_LOG_DEBUG ("No 'proplist' property on pulsesink, ignoring property list.");
         pa_proplist_free (proplist);
     }
 
@@ -331,7 +331,7 @@ static gboolean
 _gst_play (AudioInterface *iface,
            AudioStream    *stream)
 {
-    LOG_ENTER ("%s >> entering", __FUNCTION__);
+    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     GstElement *element = (GstElement*) stream->data;
     gst_element_set_state (element, GST_STATE_PLAYING);
@@ -342,7 +342,7 @@ static void
 _gst_stop (AudioInterface *iface,
            AudioStream    *stream)
 {
-    LOG_ENTER ("%s >> entering", __FUNCTION__);
+    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     GstElement *element = (GstElement*) stream->data;
     GstController *controller = (GstController*) stream->data2;

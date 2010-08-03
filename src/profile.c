@@ -131,7 +131,7 @@ resolve_vibration (Context    *context,
 
             p->filename = g_strdup (value);
             if ((p->data = vibrator_load (p->filename)) == NULL)
-                LOG_WARNING ("%s >> failed to load vibrator pattern data: %s", __FUNCTION__, p->filename);
+                NGF_LOG_WARNING ("%s >> failed to load vibrator pattern data: %s", __FUNCTION__, p->filename);
 
             break;
         }
@@ -252,7 +252,7 @@ profile_resolve (Context *context)
             pattern->pattern  = 0;
 
             if ((pattern->data = vibrator_load (pattern->filename)) == NULL)
-                LOG_WARNING ("%s >> failed to load vibrator pattern data: %s", __FUNCTION__, pattern->filename);
+                NGF_LOG_WARNING ("%s >> failed to load vibrator pattern data: %s", __FUNCTION__, pattern->filename);
         }
     }
 
@@ -263,7 +263,7 @@ int
 profile_reconnect (Context *context)
 {
     if (!context->session_bus) {
-        LOG_DEBUG ("%s >> no session bus available.", __FUNCTION__);
+        NGF_LOG_DEBUG ("%s >> no session bus available.", __FUNCTION__);
         return FALSE;
     }
 

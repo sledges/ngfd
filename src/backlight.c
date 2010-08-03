@@ -34,7 +34,7 @@ static gboolean
 call_dbus_method (DBusConnection *bus, DBusMessage *msg)
 {
     if (!dbus_connection_send (bus, msg, 0)) {
-        LOG_WARNING ("Failed to send DBus message %s to interface %s", dbus_message_get_member (msg), dbus_message_get_interface (msg));
+        NGF_LOG_WARNING ("Failed to send DBus message %s to interface %s", dbus_message_get_member (msg), dbus_message_get_interface (msg));
         return FALSE;
     }
 

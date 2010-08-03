@@ -110,7 +110,7 @@ properties_dump (GHashTable *properties)
     g_hash_table_iter_init (&iter, properties);
     while (g_hash_table_iter_next (&iter, (gpointer) &key, (gpointer) &value)) {
         str = _get_property_str (value);
-        LOG_DEBUG ("+ <property %s = %s>", key, str);
+        NGF_LOG_DEBUG ("+ <property %s = %s>", key, str);
         g_free (str);
     }
 }

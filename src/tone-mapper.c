@@ -52,14 +52,14 @@ filter_cb (DBusConnection *connection, DBusMessage *msg, void *userdata)
         if (dbus_message_get_args (msg, NULL, DBUS_TYPE_STRING, &key, DBUS_TYPE_STRING, &value, DBUS_TYPE_INVALID)) {
             mapped_tone_path = g_build_filename (context->mapped_tone_path, value, NULL);
             g_hash_table_replace (context->mapped_tones, g_strdup (key), mapped_tone_path);
-            LOG_DEBUG ("%s >> new mapped tone: %s = %s\n", __FUNCTION__, key, mapped_tone_path);
+            NGF_LOG_DEBUG ("%s >> new mapped tone: %s = %s\n", __FUNCTION__, key, mapped_tone_path);
         }
      }
 
     else if (dbus_message_is_signal (msg, TONE_MANAGER_DBUS_IFACE, TONE_MANAGER_SIGNAL_REMOVED)) {
         if (dbus_message_get_args (msg, NULL, DBUS_TYPE_STRING, &key, DBUS_TYPE_STRING, &value, DBUS_TYPE_INVALID)) {
             g_hash_table_remove (context->mapped_tones, key);
-            LOG_DEBUG ("%s >> removed mapped tone: %s\n", __FUNCTION__, key);
+            NGF_LOG_DEBUG ("%s >> removed mapped tone: %s\n", __FUNCTION__, key);
         }
     }
 
@@ -127,7 +127,7 @@ get_all_reply_cb (DBusPendingCall *pending, void *userdata)
             if (key && value) {
                 tone_filename = g_build_filename (context->mapped_tone_path, value, NULL);
                 g_hash_table_replace (context->mapped_tones, g_strdup (key), tone_filename);
-                LOG_DEBUG ("%s >> mapped file %s => %s\n", __FUNCTION__, key, tone_filename);
+                NGF_LOG_DEBUG ("%s >> mapped file %s => %s\n", __FUNCTION__, key, tone_filename);
             }
 
             dbus_message_iter_next (&array);
@@ -153,7 +153,7 @@ query_tones (Context *context)
         TONE_MANAGER_DBUS_IFACE, TONE_MANAGER_METHOD_GETALL);
 
     if (msg == NULL) {
-        LOG_WARNING ("%s >> failed to create msg!", __FUNCTION__);
+        NGF_LOG_WARNING ("%s >> failed to create msg!", __FUNCTION__);
         return FALSE;
     }
 
@@ -161,7 +161,7 @@ query_tones (Context *context)
     dbus_message_unref (msg);
 
     if (pending == NULL) {
-        LOG_WARNING ("%s >> failed to get pending!", __FUNCTION__);
+        NGF_LOG_WARNING ("%s >> failed to get pending!", __FUNCTION__);
         return FALSE;
     }
 
@@ -181,7 +181,7 @@ query_tone_path (Context *context)
         TONE_MANAGER_DBUS_IFACE, TONE_MANAGER_METHOD_GETTONEPATH);
 
     if (msg == NULL) {
-        LOG_WARNING ("%s >> failed to create msg!", __FUNCTION__);
+        NGF_LOG_WARNING ("%s >> failed to create msg!", __FUNCTION__);
         return FALSE;
     }
 
@@ -190,13 +190,13 @@ query_tone_path (Context *context)
 
     if (reply) {
         if (dbus_message_get_args (reply, NULL, DBUS_TYPE_STRING, &mapped_tone_path, DBUS_TYPE_INVALID)) {
-            LOG_DEBUG ("%s >> got tone path: %s", __FUNCTION__, mapped_tone_path);
+            NGF_LOG_DEBUG ("%s >> got tone path: %s", __FUNCTION__, mapped_tone_path);
             context->mapped_tone_path = g_strdup (mapped_tone_path);
         }
     }
 
     if (dbus_error_is_set (&error)) {
-        LOG_WARNING ("%s >> query tone path failed: %s", __FUNCTION__, error.message);
+        NGF_LOG_WARNING ("%s >> query tone path failed: %s", __FUNCTION__, error.message);
         dbus_error_free (&error);
     }
 
@@ -226,7 +226,7 @@ tone_mapper_reconnect (Context *context)
     int success = FALSE;
 
     if (!context->session_bus) {
-        LOG_DEBUG ("%s >> failed to connect to session bus.", __FUNCTION__);
+        NGF_LOG_DEBUG ("%s >> failed to connect to session bus.", __FUNCTION__);
         return FALSE;
     }
 

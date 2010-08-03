@@ -25,6 +25,8 @@
 
 #include <getopt.h>
 #include <unistd.h>
+#include <signal.h>
+#include <string.h>
 
 #include "log.h"
 #include "context.h"
@@ -48,7 +50,7 @@ _get_dbus_connection (DBusBusType bus_type)
     dbus_error_init (&error);
     bus = dbus_bus_get (bus_type, &error);
     if (bus == NULL) {
-        LOG_WARNING ("%s >> failed to get %s bus: %s", bus_type == DBUS_BUS_SYSTEM ? "system" : "session", error.message);
+        NGF_LOG_WARNING ("%s >> failed to get %s bus: %s", bus_type == DBUS_BUS_SYSTEM ? "system" : "session", error.message);
         dbus_error_free (&error);
         return NULL;
     }
@@ -74,10 +76,10 @@ static DBusHandlerResult _dbus_event (DBusConnection * connection, DBusMessage *
             DBUS_TYPE_STRING, &s2,
             DBUS_TYPE_INVALID)) {
             if (error.message)
-                LOG_WARNING ("D-Bus error: %s",error.message);
+                NGF_LOG_WARNING ("D-Bus error: %s",error.message);
         } else {
             if (component && g_str_equal (component, "org.freedesktop.ohm")) {
-                LOG_INFO ("Ohmd restarted, stopping all requests");
+                NGF_LOG_INFO ("Ohmd restarted, stopping all requests");
                 stop_handler (context, 0);
             }
         }
@@ -91,14 +93,15 @@ int
 context_create (Context **context)
 {
     Context *c = NULL;
+    struct sigaction act;
 
     if ((c = g_try_malloc0 (sizeof (Context))) == NULL) {
-        LOG_WARNING ("Failed to allocate memory for context!");
+        NGF_LOG_WARNING ("Failed to allocate memory for context!");
         return FALSE;
     }
 
     if ((c->loop = g_main_loop_new (NULL, 0)) == NULL) {
-        LOG_WARNING ("Failed to create the GLib mainloop!");
+        NGF_LOG_WARNING ("Failed to create the GLib mainloop!");
         return FALSE;
     }
 
@@ -110,45 +113,45 @@ context_create (Context **context)
     /* setup the interface */
 
     if (!dbus_if_create (c)) {
-        LOG_WARNING ("Failed to create D-Bus interface!");
+        NGF_LOG_WARNING ("Failed to create D-Bus interface!");
         return FALSE;
     }
 
     /* setup the backends */
 
     if (!volume_controller_create (c)) {
-        LOG_WARNING ("%s >> failed to create volume control.", __FUNCTION__);
+        NGF_LOG_WARNING ("%s >> failed to create volume control.", __FUNCTION__);
     }
 
     if (!profile_create (c)) {
-        LOG_WARNING ("Failed to create profile tracking!");
+        NGF_LOG_WARNING ("Failed to create profile tracking!");
         return FALSE;
     }
 
     if (!tone_mapper_create (c)) {
-        LOG_WARNING ("Failed to create tone mapper!");
+        NGF_LOG_WARNING ("Failed to create tone mapper!");
         return FALSE;
     }
 
     if ((c->audio = audio_create ()) == NULL) {
-        LOG_WARNING ("Failed to create Pulseaudio backend!");
+        NGF_LOG_WARNING ("Failed to create Pulseaudio backend!");
         return FALSE;
     }
 
     if ((c->vibrator = vibrator_create ()) == NULL) {
-        LOG_WARNING ("Failed to create Immersion backend!");
+        NGF_LOG_WARNING ("Failed to create Immersion backend!");
         return FALSE;
     }
 
     /* create the hash tables to hold definitions and events */
 
     if (!_request_manager_create (c)) {
-        LOG_WARNING ("Failed to create request manager!");
+        NGF_LOG_WARNING ("Failed to create request manager!");
         return FALSE;
     }
 
     if (!load_settings (c)) {
-        LOG_WARNING ("Failed to load settings!");
+        NGF_LOG_WARNING ("Failed to load settings!");
         return FALSE;
     }
 
@@ -163,9 +166,14 @@ context_create (Context **context)
     /* hook up the session watcher */
 
     if (!session_create (c)) {
-        LOG_WARNING ("%s >> failed to setup session watcher.", __FUNCTION__);
+        NGF_LOG_WARNING ("%s >> failed to setup session watcher.", __FUNCTION__);
         return FALSE;
     }
+
+    memset(&act, 0, sizeof(act));
+    act.sa_sigaction = log_signal;
+    act.sa_flags = SA_SIGINFO;
+    sigaction(SIGUSR1, &act, NULL);
 
     *context = c;
     return TRUE;

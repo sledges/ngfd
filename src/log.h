@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <glib.h>
+#include <signal.h>
 
 typedef enum _LogLevel
 {
@@ -35,15 +36,16 @@ typedef enum _LogLevel
 } LogLevel;
 
 void log_message   (LogLevel level, const char *function, int line, const char *fmt, ...);
+void log_signal (int signum, siginfo_t *info, void *ptr);
 void log_set_level (LogLevel level);
 
-#define LOG_ENTER(...) \
+#define NGF_LOG_ENTER(...) \
     { log_message (LOG_LEVEL_ENTER, __FUNCTION__, __LINE__, __VA_ARGS__); }
-#define LOG_INFO(...) \
+#define NGF_LOG_INFO(...) \
     { log_message (LOG_LEVEL_INFO, __FUNCTION__, __LINE__, __VA_ARGS__); }
-#define LOG_DEBUG(...) \
+#define NGF_LOG_DEBUG(...) \
     { log_message (LOG_LEVEL_DEBUG, __FUNCTION__, __LINE__, __VA_ARGS__); }
-#define LOG_WARNING(...) \
+#define NGF_LOG_WARNING(...) \
     { log_message (LOG_LEVEL_WARNING, __FUNCTION__, __LINE__, __VA_ARGS__); }
 
 

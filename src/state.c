@@ -136,17 +136,17 @@ _request_state_cb (Request *request, guint state, gpointer userdata)
     switch (state) {
         case REQUEST_STATE_STARTED:
             TIMESTAMP ("REQUEST STARTED");
-            LOG_INFO ("request (%d) >> started", request->policy_id);
+            NGF_LOG_INFO ("request (%d) >> started", request->policy_id);
             break;
 
         case REQUEST_STATE_FAILED:
-            LOG_DEBUG ("request (%d) >> failed", request->policy_id);
+            NGF_LOG_DEBUG ("request (%d) >> failed", request->policy_id);
             dbus_if_send_status (context, request->policy_id, 0);
             remove_request = TRUE;
             break;
 
         case REQUEST_STATE_COMPLETED:
-            LOG_INFO ("request (%d) >> completed", request->policy_id);
+            NGF_LOG_INFO ("request (%d) >> completed", request->policy_id);
             dbus_if_send_status (context, request->policy_id, 0);
             remove_request = TRUE;
             break;
@@ -156,7 +156,7 @@ _request_state_cb (Request *request, guint state, gpointer userdata)
     }
 
     if (remove_request) {
-        LOG_INFO ("request (%d) >> removed", request->policy_id);
+        NGF_LOG_INFO ("request (%d) >> removed", request->policy_id);
 
         context->request_list = g_list_remove (context->request_list, request);
         stop_request (request);
@@ -184,7 +184,7 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
        short requests. If not found, then it is an unrecognized request. */
 
     if ((def = g_hash_table_lookup (context->definitions, request_name)) == NULL) {
-        LOG_WARNING ("No request definition for request %s", request_name);
+        NGF_LOG_WARNING ("No request definition for request %s", request_name);
         return 0;
     }
 
@@ -193,7 +193,7 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
        If no play mode then this is an invalid request. */
 
     if ((play_mode = _properties_get_play_mode (properties)) == 0) {
-        LOG_WARNING ("No play.mode property for request %s", request_name);
+        NGF_LOG_WARNING ("No play.mode property for request %s", request_name);
         return 0;
     }
 
@@ -209,7 +209,7 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
     }
 
     if ((event = g_hash_table_lookup (context->events, event_name)) == 0) {
-        LOG_WARNING ("Failed to get request event %s for request %s", event_name, request_name);
+        NGF_LOG_WARNING ("Failed to get request event %s for request %s", event_name, request_name);
         return 0;
     }
 
@@ -221,11 +221,11 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
     resources    = _properties_get_resources (properties);
 
     if (policy_id == 0 || resources == 0) {
-        LOG_WARNING ("No policy.id or resources defined for request %s", request_name);
+        NGF_LOG_WARNING ("No policy.id or resources defined for request %s", request_name);
         return 0;
     }
 
-    LOG_INFO ("request_name=%s, event_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d (%s))",
+    NGF_LOG_INFO ("request_name=%s, event_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d (%s))",
         request_name, event_name, policy_id, play_timeout, resources, play_mode, play_mode == REQUEST_PLAY_MODE_LONG ? "LONG" : "SHORT");
 
     TIMESTAMP ("Request parsing completed");
@@ -234,7 +234,7 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
        to it. */
 
     if ((request = request_new (context, event)) == NULL) {
-        LOG_WARNING ("request (%d) >> failed create request", policy_id);
+        NGF_LOG_WARNING ("request (%d) >> failed create request", policy_id);
         return 0;
     }
 
@@ -253,7 +253,7 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
 
     context->request_list = g_list_append (context->request_list, request);
     if (!play_request (request)) {
-        LOG_WARNING ("request (%d) >> failed to start", request->policy_id);
+        NGF_LOG_WARNING ("request (%d) >> failed to start", request->policy_id);
         context->request_list = g_list_remove (context->request_list, request);
         request_free (request);
         return 0;
@@ -274,7 +274,7 @@ stop_handler (Context *context, guint policy_id)
     for (iter = g_list_first (context->request_list); iter; iter = g_list_next (context->request_list)) {
         request = (Request*) iter->data;
         if (policy_id == 0 || (request->policy_id == policy_id)) {
-            LOG_INFO ("request (%d) >> stop received", policy_id);
+            NGF_LOG_INFO ("request (%d) >> stop received", policy_id);
 
             context->request_list = g_list_remove (context->request_list, request);
 
