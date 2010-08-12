@@ -227,6 +227,8 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
 
     NGF_LOG_INFO ("request_name=%s, event_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d (%s))",
         request_name, event_name, policy_id, play_timeout, resources, play_mode, play_mode == REQUEST_PLAY_MODE_LONG ? "LONG" : "SHORT");
+    NGF_LOG_DEBUG ("Properties:");
+    properties_dump (properties);
 
     TIMESTAMP ("Request parsing completed");
 
