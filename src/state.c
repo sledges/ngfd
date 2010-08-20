@@ -24,6 +24,7 @@
 #include "resources.h"
 #include "request.h"
 #include "property.h"
+#include "properties.h"
 #include "player.h"
 #include "dbus-if.h"
 #include "state.h"
