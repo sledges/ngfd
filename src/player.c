@@ -312,9 +312,9 @@ synchronize_resources (Request *request)
         request->synchronize_done = TRUE;
 
         setup_timeout                    (request);
+        play_stream                      (request);
         playback_path_leds_and_backlight (request);
         playback_path_vibration          (request);
-        play_stream                      (request);
 
         return;
     }
