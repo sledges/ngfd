@@ -357,6 +357,7 @@ _parse_sound_path (Context *context, const gchar *str)
 
         if (!_parse_profile_key (stripped, &sound_path->profile, &sound_path->key)) {
             g_free (stripped);
+            sound_path_free (sound_path);
             return NULL;
         }
 
