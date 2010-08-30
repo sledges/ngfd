@@ -253,7 +253,7 @@ _gst_prepare (AudioInterface *iface,
         if ((volume = gst_element_factory_make ("volume", NULL)) == NULL)
             goto failed;
 
-        if (!(controller = gst_controller_new (G_OBJECT (volume), "volume", NULL)))
+        if ((controller = gst_controller_new (G_OBJECT (volume), "volume", NULL)) == NULL)
             goto failed;
         csource = gst_interpolation_control_source_new ();
         gst_controller_set_control_source (controller, "volume", GST_CONTROL_SOURCE (csource));
