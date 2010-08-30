@@ -416,6 +416,7 @@ _create_volume (Context *context, const gchar *str)
 
         if (!_parse_profile_key (stripped, &volume->profile, &volume->key)) {
             g_free (stripped);
+            volume_free (volume);
             return NULL;
         }
 
@@ -439,6 +440,7 @@ _create_volume (Context *context, const gchar *str)
 
         if ((split = g_strsplit (stripped, ";", -1)) == NULL) {
             g_free (stripped);
+            volume_free (volume);
             return NULL;
         }
 
@@ -448,6 +450,7 @@ _create_volume (Context *context, const gchar *str)
             if (*item == NULL) {
                 g_strfreev (split);
                 g_free (stripped);
+                volume_free (volume);
                 return NULL;
             }
             volume->linear[i] = atoi (*item);        
@@ -478,6 +481,7 @@ _parse_pattern (Context *context, const gchar *str)
 
         if (!_parse_profile_key (stripped, &pattern->profile, &pattern->key)) {
             g_free (stripped);
+            vibration_pattern_free (pattern);
             return NULL;
         }
 
