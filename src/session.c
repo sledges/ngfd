@@ -211,22 +211,16 @@ parse_address (const char *buf)
     if (!buf)
         return NULL;
 
-    if ((lines = g_strsplit (buf, "\n", 2)) == NULL)
-        return NULL;
+    lines = g_strsplit (buf, "\n", 2);
 
     for (i = lines; i; ++i) {
-        if ((tokens = g_strsplit (*i, "=", 2)) == NULL)
-            continue;
-
-        if (!tokens[0]) {
-            g_strfreev (tokens);
-            continue;
-        }
+        tokens = g_strsplit (*i, "=", 2);
 
         if (tokens[0] && tokens[1]) {
             if (g_str_has_suffix (tokens[0], "DBUS_SESSION_BUS_ADDRESS")) {
                 address = g_strdup (tokens[1]);
                 g_strfreev (tokens);
+                g_strfreev (lines);
                 return address;
             }
         }

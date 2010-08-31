@@ -120,7 +120,9 @@ _parse_group_name (const char *group)
     if (name == NULL)
         return NULL;
 
-    if ((split = g_strsplit (name, "@", 2)) == NULL) {
+    split = g_strsplit (name, "@", 2);
+    if (split[0] == NULL || split[1] == NULL) {
+        g_strfreev (split);
         g_free (name);
         return NULL;
     }
@@ -145,7 +147,9 @@ _parse_group_parent (const char *group)
     if (name == NULL)
         return NULL;
 
-    if ((split = g_strsplit (name, "@", 2)) == NULL) {
+    split = g_strsplit (name, "@", 2);
+    if (split[0] == NULL || split[1] == NULL) {
+        g_strfreev (split);
         g_free (name);
         return NULL;
     }
@@ -324,16 +328,15 @@ _parse_profile_key (const char *key, gchar **out_profile, gchar **out_key)
     if (key == NULL)
         return FALSE;
 
-    if ((split = g_strsplit (key, "@", 2)) != NULL) {
-        if (split[0] == NULL || g_str_equal (split[0], "")) {
-            ret = FALSE;
-            goto done;
-        }
-
-        *out_key = g_strdup (split[0]);
-        *out_profile = g_strdup (split[1]);
-        ret = TRUE;
+    split = g_strsplit (key, "@", 2);
+    if (split[0] == NULL || split[1] == NULL) {
+        ret = FALSE;
+        goto done;
     }
+
+    *out_key = g_strdup (split[0]);
+    *out_profile = g_strdup (split[1]);
+    ret = TRUE;
 
 done:
     g_strfreev (split);
@@ -384,8 +387,11 @@ _create_sound_paths (Context *context, const gchar *str)
     if (str == NULL)
         return NULL;
 
-    if ((sounds = g_strsplit (str, ";", -1)) == NULL)
+    sounds = g_strsplit (str, ";", -1);
+    if (sounds[0] == NULL) {
+        g_strfreev (sounds);
         return NULL;
+    }
 
     for (s = sounds; *s; ++s) {
         if ((sound_path = _parse_sound_path (context, *s)) != NULL)
@@ -438,7 +444,9 @@ _create_volume (Context *context, const gchar *str)
         volume->type       = VOLUME_TYPE_LINEAR;
         volume->level = 100;
 
-        if ((split = g_strsplit (stripped, ";", -1)) == NULL) {
+        split = g_strsplit (stripped, ";", -1);
+        if (split[0] == NULL) {
+            g_strfreev (split);
             g_free (stripped);
             volume_free (volume);
             return NULL;
@@ -517,7 +525,9 @@ _create_patterns (Context *context, const gchar *str)
     if (str == NULL)
         return NULL;
 
-    if ((patterns = g_strsplit (str, ";", -1)) == NULL) {
+    patterns = g_strsplit (str, ";", -1);
+    if (patterns[0] == NULL) {
+        g_strfreev (patterns);
         return NULL;
     }
 
