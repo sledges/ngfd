@@ -34,6 +34,7 @@
 #include "profile.h"
 #include "settings.h"
 #include "session.h"
+#include "state.h"
 #include "volume-controller.h"
 
 static gboolean _request_manager_create         (Context *context);

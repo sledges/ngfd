@@ -345,7 +345,6 @@ repeat_current_stream (Request *request)
     NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     Event     *event      = request->event;
-    SoundPath *sound_path = NULL;
 
     if (request->custom_pattern)
         stop_vibration (request);
