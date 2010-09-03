@@ -551,6 +551,9 @@ _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, const
     GHashTable  *copy       = NULL;
     guint        i          = 0;
 
+    if (name == NULL)
+        return;
+
     if (_event_is_done (*events_done, name))
         return;
 
@@ -559,9 +562,6 @@ _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, const
 
     if ((parent = _parse_group_parent (group)) != NULL)
         _parse_single_event (data, k, events_done, parent);
-
-    if (name == NULL)
-        return;
 
     properties = properties_new ();
 
