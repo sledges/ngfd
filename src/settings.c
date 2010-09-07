@@ -121,7 +121,7 @@ _parse_group_name (const char *group)
         return NULL;
 
     split = g_strsplit (name, "@", 2);
-    if (split[0] == NULL || split[1] == NULL) {
+    if (split[0] == NULL) {
         g_strfreev (split);
         g_free (name);
         return NULL;
