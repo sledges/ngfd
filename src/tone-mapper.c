@@ -51,8 +51,10 @@ filter_cb (DBusConnection *connection, DBusMessage *msg, void *userdata)
     if (dbus_message_is_signal (msg, TONE_MANAGER_DBUS_IFACE, TONE_MANAGER_SIGNAL_COMPLETED)) {
         if (dbus_message_get_args (msg, NULL, DBUS_TYPE_STRING, &key, DBUS_TYPE_STRING, &value, DBUS_TYPE_INVALID)) {
             mapped_tone_path = g_build_filename (context->mapped_tone_path, value, NULL);
-            g_hash_table_replace (context->mapped_tones, g_strdup (key), mapped_tone_path);
-            NGF_LOG_DEBUG ("%s >> new mapped tone: %s = %s\n", __FUNCTION__, key, mapped_tone_path);
+            if (key && mapped_tone_path) {
+                g_hash_table_replace (context->mapped_tones, g_strdup (key), mapped_tone_path);
+                NGF_LOG_DEBUG ("%s >> new mapped tone: %s = %s\n", __FUNCTION__, key, mapped_tone_path);
+            }
         }
      }
 

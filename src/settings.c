@@ -213,7 +213,7 @@ _event_is_done (GList *done_list, const char *name)
     GList *iter = NULL;
 
     for (iter = g_list_first (done_list); iter; iter = g_list_next (iter)) {
-        if (iter->data && g_str_equal ((const char*) iter->data, name))
+        if (iter->data && name && g_str_equal ((const char*) iter->data, name))
             return TRUE;
     }
 
@@ -602,6 +602,9 @@ finalize_event (SettingsData *data, const char *name, GHashTable *properties)
 {
     Context *context = data->context;
     Event   *event   = event_new ();
+
+    if (!name)
+        return;
 
     event->audio_enabled          = properties_get_bool (properties, "audio_enabled");
     event->vibration_enabled      = properties_get_bool (properties, "vibration_enabled");

@@ -36,6 +36,9 @@ _copy_property_cb (gpointer k, gpointer v, gpointer userdata)
     Property   *value      = (Property*) v;
     GHashTable *properties = (GHashTable*) userdata;
 
+    if (!key)
+        return;
+
     g_hash_table_insert (properties, g_strdup (key), (gpointer) property_copy (value));
 }
 
@@ -58,7 +61,8 @@ properties_merge (GHashTable *target, GHashTable *source)
 
     g_hash_table_iter_init (&iter, source);
     while (g_hash_table_iter_next (&iter, (gpointer) &key, (gpointer) &value)) {
-        g_hash_table_replace (target, g_strdup (key), property_copy (value));
+        if (key)
+            g_hash_table_replace (target, g_strdup (key), property_copy (value));
     }
 }
 
@@ -73,7 +77,8 @@ properties_merge_allowed (GHashTable *target, GHashTable *source, gchar **allowe
 
     for (allowed = allowed_keys; *allowed != NULL; ++allowed) {
         if ((value = (Property*) g_hash_table_lookup (source, *allowed)) != NULL)
-            g_hash_table_replace (target, g_strdup (*allowed), property_copy (value));
+            if (*allowed)
+                g_hash_table_replace (target, g_strdup (*allowed), property_copy (value));
     }
 }
 

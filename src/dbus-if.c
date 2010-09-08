@@ -135,8 +135,9 @@ _msg_get_properties (DBusMessageIter *iter, GHashTable **properties)
     dbus_message_iter_recurse (iter, &array);
 
     while (dbus_message_iter_get_arg_type (&array) != DBUS_TYPE_INVALID) {
-        if (_msg_parse_dict (&array, &key, &value)) {
-            g_hash_table_insert (p, g_strdup (key), value);
+        if (_msg_parse_dict (&array, &key, &value) && key && value) {
+            if (key)
+                g_hash_table_insert (p, g_strdup (key), value);
         }
 
         dbus_message_iter_next (&array);
@@ -218,6 +219,9 @@ _message_function (DBusConnection *connection,
                    void *userdata)
 {
     const char *member = dbus_message_get_member (msg);
+
+    if (member == NULL)
+        return DBUS_HANDLER_RESULT_HANDLED;
 
     if (!dbus_message_has_interface (msg, NGF_DBUS_IFACE))
         return DBUS_HANDLER_RESULT_HANDLED;

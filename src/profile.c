@@ -52,13 +52,16 @@ resolve_sound_path (Context    *context,
     if (!g_str_has_suffix (key, TONE_SUFFIX))
         return;
 
+    if (!profile)
+        return;
+
     for (i = context->sounds; *i; ++i) {
         s = (SoundPath*) (*i);
 
         if (s->type != SOUND_PATH_TYPE_PROFILE)
             continue;
 
-        if (!g_str_equal (s->key, key))
+        if (!s->key || !key || !g_str_equal (s->key, key))
             continue;
 
         if ((!s->profile && g_str_equal (context->active_profile, profile)) || (s->profile && g_str_equal (s->profile, profile))) {
@@ -84,13 +87,16 @@ resolve_volume (Context    *context,
     if (!g_str_has_suffix (key, VOLUME_SUFFIX))
         return;
 
+    if (!profile)
+        return;
+
     for (i = context->volumes; *i; ++i) {
         s = (Volume*) (*i);
 
         if (s->type != VOLUME_TYPE_PROFILE)
             continue;
 
-        if (!g_str_equal (s->key, key))
+        if (!s->key || !key || !g_str_equal (s->key, key))
             continue;
 
         if ((!s->profile && g_str_equal (context->active_profile, profile)) || (s->profile && g_str_equal (s->profile, profile))) {
@@ -116,13 +122,16 @@ resolve_vibration (Context    *context,
     if (!g_str_has_suffix (key, PATTERN_SUFFIX))
         return;
 
+    if (!profile)
+        return;
+
     for (i = context->patterns; *i; ++i) {
         p = (VibrationPattern*) (*i);
 
         if (p->type != VIBRATION_PATTERN_TYPE_PROFILE)
             continue;
 
-        if (!g_str_equal (p->key, key))
+        if (!p->key || !key || !g_str_equal (p->key, key))
             continue;
 
         if ((!p->profile && g_str_equal (context->active_profile, profile)) || (p->profile && g_str_equal (p->profile, profile))) {
@@ -145,6 +154,9 @@ resolve_profile (Context    *context,
     context->silent_mode  = FALSE;
     context->meeting_mode = FALSE;
 
+    if (!profile)
+        return;
+
     if (g_str_equal (profile, SILENT_PROFILE))
         context->silent_mode = TRUE;
 
@@ -163,6 +175,9 @@ value_changed_cb (const char *profile,
 				  void *userdata)
 {
     Context *context = (Context*) userdata;
+
+    if (!profile || !key)
+        return;
 
     if (context->active_profile && g_str_equal (context->active_profile, profile)) {
         if (g_str_equal (key, KEY_VIBRATION_ENABLED)) {
@@ -209,6 +224,9 @@ profile_resolve (Context *context)
 
     context->active_profile    = profile_get_profile ();
     context->vibration_enabled = profile_get_value_as_bool (NULL, KEY_VIBRATION_ENABLED);
+
+    if (!context->active_profile)
+        return;
 
     if (g_str_equal (context->active_profile, SILENT_PROFILE))
         context->silent_mode = TRUE;
