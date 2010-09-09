@@ -329,7 +329,7 @@ _parse_profile_key (const char *key, gchar **out_profile, gchar **out_key)
         return FALSE;
 
     split = g_strsplit (key, "@", 2);
-    if (split[0] == NULL || split[1] == NULL) {
+    if (split[0] == NULL) {
         ret = FALSE;
         goto done;
     }
