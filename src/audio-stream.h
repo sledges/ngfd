@@ -23,8 +23,7 @@
 #define AUDIO_STREAM_H
 
 #include <glib.h>
-#include <pulse/proplist.h>
-
+#include <gst/gst.h>
 #include "volume.h"
 
 typedef struct _AudioStream      AudioStream;
@@ -52,7 +51,7 @@ struct _AudioStream
 {
     guint                   id;
     gchar                  *source;
-    pa_proplist            *properties;
+    GstStructure           *properties;
     gint                    buffer_time;
     gint                    latency_time;
     AudioStreamCallback     callback;

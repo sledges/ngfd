@@ -25,14 +25,50 @@
 #include <gst/controller/gstinterpolationcontrolsource.h>
 #include <gio/gio.h>
 
+#include <pulse/proplist.h>
+
 #include "log.h"
 #include "audio-gstreamer.h"
+
+static gboolean structure_to_proplist_cb (GQuark field_id, const GValue *value, gpointer userdata);
 
 static gboolean _gst_initialize (AudioInterface *iface);
 static void     _gst_shutdown   (AudioInterface *iface);
 static gboolean _gst_prepare    (AudioInterface *iface, AudioStream *stream);
 static gboolean _gst_play       (AudioInterface *iface, AudioStream *stream);
 static void     _gst_stop       (AudioInterface *iface, AudioStream *stream);
+
+static gboolean
+structure_to_proplist_cb (GQuark field_id, const GValue *value, gpointer userdata)
+{
+    pa_proplist *proplist = (pa_proplist*) userdata;
+
+    if (G_VALUE_HOLDS_STRING (value))
+        pa_proplist_sets (proplist, g_quark_to_string (field_id), g_value_get_string (value));
+
+    return TRUE;
+}
+
+static void
+set_stream_properties (GstElement *sink, const GstStructure *properties)
+{
+    pa_proplist *proplist = NULL;
+
+    if (!sink | !properties)
+        return;
+
+    if (g_object_class_find_property (G_OBJECT_GET_CLASS (sink), "stream-properties") != NULL) {
+        g_object_set (G_OBJECT (sink), "stream-properties", properties, NULL);
+    }
+
+    else if (g_object_class_find_property (G_OBJECT_GET_CLASS (sink), "proplist") != NULL) {
+        proplist = pa_proplist_new ();
+        gst_structure_foreach (properties, structure_to_proplist_cb, proplist);
+        g_object_set (G_OBJECT (sink), "proplist", proplist, NULL);
+
+        /* no need ot unref proplist, ownership is taken by the sink */
+    }
+}
 
 static gboolean
 _bus_cb (GstBus     *bus,
@@ -122,6 +158,7 @@ _bus_cb (GstBus     *bus,
                             g_value_set_double (&vol, val / 100.0);
                             gst_interpolation_control_source_set (csource, (stream->volume->linear[2]-duration) * GST_SECOND, &vol);
 
+                            g_value_unset (&vol);
                             g_object_unref (csource);
                         }
                     }
@@ -231,11 +268,12 @@ _gst_prepare (AudioInterface *iface,
     GstElement  *volume    = NULL;
     GstElement  *sink      = NULL;
     GstBus      *bus       = NULL;
-    pa_proplist *proplist  = NULL;
+    GstStructure *props = NULL;
     GstController *controller = NULL;
     GstInterpolationControlSource *csource = NULL;
     gdouble val = 0;
     GValue vol = { 0, };
+    GValue v = {0};
 
     if (!stream->source)
         return FALSE;
@@ -284,17 +322,19 @@ _gst_prepare (AudioInterface *iface,
 
     g_object_set (G_OBJECT (source), "location", stream->source, NULL);
 
-    proplist = pa_proplist_copy (stream->properties);
-    pa_proplist_sets (proplist, PA_PROP_MEDIA_FILENAME, stream->source);
+    /* copy property structure and append current filename */
 
-    if (g_object_class_find_property (G_OBJECT_GET_CLASS (sink), "proplist") != NULL) {
-        NGF_LOG_DEBUG ("Setting property list for pulsesink.");
-        g_object_set (G_OBJECT (sink), "proplist", proplist, NULL);
-    }
-    else {
-        NGF_LOG_DEBUG ("No 'proplist' property on pulsesink, ignoring property list.");
-        pa_proplist_free (proplist);
-    }
+    props = gst_structure_copy (stream->properties);
+
+    g_value_init (&v, G_TYPE_STRING);
+    g_value_set_string (&v, stream->source);
+    gst_structure_set_value (props, "media.filename", &v);
+    g_value_unset (&v);
+
+    /* set the stream properties based on the given GstStructure */
+
+    set_stream_properties (sink, props);
+    gst_structure_free (props);
 
     if (stream->buffer_time > 0)
         g_object_set (G_OBJECT (sink), "buffer-time", stream->buffer_time, NULL);

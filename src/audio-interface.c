@@ -50,7 +50,7 @@ audio_interface_destroy_stream (AudioInterface *iface, AudioStream *stream)
         return;
 
     if (stream->properties) {
-        pa_proplist_free (stream->properties);
+        gst_structure_free (stream->properties);
         stream->properties = NULL;
     }
 

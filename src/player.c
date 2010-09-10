@@ -126,29 +126,36 @@ remove_timeout (Request *request)
 static void
 set_stream_event_id (AudioStream *stream, const char *event_id)
 {
+    GValue v = {0};
+
     if (!stream || (stream && !stream->properties))
         return;
 
     if (event_id) {
         NGF_LOG_DEBUG ("%s >> set stream event id to %s", __FUNCTION__, event_id);
-        pa_proplist_sets (stream->properties, "event.id", event_id);
+        g_value_init (&v, G_TYPE_STRING);
+        g_value_set_string (&v, event_id);
+        gst_structure_set_value (stream->properties, "event.id", &v);
+        g_value_unset (&v);
     }
 }
 
 static void
 set_stream_role_from_volume (AudioStream *stream, Volume *volume)
 {
+    const char *value = NULL;
+    GValue v = {0};
+
     if (!stream || (stream && !stream->properties))
         return;
 
-    if (volume && volume->role) {
-        NGF_LOG_DEBUG ("%s >> set stream role to %s", __FUNCTION__, volume->role);
-        pa_proplist_sets (stream->properties, "module-stream-restore.id", volume->role);
-    }
-    else {
-        NGF_LOG_DEBUG ("%s >> set stream role to x-maemo (default)", __FUNCTION__);
-        pa_proplist_sets (stream->properties, "media.role", "x-maemo");
-    }
+    value = (volume && volume->role) ? volume->role : "x-maemo";
+    NGF_LOG_DEBUG ("%s >> set stream role to %s", __FUNCTION__, value);
+
+    g_value_init (&v, G_TYPE_STRING);
+    g_value_set_string (&v, value);
+    gst_structure_set_value (stream->properties, "module-stream-restore.id", &v);
+    g_value_unset (&v);
 }
 
 static const gchar*
@@ -438,7 +445,7 @@ prepare_stream (Request *request, SoundPath *sound_path)
     stream->source         = g_strdup (stream_source);
     stream->buffer_time    = context->audio_buffer_time;
     stream->latency_time   = context->audio_latency_time;
-    stream->properties     = pa_proplist_new ();
+    stream->properties     = gst_structure_empty_new ("props");
     stream->callback       = stream_state_cb;
     stream->userdata       = request;
     stream->volume         = event->volume;
