@@ -226,7 +226,7 @@ profile_resolve (Context *context)
     context->vibration_enabled = profile_get_value_as_bool (NULL, KEY_VIBRATION_ENABLED);
 
     if (!context->active_profile)
-        return;
+        return FALSE;
 
     if (g_str_equal (context->active_profile, SILENT_PROFILE))
         context->silent_mode = TRUE;
