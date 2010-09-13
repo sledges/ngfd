@@ -25,6 +25,9 @@
 #include <glib.h>
 #include "context.h"
 
+#define NGF_STATUS_SUCCESS  0
+#define NGF_STATUS_FAILED   1
+
 int  dbus_if_create               (Context *context);
 void dbus_if_destroy              (Context *context);
 void dbus_if_send_status          (Context *context, guint id, guint status);

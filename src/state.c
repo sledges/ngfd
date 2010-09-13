@@ -142,13 +142,13 @@ _request_state_cb (Request *request, guint state, gpointer userdata)
 
         case REQUEST_STATE_FAILED:
             NGF_LOG_DEBUG ("request (%d) >> failed", request->policy_id);
-            dbus_if_send_status (context, request->policy_id, 0);
+            dbus_if_send_status (context, request->policy_id, NGF_STATUS_FAILED);
             remove_request = TRUE;
             break;
 
         case REQUEST_STATE_COMPLETED:
             NGF_LOG_INFO ("request (%d) >> completed", request->policy_id);
-            dbus_if_send_status (context, request->policy_id, 0);
+            dbus_if_send_status (context, request->policy_id, NGF_STATUS_SUCCESS);
             remove_request = TRUE;
             break;
 
@@ -181,11 +181,19 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
 
     TIMESTAMP ("Request request received");
 
+    /* Get the policy identifier */
+    policy_id    = _properties_get_policy_id (properties);
+    if (policy_id == 0) {
+        NGF_LOG_WARNING ("No policy.id defined for request %s", request_name);
+        return 0;
+    }
+
     /* First, look for the request definition that defines the events for long and
        short requests. If not found, then it is an unrecognized request. */
 
     if ((def = g_hash_table_lookup (context->definitions, request_name)) == NULL) {
         NGF_LOG_WARNING ("No request definition for request %s", request_name);
+        dbus_if_send_status (context, policy_id, NGF_STATUS_FAILED);
         return 0;
     }
 
@@ -195,6 +203,7 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
 
     if ((play_mode = _properties_get_play_mode (properties)) == 0) {
         NGF_LOG_WARNING ("No play.mode property for request %s", request_name);
+        dbus_if_send_status (context, policy_id, NGF_STATUS_FAILED);
         return 0;
     }
 
@@ -211,18 +220,19 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
 
     if ((event = g_hash_table_lookup (context->events, event_name)) == 0) {
         NGF_LOG_WARNING ("Failed to get request event %s for request %s", event_name, request_name);
+        dbus_if_send_status (context, policy_id, NGF_STATUS_FAILED);
         return 0;
     }
 
-    /* Get the policy identifier, allowed resources and play mode and timeout
+    /* Get allowed resources and play mode and timeout
        for our request. */
 
-    policy_id    = _properties_get_policy_id (properties);
     play_timeout = _properties_get_play_timeout (properties);
     resources    = _properties_get_resources (properties);
 
     if (policy_id == 0 || resources == 0) {
-        NGF_LOG_WARNING ("No policy.id or resources defined for request %s", request_name);
+        NGF_LOG_WARNING ("No resources defined for request %s", request_name);
+        dbus_if_send_status (context, policy_id, NGF_STATUS_FAILED);
         return 0;
     }
 
@@ -238,6 +248,7 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
 
     if ((request = request_new (context, event)) == NULL) {
         NGF_LOG_WARNING ("request (%d) >> failed create request", policy_id);
+        dbus_if_send_status (context, policy_id, NGF_STATUS_FAILED);
         return 0;
     }
 
@@ -257,6 +268,7 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
     context->request_list = g_list_append (context->request_list, request);
     if (!play_request (request)) {
         NGF_LOG_WARNING ("request (%d) >> failed to start", request->policy_id);
+        dbus_if_send_status (context, policy_id, NGF_STATUS_FAILED);
         context->request_list = g_list_remove (context->request_list, request);
         request_free (request);
         return 0;
