@@ -24,6 +24,7 @@
 
 #include <glib.h>
 #include <gst/gst.h>
+#include <gst/controller/gstcontroller.h>
 #include "volume.h"
 
 typedef struct _AudioStream      AudioStream;
@@ -57,14 +58,17 @@ struct _AudioStream
     AudioStreamCallback     callback;
     gpointer                userdata;
     Volume                  *volume;
+    gdouble                 time_played;
 
     /** Private implementation data */
     AudioStreamType         type;
     gpointer                iface;
-    gpointer                data;
-    gpointer                data2;
+    GstElement              *pipeline;
+    GstController           *controller;
+    GstInterpolationControlSource *csource;
     gboolean                repeating;
-    guint                      num_repeat;
+    guint                   num_repeat;
+    GstElement              *volume_element;
 };
 
 #endif /* AUDIO_STREAM_H */

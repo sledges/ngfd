@@ -50,6 +50,21 @@ structure_to_proplist_cb (GQuark field_id, const GValue *value, gpointer userdat
 }
 
 static void
+pipeline_rewind (GstElement *pipeline, gboolean flush)
+{
+    GstEvent *event;
+    GstSeekFlags flags = GST_SEEK_FLAG_SEGMENT;
+
+    if (flush)
+        flags |= GST_SEEK_FLAG_FLUSH;
+
+    event = gst_event_new_seek (1.0, GST_FORMAT_BYTES, flags, GST_SEEK_TYPE_SET, 0, GST_SEEK_TYPE_END, GST_CLOCK_TIME_NONE);
+    if (!gst_element_send_event (pipeline, event)) {
+        NGF_LOG_WARNING ("pipeline_rewind: failed to send event\n");
+    }
+}
+
+static void
 set_stream_properties (GstElement *sink, const GstStructure *properties)
 {
     pa_proplist *proplist = NULL;
@@ -76,20 +91,16 @@ _bus_cb (GstBus     *bus,
          gpointer    userdata)
 {
     AudioStream *stream     = (AudioStream*) userdata;
-    GstElement     *element    = (GstElement*) stream->data;
-    GstQuery *query = NULL;
-    gboolean res = FALSE;
-    gdouble volume = 0;
-    gint64 duration = 0;
-    GstController *controller = (GstController*) stream->data2;
-    GstInterpolationControlSource *csource = NULL;
-    gdouble val = 0;
-    GValue vol = { 0, };
+    GValue v = {0};
+    gint64 timestamp;
+    GstFormat fmt = GST_FORMAT_TIME;
+    gdouble timeleft;
+    gdouble current_volume;
 
 
     switch (GST_MESSAGE_TYPE (msg)) {
         case GST_MESSAGE_ERROR: {
-            gst_element_set_state (element, GST_STATE_NULL);
+            gst_element_set_state (stream->pipeline, GST_STATE_NULL);
 
             if (stream->callback)
                 stream->callback (stream, AUDIO_STREAM_STATE_FAILED, stream->userdata);
@@ -99,14 +110,14 @@ _bus_cb (GstBus     *bus,
         }
 
         case GST_MESSAGE_STATE_CHANGED: {
-
-            if (GST_ELEMENT (GST_MESSAGE_SRC (msg)) != element)
+            if (GST_ELEMENT (GST_MESSAGE_SRC (msg)) != stream->pipeline)
                 break;
 
             GstState old_state, new_state, pending_state;
             gst_message_parse_state_changed (msg, &old_state, &new_state, &pending_state);
 
             if (old_state == GST_STATE_READY && new_state == GST_STATE_PAUSED) {
+                pipeline_rewind (stream->pipeline, TRUE);
                 if (stream->callback)
                     stream->callback (stream, AUDIO_STREAM_STATE_PREPARED, stream->userdata);
             }
@@ -119,8 +130,8 @@ _bus_cb (GstBus     *bus,
             break;
         }
 
-        case GST_MESSAGE_EOS: {
-            if (GST_ELEMENT (GST_MESSAGE_SRC (msg)) != element)
+        case GST_MESSAGE_SEGMENT_DONE: {
+            if (GST_ELEMENT (GST_MESSAGE_SRC (msg)) != stream->pipeline)
                 break;
 
             if (stream->callback)
@@ -128,43 +139,57 @@ _bus_cb (GstBus     *bus,
 
             if (stream->repeating) {
                 if (stream->volume->type == VOLUME_TYPE_LINEAR) {
-                    query = gst_query_new_duration (GST_FORMAT_TIME);
-                    res = gst_element_query (element, query);
-                    if (res) {
-                        gst_query_parse_duration (query, NULL, &duration);
-                        duration /= 1000000000;
-                        duration *= stream->num_repeat;
-                    } else {
-                        NGF_LOG_WARNING ("Audio duration query failed");
-                        gst_query_unref (query);
-                        return TRUE;
-                    }
-                    gst_query_unref (query);
+                    if (gst_element_query_position (stream->pipeline, &fmt, &timestamp)) {
+                        if (GST_CLOCK_TIME_IS_VALID (timestamp) && fmt == GST_FORMAT_TIME) {
+                            stream->time_played += (gdouble) timestamp / GST_SECOND;
+                            timeleft = stream->volume->linear[1] - stream->time_played;
 
-                    if (controller) {
-                        if (duration >= stream->volume->linear[2]) {
-                            gst_controller_set_disabled (controller, TRUE);
-                        } else {
-                            volume=(gdouble)duration*(((gdouble)stream->volume->linear[1]-(gdouble)stream->volume->linear[0])/(gdouble)stream->volume->linear[2]);
-                            csource = gst_interpolation_control_source_new ();
-                            gst_controller_set_control_source (controller, "volume", GST_CONTROL_SOURCE (csource));
-                            gst_interpolation_control_source_set_interpolation_mode (csource, GST_INTERPOLATE_LINEAR);
-                            g_value_init (&vol, G_TYPE_DOUBLE);
+                            g_object_get (G_OBJECT (stream->volume_element), "volume", &current_volume, NULL);
 
-                            g_value_set_double (&vol, volume / 100.0);
-                            gst_interpolation_control_source_set (csource, duration * GST_SECOND, &vol);
+                            if (timeleft > 0.0) {
+                                NGF_LOG_DEBUG ("timeleft = %f, current_volume = %f\n", timeleft, current_volume);
 
-                            val = (gdouble)stream->volume->linear[1];
-                            g_value_set_double (&vol, val / 100.0);
-                            gst_interpolation_control_source_set (csource, (stream->volume->linear[2]-duration) * GST_SECOND, &vol);
+                                gst_controller_set_disabled (stream->controller, TRUE);
+                                gst_interpolation_control_source_unset_all (stream->csource);
 
-                            g_value_unset (&vol);
-                            g_object_unref (csource);
+                                g_value_init (&v, G_TYPE_DOUBLE);
+                                g_value_set_double (&v, current_volume);
+                                gst_interpolation_control_source_set (stream->csource, 0 * GST_SECOND, &v);
+
+                                g_value_reset (&v);
+                                g_value_set_double (&v, 1.0);
+                                gst_interpolation_control_source_set (stream->csource, timeleft * GST_SECOND, &v);
+
+                                g_value_unset (&v);
+
+                                gst_controller_set_disabled (stream->controller, FALSE);
+                            }
+                            else {
+                                if (stream->controller) {
+                                    NGF_LOG_DEBUG ("controller finished\n");
+                                    g_object_unref (stream->controller);
+                                    stream->controller = NULL;
+                                }
+                            }
                         }
                     }
+                    else
+                        NGF_LOG_WARNING ("gst: position query failed\n");
                 }
+                pipeline_rewind (stream->pipeline, FALSE);
+                break;
+            }
+        }
 
-                gst_element_seek_simple (element, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT, 0);
+        case GST_MESSAGE_EOS: {
+            if (GST_ELEMENT (GST_MESSAGE_SRC (msg)) != stream->pipeline)
+                break;
+
+            if (stream->callback)
+                stream->callback (stream, AUDIO_STREAM_STATE_COMPLETED, stream->userdata);
+
+            if (stream->repeating) {
+                pipeline_rewind (stream->pipeline,FALSE);
 
                 return TRUE;
             } else {
@@ -262,15 +287,11 @@ _gst_prepare (AudioInterface *iface,
 {
     NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
 
-    GstElement  *element   = NULL;
     GstElement  *source    = NULL;
     GstElement  *decodebin = NULL;
-    GstElement  *volume    = NULL;
     GstElement  *sink      = NULL;
     GstBus      *bus       = NULL;
     GstStructure *props = NULL;
-    GstController *controller = NULL;
-    GstInterpolationControlSource *csource = NULL;
     gdouble val = 0;
     GValue vol = { 0, };
     GValue v = {0};
@@ -278,42 +299,42 @@ _gst_prepare (AudioInterface *iface,
     if (!stream->source)
         return FALSE;
 
-    element = gst_pipeline_new (NULL);
+    stream->pipeline = gst_pipeline_new (NULL);
 
     source    = gst_element_factory_make ("filesrc", NULL);
     decodebin = gst_element_factory_make ("decodebin2", NULL);
     sink      = gst_element_factory_make ("pulsesink", NULL);
 
-    if (element == NULL || source == NULL || decodebin == NULL || sink == NULL)
+    if (stream->pipeline == NULL || source == NULL || decodebin == NULL || sink == NULL)
         goto failed;
 
     if (stream->volume && stream->volume->type == VOLUME_TYPE_LINEAR) {
-        if ((volume = gst_element_factory_make ("volume", NULL)) == NULL)
+        if ((stream->volume_element = gst_element_factory_make ("volume", NULL)) == NULL)
             goto failed;
 
-        if ((controller = gst_controller_new (G_OBJECT (volume), "volume", NULL)) == NULL)
+        if ((stream->controller = gst_controller_new (G_OBJECT (stream->volume_element), "volume", NULL)) == NULL)
             goto failed;
-        csource = gst_interpolation_control_source_new ();
-        gst_controller_set_control_source (controller, "volume", GST_CONTROL_SOURCE (csource));
-        gst_interpolation_control_source_set_interpolation_mode (csource, GST_INTERPOLATE_LINEAR);
+        stream->csource = gst_interpolation_control_source_new ();
+        gst_controller_set_control_source (stream->controller, "volume", GST_CONTROL_SOURCE (stream->csource));
+        gst_interpolation_control_source_set_interpolation_mode (stream->csource, GST_INTERPOLATE_LINEAR);
 
         g_value_init (&vol, G_TYPE_DOUBLE);
 
         val = (gdouble)stream->volume->linear[0];
         g_value_set_double (&vol, val / 100.0);
-        gst_interpolation_control_source_set (csource, 0 * GST_SECOND, &vol);
+        gst_interpolation_control_source_set (stream->csource, 0 * GST_SECOND, &vol);
 
         val = (gdouble)stream->volume->linear[1];
         g_value_set_double (&vol, val / 100.0);
-        gst_interpolation_control_source_set (csource, stream->volume->linear[2] * GST_SECOND, &vol);
+        gst_interpolation_control_source_set (stream->csource, stream->volume->linear[2] * GST_SECOND, &vol);
 
-        g_object_unref (csource);
-        gst_bin_add_many (GST_BIN (element), source, decodebin, volume, sink, NULL);
-        if (!gst_element_link (volume, sink))
+        g_object_unref (stream->csource);
+        gst_bin_add_many (GST_BIN (stream->pipeline), source, decodebin, stream->volume_element, sink, NULL);
+        if (!gst_element_link (stream->volume_element, sink))
             goto failed_link;
-        g_signal_connect (G_OBJECT (decodebin), "new-decoded-pad", G_CALLBACK (_new_decoded_pad_cb), volume);
+        g_signal_connect (G_OBJECT (decodebin), "new-decoded-pad", G_CALLBACK (_new_decoded_pad_cb), stream->volume_element);
     } else {
-        gst_bin_add_many (GST_BIN (element), source, decodebin, sink, NULL);
+        gst_bin_add_many (GST_BIN (stream->pipeline), source, decodebin, sink, NULL);
         g_signal_connect (G_OBJECT (decodebin), "new-decoded-pad", G_CALLBACK (_new_decoded_pad_cb), sink);
     }
 
@@ -342,28 +363,26 @@ _gst_prepare (AudioInterface *iface,
     if (stream->latency_time > 0)
         g_object_set (G_OBJECT (sink), "latency-time", stream->latency_time, NULL);
 
-    bus = gst_element_get_bus (element);
+    bus = gst_element_get_bus (stream->pipeline);
     gst_bus_add_watch (bus, _bus_cb, stream);
     gst_object_unref (bus);
 
-    stream->data = (gpointer) element;
-    stream->data2 = (gpointer) controller;
     stream->num_repeat = 0;
-    gst_element_set_state (element, GST_STATE_PAUSED);
+    gst_element_set_state (stream->pipeline, GST_STATE_PAUSED);
 
     return TRUE;
 
 failed:
-    if (element)   gst_object_unref (element);
+    if (stream->pipeline)   gst_object_unref (stream->pipeline);
     if (source)    gst_object_unref (source);
     if (decodebin) gst_object_unref (decodebin);
-    if (volume)     gst_object_unref (volume);
+    if (stream->volume_element)     gst_object_unref (stream->volume_element);
     if (sink)      gst_object_unref (sink);
-    if (controller) gst_object_unref (controller);
+    if (stream->controller) gst_object_unref (stream->controller);
     return FALSE;
 
 failed_link:
-    if (element)   gst_object_unref (element);
+    if (stream->pipeline)   gst_object_unref (stream->pipeline);
     return FALSE;
 }
 
@@ -373,8 +392,7 @@ _gst_play (AudioInterface *iface,
 {
     NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
 
-    GstElement *element = (GstElement*) stream->data;
-    gst_element_set_state (element, GST_STATE_PLAYING);
+    gst_element_set_state (stream->pipeline, GST_STATE_PLAYING);
     return TRUE;
 }
 
@@ -384,18 +402,16 @@ _gst_stop (AudioInterface *iface,
 {
     NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
 
-    GstElement *element = (GstElement*) stream->data;
-    GstController *controller = (GstController*) stream->data2;
-
-    if (element) {
-        gst_element_set_state (element, GST_STATE_NULL);
-        gst_object_unref (element);
-        stream->data = NULL;
+    if (stream->pipeline) {
+        gst_element_set_state (stream->pipeline, GST_STATE_NULL);
+        gst_object_unref (stream->pipeline);
+        stream->pipeline = NULL;
     }
 
-    if (controller) {
-        g_object_unref (controller);
-        stream->data2 = NULL;
+    if (stream->controller) {
+        gst_interpolation_control_source_unset_all (stream->csource);
+        g_object_unref (stream->controller);
+        stream->controller = NULL;
     }
 }
 
