@@ -626,7 +626,6 @@ playback_path_leds_and_backlight (Request *request)
 
     if (event->backlight_enabled && BACKLIGHT_RESOURCE_ENABLED (request)) {
         backlight_display_on (context->system_bus);
-        backlight_prevent_blank (context->system_bus);
         request->backlight_active = TRUE;
     }
 
@@ -691,11 +690,6 @@ stop_request (Request *request)
     remove_timeout      (request);
     stop_vibration      (request);
     stop_stream         (request);
-
-    if (request->backlight_active) {
-        backlight_cancel_prevent_blank (context->system_bus);
-        request->backlight_active = FALSE;
-    }
 
     if (request->leds_active) {
         led_deactivate_pattern (context->system_bus, event->led_pattern);
