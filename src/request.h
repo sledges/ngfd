@@ -51,7 +51,6 @@ struct _Request
 {
     /* user */
 
-    gchar            *name;                         /* request name */
     guint             policy_id;                    /* policy identifier */
     gint              resources;                    /* bitmask of resources @see resources.h */
     gint              play_mode;                    /* REQUEST_PLAY_MODE_LONG or REQUEST_PLAY_MODE_SHORT */

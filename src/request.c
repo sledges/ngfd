@@ -52,7 +52,6 @@ request_free (Request *request)
         request->custom_sound = NULL;
     }
 
-    g_free (request->name);
     g_free (request);
 }
 
