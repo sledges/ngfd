@@ -21,41 +21,26 @@
 
 #include "tone-mapper.h"
 
-struct _ToneMapper
+int
+tone_mapper_create (Context *context)
 {
-    int dummy;
-};
+    return TRUE;
+}
 
-ToneMapper*
-tone_mapper_create ()
+int
+tone_mapper_reconnect (Context *context)
 {
-    ToneMapper *self = NULL;
-
-    if ((self = g_new0 (ToneMapper, 1)) == NULL) {
-        goto failed;
-    }
-
-    return self;
-
-failed:
-    tone_mapper_destroy (self);
-    return NULL;
+    return TRUE;
 }
 
 void
-tone_mapper_destroy (ToneMapper *self)
+tone_mapper_destroy (Context *context)
 {
-    if (self == NULL)
-        return;
-
-    g_free (self);
+    return;
 }
 
 const char*
-tone_mapper_get_tone (ToneMapper *self, const char *uri)
+tone_mapper_get_tone (Context *context, const char *orig)
 {
-    (void) self;
-    (void) uri;
-
     return NULL;
 }

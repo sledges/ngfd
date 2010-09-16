@@ -36,6 +36,12 @@ profile_resolve (Context *context)
     return TRUE;
 }
 
+int
+profile_reconnect (Context *context)
+{
+    return TRUE;
+}
+
 void
 profile_destroy (Context *context)
 {

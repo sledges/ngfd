@@ -291,7 +291,7 @@ profile_reconnect (Context *context)
     profile_resolve              (context);
     volume_controller_update_all (context);
 
-    return FALSE;
+    return TRUE;
 }
 
 void
