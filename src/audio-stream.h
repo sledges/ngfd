@@ -38,6 +38,7 @@ enum _AudioStreamState
     AUDIO_STREAM_STATE_NONE,
     AUDIO_STREAM_STATE_PREPARED,
     AUDIO_STREAM_STATE_STARTED,
+    AUDIO_STREAM_STATE_REWIND,
     AUDIO_STREAM_STATE_COMPLETED,
     AUDIO_STREAM_STATE_FAILED
 };
@@ -67,7 +68,8 @@ struct _AudioStream
     GstController           *controller;
     GstInterpolationControlSource *csource;
     gboolean                repeating;
-    guint                   num_repeat;
+    guint                   num_repeats;
+    guint                   current_repeat;
     GstElement              *volume_element;
 };
 

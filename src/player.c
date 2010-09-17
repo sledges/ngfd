@@ -57,7 +57,7 @@ static VibrationPattern* resolve_vibration_pattern        (Request *request, gbo
 
 static void              synchronize_resources            (Request *request);
 static gboolean          restart_next_stream              (Request *request);
-static gboolean          repeat_current_stream            (Request *request);
+static void              resynchronize_resources          (Request *request);
 static void              stream_state_cb                  (AudioStream *stream, AudioStreamState state, gpointer userdata);
 
 static gboolean          prepare_stream                   (Request *request, SoundPath *sound_path);
@@ -346,29 +346,22 @@ restart_next_stream (Request *request)
     return prepare_stream (request, sound_path);
 }
 
-static gboolean
-repeat_current_stream (Request *request)
+static void
+resynchronize_resources (Request *request)
 {
     NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
 
-    Event     *event      = request->event;
+    /* resynchronize is called upon when the stream is rewinded back
+       to the start and put to paused state. we want to restart the vibration
+       with the sound, if we have a custom pattern. otherwise, we just put
+       the stream back to playing. */
 
-    if (request->custom_pattern)
+    if (request->custom_pattern && request->active_pattern) {
         stop_vibration (request);
-
-    if (!event->repeat) {
-        stop_stream (request);
-        return FALSE;
+        play_vibration (request, request->active_pattern);
     }
 
-    if (event->num_repeats == 0 || (request->repeat_count < event->num_repeats)) {
-        request->repeat_count++;
-        synchronize_resources (request);
-        return TRUE;
-    } else
-        stop_stream (request);
-
-    return FALSE;
+    play_stream (request);
 }
 
 static void
@@ -396,11 +389,14 @@ stream_state_cb (AudioStream *stream, AudioStreamState state, gpointer userdata)
                 callback_state = REQUEST_STATE_FAILED;
             break;
 
+        case AUDIO_STREAM_STATE_REWIND:
+            NGF_LOG_DEBUG ("%s >> repeat", __FUNCTION__);
+            resynchronize_resources (request);
+            break;
+
         case AUDIO_STREAM_STATE_COMPLETED:
             NGF_LOG_DEBUG ("%s >> completed", __FUNCTION__);
-            if (!repeat_current_stream (request))
-                callback_state = REQUEST_STATE_COMPLETED;
-
+            callback_state = REQUEST_STATE_COMPLETED;
             break;
 
         default:
@@ -449,10 +445,8 @@ prepare_stream (Request *request, SoundPath *sound_path)
     stream->callback       = stream_state_cb;
     stream->userdata       = request;
     stream->volume         = event->volume;
-    if (event->repeat)
-        stream->repeating = TRUE;
-    else
-        stream->repeating = FALSE;
+    stream->num_repeats    = event->num_repeats;
+    stream->repeating      = event->repeat;
 
     request->stream       = stream;
     request->active_sound = sound_path;
