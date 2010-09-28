@@ -168,8 +168,27 @@ _parse_general (SettingsData *data, GKeyFile *k)
     Context *context = data->context;
 
     context->patterns_path      = g_key_file_get_string (k, GROUP_GENERAL, "vibration_search_path", NULL);
+    context->sound_path      = g_key_file_get_string (k, GROUP_GENERAL, "sound_search_path", NULL);
     context->audio_buffer_time  = g_key_file_get_integer (k, GROUP_GENERAL, "buffer_time", NULL);
     context->audio_latency_time = g_key_file_get_integer (k, GROUP_GENERAL, "latency_time", NULL);
+}
+
+static gchar*
+_check_path (const char *basename, const char *search_path)
+{
+    gchar *path;
+
+    if (g_file_test (basename, G_FILE_TEST_EXISTS))
+        return g_strdup (basename);
+
+    path = g_build_filename (search_path, basename, NULL);
+
+    if (g_file_test (path, G_FILE_TEST_EXISTS))
+        return path;
+
+    g_free (path);
+
+    return NULL;
 }
 
 static void
@@ -371,7 +390,12 @@ _parse_sound_path (Context *context, const gchar *str)
 
         sound_path           = sound_path_new ();
         sound_path->type     = SOUND_PATH_TYPE_FILENAME;
-        sound_path->filename = stripped;
+        sound_path->filename = _check_path (stripped, context->sound_path);
+        g_free (stripped);
+        if (sound_path->filename == NULL) {
+            sound_path_free (sound_path);
+            return NULL;
+        }
     }
 
     return context_add_sound_path (context, sound_path);
@@ -500,7 +524,12 @@ _parse_pattern (Context *context, const gchar *str)
 
         pattern = vibration_pattern_new ();
         pattern->type     = VIBRATION_PATTERN_TYPE_FILENAME;
-        pattern->filename = stripped;
+        pattern->filename = _check_path (stripped, context->patterns_path);
+        g_free (stripped);
+        if (pattern->filename == NULL) {
+            vibration_pattern_free (pattern);
+            return NULL;
+        }
     }
     else if (g_str_has_prefix (str, "internal:")) {
         stripped = _strip_prefix (str, "internal:");

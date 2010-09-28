@@ -67,6 +67,7 @@ struct _Context
     VibrationPattern **patterns;            /* NULL terminated array of all vibration patterns defined in the configuration */
     guint              num_patterns;
     gchar             *patterns_path;
+    gchar             *sound_path;
 
     gchar             *active_profile;
     gboolean           silent_mode;
