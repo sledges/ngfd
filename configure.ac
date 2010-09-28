@@ -84,6 +84,7 @@ PKG_CHECK_MODULES(NGFD,
 		   gio-2.0
 		   dbus-1
 		   dbus-glib-1
+           mce
 		   libpulse])
 
 PKG_CHECK_MODULES(GST,
