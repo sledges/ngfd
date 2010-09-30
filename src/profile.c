@@ -35,6 +35,7 @@
 
 #define TONE_SUFFIX             ".tone"
 #define VOLUME_SUFFIX           ".volume"
+#define SYSTEM_SUFFIX           ".sound.level"
 #define PATTERN_SUFFIX          ".pattern"
 
 static void
@@ -84,7 +85,7 @@ resolve_volume (Context    *context,
     if (context->active_profile == NULL)
         return;
 
-    if (!g_str_has_suffix (key, VOLUME_SUFFIX))
+    if (!g_str_has_suffix (key, VOLUME_SUFFIX) && !g_str_has_suffix (key, SYSTEM_SUFFIX))
         return;
 
     if (!profile)
@@ -101,6 +102,9 @@ resolve_volume (Context    *context,
 
         if ((!s->profile && g_str_equal (context->active_profile, profile)) || (s->profile && g_str_equal (s->profile, profile))) {
             s->level = profile_parse_int (value);
+            if (g_str_has_suffix (key, SYSTEM_SUFFIX) && s->level < 3)
+                s->level = context->system_volume[s->level];
+
             volume_controller_update (context, s);
             break;
         }
@@ -253,6 +257,9 @@ profile_resolve (Context *context)
                 continue;
 
             v->level = profile_get_value_as_int (v->profile, v->key);
+            if (g_str_has_suffix (v->key, SYSTEM_SUFFIX) && v->level < 3)
+                v->level = context->system_volume[v->level];
+
         }
     }
 

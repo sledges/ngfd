@@ -166,11 +166,39 @@ static void
 _parse_general (SettingsData *data, GKeyFile *k)
 {
     Context *context = data->context;
+    gchar *value = NULL;
+    gchar **split  = NULL;
+    gchar **item = NULL;
+    guint i = 0;
 
     context->patterns_path      = g_key_file_get_string (k, GROUP_GENERAL, "vibration_search_path", NULL);
     context->sound_path      = g_key_file_get_string (k, GROUP_GENERAL, "sound_search_path", NULL);
     context->audio_buffer_time  = g_key_file_get_integer (k, GROUP_GENERAL, "buffer_time", NULL);
     context->audio_latency_time = g_key_file_get_integer (k, GROUP_GENERAL, "latency_time", NULL);
+
+    value = g_key_file_get_string (k, GROUP_GENERAL, "system_volume", NULL);
+
+    split = g_strsplit (value, ";", -1);
+    if (split[0] == NULL) {
+        g_strfreev (split);
+        g_free (value);
+        return;
+    }
+
+    item = split;
+
+    for (i=0;i<3;i++) {
+        if (*item == NULL) {
+            g_strfreev (split);
+            g_free (value);
+            return;
+        }
+        context->system_volume[i] = atoi (*item);
+        item++;
+    }
+
+    g_strfreev (split);
+    g_free (value);
 }
 
 static gchar*
