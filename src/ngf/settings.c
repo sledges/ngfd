@@ -23,8 +23,7 @@
 #include <string.h>
 
 #include "log.h"
-#include "property.h"
-#include "properties.h"
+#include "proplist.h"
 #include "event.h"
 #include "context.h"
 
@@ -268,7 +267,7 @@ _event_is_done (GList *done_list, const char *name)
 }
 
 static void
-_add_property_int (GHashTable *target,
+_add_property_int (NProplist  *proplist,
                    GKeyFile   *k,
                    const char *group,
                    const char *key,
@@ -277,7 +276,6 @@ _add_property_int (GHashTable *target,
 {
     GError   *error  = NULL;
     gint      result = 0;
-    Property *value  = NULL;
 
     result = g_key_file_get_integer (k, group, key, &error);
     if (error != NULL) {
@@ -290,14 +288,11 @@ _add_property_int (GHashTable *target,
             return;
     }
 
-    value = property_new ();
-    property_set_int (value, result);
-
-    g_hash_table_insert (target, g_strdup (key), value);
+    n_proplist_set_int (proplist, key, result);
 }
 
 static void
-_add_property_bool (GHashTable *target,
+_add_property_bool (NProplist  *proplist,
                     GKeyFile   *k,
                     const char *group,
                     const char *key,
@@ -306,7 +301,6 @@ _add_property_bool (GHashTable *target,
 {
     GError   *error  = NULL;
     gboolean  result = FALSE;
-    Property *value  = NULL;
 
     result = g_key_file_get_boolean (k, group, key, &error);
     if (error != NULL) {
@@ -319,14 +313,11 @@ _add_property_bool (GHashTable *target,
             return;
     }
 
-    value = property_new ();
-    property_set_boolean (value, result);
-
-    g_hash_table_insert (target, g_strdup (key), value);
+    n_proplist_set_bool (proplist, key, result);
 }
 
 static void
-_add_property_string (GHashTable *target,
+_add_property_string (NProplist  *proplist,
                       GKeyFile   *k,
                       const char *group,
                       const char *key,
@@ -335,7 +326,6 @@ _add_property_string (GHashTable *target,
 {
     GError   *error  = NULL;
     gchar    *result = NULL;
-    Property *value  = NULL;
 
     result = g_key_file_get_string (k, group, key, &error);
     if (error != NULL) {
@@ -349,10 +339,7 @@ _add_property_string (GHashTable *target,
         result = g_strdup (def_value);
     }
 
-    value = property_new ();
-    property_set_string (value, result);
-
-    g_hash_table_insert (target, g_strdup (key), value);
+    n_proplist_set_string (proplist, key, result);
     g_free (result);
 }
 
@@ -604,8 +591,8 @@ _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, const
     gchar       *parent     = NULL;
     KeyEntry    *entry      = NULL;
     gboolean     is_base    = FALSE;
-    GHashTable  *properties = NULL;
-    GHashTable  *copy       = NULL;
+    NProplist   *proplist   = NULL;
+    NProplist   *copy       = NULL;
     guint        i          = 0;
 
     if (name == NULL)
@@ -620,7 +607,7 @@ _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, const
     if ((parent = _parse_group_parent (group)) != NULL)
         _parse_single_event (data, k, events_done, parent);
 
-    properties = properties_new ();
+    proplist = n_proplist_new ();
 
     for (i = 0; i < ARRAY_SIZE(event_entries); ++i) {
         entry = &event_entries[i];
@@ -628,13 +615,13 @@ _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, const
         is_base = (parent == NULL) ? TRUE : FALSE;
         switch (entry->type) {
             case KEY_ENTRY_TYPE_STRING:
-                _add_property_string (properties, k, group, entry->key, entry->def_str, is_base);
+                _add_property_string (proplist, k, group, entry->key, entry->def_str, is_base);
                 break;
             case KEY_ENTRY_TYPE_INT:
-                _add_property_int (properties, k, group, entry->key, entry->def_int, is_base);
+                _add_property_int (proplist, k, group, entry->key, entry->def_int, is_base);
                 break;
             case KEY_ENTRY_TYPE_BOOL:
-                _add_property_bool (properties, k, group, entry->key, entry->def_int, is_base);
+                _add_property_bool (proplist, k, group, entry->key, entry->def_int, is_base);
                 break;
             default:
                 break;
@@ -643,19 +630,19 @@ _parse_single_event (SettingsData *data, GKeyFile *k, GList **events_done, const
 
     /* if a parent was defined, merge */
     if (parent != NULL) {
-        copy = properties_copy (g_hash_table_lookup (data->events, parent));
-        properties_merge (copy, properties);
-        g_hash_table_destroy (properties);
-        properties = copy;
+        copy = n_proplist_copy (g_hash_table_lookup (data->events, parent));
+        n_proplist_merge (copy, proplist);
+        n_proplist_free (proplist);
+        proplist = copy;
     }
 
-    g_hash_table_insert (data->events, g_strdup (name), properties);
+    g_hash_table_insert (data->events, g_strdup (name), proplist);
     *events_done = g_list_append (*events_done, g_strdup (name));
     g_free (parent);
 }
 
 static void
-finalize_event (SettingsData *data, const char *name, GHashTable *properties)
+finalize_event (SettingsData *data, const char *name, NProplist *proplist)
 {
     Context *context = data->context;
     Event   *event   = event_new ();
@@ -663,27 +650,27 @@ finalize_event (SettingsData *data, const char *name, GHashTable *properties)
     if (!name)
         return;
 
-    event->audio_enabled          = properties_get_bool (properties, "audio_enabled");
-    event->vibration_enabled      = properties_get_bool (properties, "vibration_enabled");
-    event->leds_enabled           = properties_get_bool (properties, "led_enabled");
-    event->backlight_enabled      = properties_get_bool (properties, "backlight_enabled");
+    event->audio_enabled          = n_proplist_get_bool (proplist, "audio_enabled");
+    event->vibration_enabled      = n_proplist_get_bool (proplist, "vibration_enabled");
+    event->leds_enabled           = n_proplist_get_bool (proplist, "led_enabled");
+    event->backlight_enabled      = n_proplist_get_bool (proplist, "backlight_enabled");
 
-    event->allow_custom           = properties_get_bool (properties, "allow_custom");
-    event->max_timeout            = properties_get_int  (properties, "max_timeout");
-    event->lookup_pattern         = properties_get_bool (properties, "lookup_pattern");
-    event->silent_enabled         = properties_get_bool (properties, "silent_enabled");
-    event->event_id               = g_strdup (properties_get_string (properties, "event_id"));
+    event->allow_custom           = n_proplist_get_bool (proplist, "allow_custom");
+    event->max_timeout            = n_proplist_get_int  (proplist, "max_timeout");
+    event->lookup_pattern         = n_proplist_get_bool (proplist, "lookup_pattern");
+    event->silent_enabled         = n_proplist_get_bool (proplist, "silent_enabled");
+    event->event_id               = g_strdup (n_proplist_get_string (proplist, "event_id"));
 
-    event->tone_generator_enabled = properties_get_bool (properties, "audio_tonegen_enabled");
-    event->tone_generator_pattern = properties_get_int (properties, "audio_tonegen_pattern");
+    event->tone_generator_enabled = n_proplist_get_bool (proplist, "audio_tonegen_enabled");
+    event->tone_generator_pattern = n_proplist_get_int (proplist, "audio_tonegen_pattern");
 
-    event->repeat                 = properties_get_bool (properties, "audio_repeat");
-    event->num_repeats            = properties_get_int (properties, "audio_max_repeats");
-    event->led_pattern            = g_strdup (properties_get_string (properties, "led_pattern"));
+    event->repeat                 = n_proplist_get_bool (proplist, "audio_repeat");
+    event->num_repeats            = n_proplist_get_int (proplist, "audio_max_repeats");
+    event->led_pattern            = g_strdup (n_proplist_get_string (proplist, "led_pattern"));
 
-    event->sounds                 = _create_sound_paths (context, properties_get_string (properties, "sound"));
-    event->volume                 = _create_volume      (context, properties_get_string (properties, "volume"));
-    event->patterns               = _create_patterns    (context, properties_get_string (properties, "vibration"));
+    event->sounds                 = _create_sound_paths (context, n_proplist_get_string (proplist, "sound"));
+    event->volume                 = _create_volume      (context, n_proplist_get_string (proplist, "volume"));
+    event->patterns               = _create_patterns    (context, n_proplist_get_string (proplist, "vibration"));
 
     g_hash_table_replace (context->events, g_strdup (name), event);
 }
@@ -694,7 +681,7 @@ _parse_events (SettingsData *data, GKeyFile *k)
     gchar      **group_list = NULL;
     gchar      **group      = NULL;
     gchar       *name       = NULL;
-    GHashTable  *evtdata    = NULL;
+    NProplist   *evtdata    = NULL;
 
     data->events = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) g_hash_table_destroy);
     data->groups = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);

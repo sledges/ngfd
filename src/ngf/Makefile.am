@@ -1,6 +1,6 @@
 bin_PROGRAMS = ngfd
 
-ngfd_CFLAGS = $(NGFD_CFLAGS) $(GST_CFLAGS) $(DBUS_CFLAGS) $(IMMVIBE_CFLAGS)
+ngfd_CFLAGS = $(NGFD_CFLAGS) $(GST_CFLAGS) $(DBUS_CFLAGS) $(IMMVIBE_CFLAGS) -I$(top_srcdir)/src
 ngfd_LDFLAGS = $(NGFD_LIBS) $(GST_LIBS) $(DBUS_LIBS) $(IMMVIBE_LIBS)
 
 ngfd_SOURCES = \
@@ -11,8 +11,6 @@ ngfd_SOURCES = \
 	settings.c \
 	volume-controller.h \
 	volume-controller.c \
-	properties.h \
-	properties.c \
 	profile.h \
 	dbus-if.h \
 	dbus-if.c \
@@ -20,8 +18,10 @@ ngfd_SOURCES = \
 	session.c \
 	state.h \
 	state.c \
-	property.h \
-	property.c \
+	value.h \
+	value.c \
+	proplist.h \
+	proplist.c \
 	definition.h \
 	definition.c \
 	event.h \

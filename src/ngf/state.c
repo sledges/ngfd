@@ -23,81 +23,35 @@
 #include "timestamp.h"
 #include "resources.h"
 #include "request.h"
-#include "property.h"
-#include "properties.h"
+#include "proplist.h"
 #include "player.h"
 #include "dbus-if.h"
 #include "state.h"
 
-static gboolean _properties_get_boolean         (GHashTable *properties, const char *key);
-static guint    _properties_get_policy_id       (GHashTable *properties);
-static guint    _properties_get_play_timeout    (GHashTable *properties);
-static gint     _properties_get_play_mode       (GHashTable *properties);
-static gint     _properties_get_resources       (GHashTable *properties);
+static guint    _properties_get_policy_id       (NProplist *proplist);
+static guint    _properties_get_play_timeout    (NProplist *proplist);
+static gint     _properties_get_play_mode       (NProplist *proplist);
+static gint     _properties_get_resources       (NProplist *proplist);
 static void     _request_state_cb               (Request *request, guint state, gpointer userdata);
 
-static gboolean
-_properties_get_boolean (GHashTable *properties, const char *key)
+static guint
+_properties_get_policy_id (NProplist *proplist)
 {
-    Property *value = NULL;
-
-    if ((value = g_hash_table_lookup (properties, key)) == NULL)
-        return FALSE;
-
-    if (property_get_type (value) == PROPERTY_TYPE_BOOLEAN)
-        return property_get_boolean (value);
-
-    return FALSE;
-}
-
-static const gchar*
-_properties_get_string (GHashTable *properties, const char *key)
-{
-    Property *value = NULL;
-
-    if ((value = g_hash_table_lookup (properties, key)) == NULL)
-        return NULL;
-
-    if (property_get_type (value) == PROPERTY_TYPE_STRING)
-        return property_get_string (value);
-
-    return NULL;
+    return n_proplist_get_uint (proplist, "policy.id");
 }
 
 static guint
-_properties_get_policy_id (GHashTable *properties)
+_properties_get_play_timeout (NProplist *proplist)
 {
-    Property *value = NULL;
-
-    if ((value = g_hash_table_lookup (properties, "policy.id")) == NULL)
-        return 0;
-
-    if (property_get_type (value) == PROPERTY_TYPE_UINT)
-        return property_get_uint (value);
-
-    return 0;
-}
-
-static guint
-_properties_get_play_timeout (GHashTable *properties)
-{
-    Property *value = NULL;
-
-    if ((value = g_hash_table_lookup (properties, "play.timeout")) == NULL)
-        return 0;
-
-    if (property_get_type (value) == PROPERTY_TYPE_UINT)
-        return property_get_uint (value);
-
-    return 0;
+    return n_proplist_get_uint (proplist, "play.timeout");
 }
 
 static gint
-_properties_get_play_mode (GHashTable *properties)
+_properties_get_play_mode (NProplist *proplist)
 {
     const char *str = NULL;
 
-    if ((str = _properties_get_string (properties, "play.mode")) == NULL)
+    if ((str = n_proplist_get_string (proplist, "play.mode")) == NULL)
         return 0;
 
     if (g_str_equal (str, "short"))
@@ -109,20 +63,20 @@ _properties_get_play_mode (GHashTable *properties)
 }
 
 static gint
-_properties_get_resources (GHashTable *properties)
+_properties_get_resources (NProplist *proplist)
 {
     gint resources = 0;
 
-    if (_properties_get_boolean (properties, "media.audio"))
+    if (n_proplist_get_bool (proplist, "media.audio"))
         resources |= RESOURCE_AUDIO;
 
-    if (_properties_get_boolean (properties, "media.vibra"))
+    if (n_proplist_get_bool (proplist, "media.vibra"))
         resources |= RESOURCE_VIBRATION;
 
-    if (_properties_get_boolean (properties, "media.leds"))
+    if (n_proplist_get_bool (proplist, "media.leds"))
         resources |= RESOURCE_LEDS;
 
-    if (_properties_get_boolean (properties, "media.backlight"))
+    if (n_proplist_get_bool (proplist, "media.backlight"))
         resources |= RESOURCE_BACKLIGHT;
 
     return resources;
@@ -166,7 +120,7 @@ _request_state_cb (Request *request, guint state, gpointer userdata)
 }
 
 guint
-play_handler (Context *context, const char *request_name, GHashTable *properties)
+play_handler (Context *context, const char *request_name, NProplist *proplist)
 {
     Definition *def     = NULL;
     Event      *event   = NULL;
@@ -182,7 +136,7 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
     TIMESTAMP ("Request request received");
 
     /* Get the policy identifier */
-    policy_id    = _properties_get_policy_id (properties);
+    policy_id    = _properties_get_policy_id (proplist);
     if (policy_id == 0) {
         NGF_LOG_WARNING ("No policy.id defined for request %s", request_name);
         return 0;
@@ -201,7 +155,7 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
        or "short" and we have a corresponding events defined in the request definition.
        If no play mode then this is an invalid request. */
 
-    if ((play_mode = _properties_get_play_mode (properties)) == 0) {
+    if ((play_mode = _properties_get_play_mode (proplist)) == 0) {
         NGF_LOG_WARNING ("No play.mode property for request %s", request_name);
         dbus_if_send_status (context, policy_id, NGF_STATUS_FAILED);
         return 0;
@@ -227,8 +181,8 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
     /* Get allowed resources and play mode and timeout
        for our request. */
 
-    play_timeout = _properties_get_play_timeout (properties);
-    resources    = _properties_get_resources (properties);
+    play_timeout = _properties_get_play_timeout (proplist);
+    resources    = _properties_get_resources (proplist);
 
     if (policy_id == 0 || resources == 0) {
         NGF_LOG_WARNING ("No resources defined for request %s", request_name);
@@ -239,7 +193,7 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
     NGF_LOG_INFO ("request_name=%s, event_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d (%s))",
         request_name, event_name, policy_id, play_timeout, resources, play_mode, play_mode == REQUEST_PLAY_MODE_LONG ? "LONG" : "SHORT");
     NGF_LOG_DEBUG ("Properties:");
-    properties_dump (properties);
+    n_proplist_dump (proplist);
 
     TIMESTAMP ("Request parsing completed");
 
@@ -263,7 +217,7 @@ play_handler (Context *context, const char *request_name, GHashTable *properties
        start the playback of the request. */
 
     if (event->allow_custom)
-        request_set_custom_sound (request, _properties_get_string (properties, "audio"));
+        request_set_custom_sound (request, n_proplist_get_string (proplist, "audio"));
 
     context->request_list = g_list_append (context->request_list, request);
     if (!play_request (request)) {

@@ -20,7 +20,7 @@
  */
 
 #include "log.h"
-#include "properties.h"
+#include "proplist.h"
 #include "event.h"
 
 Event*
@@ -31,7 +31,7 @@ event_new ()
     if ((event = g_new0 (Event, 1)) == NULL)
         return NULL;
 
-    if ((event->properties = properties_new ()) == NULL) {
+    if ((event->properties = n_proplist_new ()) == NULL) {
         g_free (event);
         return NULL;
     }
@@ -44,6 +44,11 @@ event_free (Event *event)
 {
     if (event == NULL)
         return;
+
+    if (event->properties) {
+        n_proplist_free (event->properties);
+        event->properties = NULL;
+    }
 
     if (event->sounds) {
         g_list_free (event->sounds);
@@ -63,5 +68,5 @@ event_free (Event *event)
 void
 event_dump (Event *event)
 {
-    properties_dump (event->properties);
+    n_proplist_dump (event->properties);
 }

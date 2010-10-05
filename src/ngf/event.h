@@ -28,12 +28,13 @@
 #include "sound-path.h"
 #include "vibration-pattern.h"
 #include "volume.h"
+#include "proplist.h"
 
 typedef struct _Event Event;
 
 struct _Event
 {
-    GHashTable       *properties;               /* Collection of properties. */
+    NProplist        *properties;               /* collection of properties. */
 
     gboolean          allow_custom;             /* allow custom sound */
     gint              max_timeout;              /* maximum timeout for event */

@@ -23,7 +23,7 @@
 #include <dbus/dbus-glib-lowlevel.h>
 
 #include "log.h"
-#include "property.h"
+#include "proplist.h"
 #include "state.h"
 #include "dbus-if.h"
 
@@ -40,7 +40,7 @@
 #define NGF_DBUS_METHOD_PAUSE "Pause"
 
 static gboolean
-_msg_parse_variant (DBusMessageIter *iter, Property **value)
+_msg_parse_variant (DBusMessageIter *iter, NValue **value)
 {
     DBusMessageIter variant;
 
@@ -54,31 +54,31 @@ _msg_parse_variant (DBusMessageIter *iter, Property **value)
 
     dbus_message_iter_recurse (iter, &variant);
 
-    *value = property_new ();
+    *value = n_value_new ();
 
     switch (dbus_message_iter_get_arg_type (&variant)) {
         case DBUS_TYPE_STRING:
             dbus_message_iter_get_basic (&variant, &str_value);
-            property_set_string (*value, str_value);
+            n_value_set_string (*value, str_value);
             return TRUE;
 
         case DBUS_TYPE_UINT32:
             dbus_message_iter_get_basic (&variant, &uint_value);
-            property_set_uint (*value, uint_value);
+            n_value_set_uint (*value, uint_value);
             return TRUE;
 
         case DBUS_TYPE_INT32:
             dbus_message_iter_get_basic (&variant, &int_value);
-            property_set_int (*value, int_value);
+            n_value_set_int (*value, int_value);
             return TRUE;
 
         case DBUS_TYPE_BOOLEAN:
             dbus_message_iter_get_basic (&variant, &boolean_value);
-            property_set_boolean (*value, boolean_value ? TRUE : FALSE);
+            n_value_set_bool (*value, boolean_value ? TRUE : FALSE);
             return TRUE;
 
         default:
-            property_free (*value);
+            n_value_free (*value);
             *value = NULL;
             break;
     }
@@ -87,7 +87,7 @@ _msg_parse_variant (DBusMessageIter *iter, Property **value)
 }
 
 static gboolean
-_msg_parse_dict (DBusMessageIter *iter, const char **key, Property **value)
+_msg_parse_dict (DBusMessageIter *iter, const char **key, NValue **value)
 {
     DBusMessageIter dict;
 
@@ -113,38 +113,31 @@ _msg_parse_dict (DBusMessageIter *iter, const char **key, Property **value)
     return TRUE;
 }
 
-static void
-_property_free (gpointer data)
-{
-    property_free ((Property*) data);
-}
-
 static gboolean
-_msg_get_properties (DBusMessageIter *iter, GHashTable **properties)
+_msg_get_properties (DBusMessageIter *iter, NProplist **proplist)
 {
+    NProplist  *p        = NULL;
+    const char *key      = NULL;
+    NValue     *value    = NULL;
     DBusMessageIter array;
-    GHashTable *p = NULL;
-
-    const char *key = NULL;
-    Property *value = NULL;
 
     if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_ARRAY)
         return FALSE;
 
-    p = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, _property_free);
+    p = n_proplist_new ();
 
     dbus_message_iter_recurse (iter, &array);
 
     while (dbus_message_iter_get_arg_type (&array) != DBUS_TYPE_INVALID) {
         if (_msg_parse_dict (&array, &key, &value) && key && value) {
             if (key)
-                g_hash_table_insert (p, g_strdup (key), value);
+                n_proplist_set (p, key, value);
         }
 
         dbus_message_iter_next (&array);
     }
 
-    *properties = p;
+    *proplist = p;
 
     return TRUE;
 }
@@ -158,7 +151,7 @@ _handle_play (DBusConnection *connection,
 
     DBusMessage *reply      = NULL;
     const char  *event      = NULL;
-    GHashTable  *properties = NULL;
+    NProplist   *proplist   = NULL;
     guint        id         = 0;
 
     DBusMessageIter iter;
@@ -170,14 +163,12 @@ _handle_play (DBusConnection *connection,
     dbus_message_iter_get_basic (&iter, &event);
     dbus_message_iter_next (&iter);
 
-    if (!_msg_get_properties (&iter, &properties))
+    if (!_msg_get_properties (&iter, &proplist))
         goto invalid;
 
     /* call the play handler */
-    id = play_handler (context, event, properties);
-
-    if (properties != NULL)
-        g_hash_table_destroy (properties);
+    id = play_handler (context, event, proplist);
+    n_proplist_free (proplist);
 
     reply = dbus_message_new_method_return (msg);
     if (reply) {
