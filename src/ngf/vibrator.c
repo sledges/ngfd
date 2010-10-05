@@ -186,7 +186,7 @@ gpointer
 vibrator_load (const char *filename)
 {
     FILE *fp = NULL;
-    long pattern_size = 0;
+    size_t pattern_size = 0;
     size_t bytes_read = 0;
     VibeUInt8 *data = NULL;
 

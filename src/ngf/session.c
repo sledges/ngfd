@@ -237,7 +237,7 @@ static gchar*
 load_session_bus_address (const char *filename)
 {
     FILE   *fp         = NULL;
-    long    file_size  = 0;
+    size_t  file_size  = 0;
     size_t  bytes_read = 0;
     char   *buf        = NULL;
     gchar  *address    = NULL;

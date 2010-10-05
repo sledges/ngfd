@@ -130,7 +130,7 @@ remove_timeout (Request *request)
 static void
 set_stream_event_id (AudioStream *stream, const char *event_id)
 {
-    GValue v = {0};
+    GValue v = {0,{{0}}};
 
     if (!stream || (stream && !stream->properties))
         return;
@@ -148,7 +148,7 @@ static void
 set_stream_role_from_volume (AudioStream *stream, Volume *volume)
 {
     const char *value = NULL;
-    GValue v = {0};
+    GValue v = {0,{{0}}};
 
     if (!stream || (stream && !stream->properties))
         return;
@@ -373,6 +373,8 @@ stream_state_cb (AudioStream *stream, AudioStreamState state, gpointer userdata)
 {
     NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
 
+    (void) stream;
+
     Request *request        = (Request*) userdata;
     guint    callback_state = REQUEST_STATE_NONE;
 
@@ -526,6 +528,8 @@ static void
 vibration_completed_cb (Vibrator *vibrator, gpointer userdata)
 {
     NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+
+    (void) vibrator;
 
     Request *request = (Request*) userdata;
 

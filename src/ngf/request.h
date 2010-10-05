@@ -54,7 +54,7 @@ struct _Request
     guint             policy_id;                    /* policy identifier */
     gint              resources;                    /* bitmask of resources @see resources.h */
     gint              play_mode;                    /* REQUEST_PLAY_MODE_LONG or REQUEST_PLAY_MODE_SHORT */
-    guint             play_timeout;                 /* play timeout in seconds */
+    gint              play_timeout;                 /* play timeout in seconds */
 
     SoundPath        *custom_sound;                 /* custom sound */
 

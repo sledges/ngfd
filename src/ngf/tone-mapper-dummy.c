@@ -24,23 +24,32 @@
 int
 tone_mapper_create (Context *context)
 {
+    (void) context;
+
     return TRUE;
 }
 
 int
 tone_mapper_reconnect (Context *context)
 {
+    (void) context;
+
     return TRUE;
 }
 
 void
 tone_mapper_destroy (Context *context)
 {
+    (void) context;
+
     return;
 }
 
 const char*
 tone_mapper_get_tone (Context *context, const char *orig)
 {
+    (void) context;
+    (void) orig;
+
     return NULL;
 }

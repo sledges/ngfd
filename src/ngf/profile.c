@@ -173,12 +173,14 @@ resolve_profile (Context    *context,
 
 static void
 value_changed_cb (const char *profile,
-				  const char *key,
-				  const char *value,
-				  const char *type,
-				  void *userdata)
+                  const char *key,
+                  const char *value,
+                  const char *type,
+                  void *userdata)
 {
     Context *context = (Context*) userdata;
+
+    (void) type;
 
     if (!profile || !key)
         return;

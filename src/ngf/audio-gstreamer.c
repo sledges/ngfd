@@ -93,7 +93,7 @@ reset_linear_volume (AudioStream *stream, gboolean query_position)
 {
     Volume    *volume = stream->volume;
     GstFormat  fmt    = GST_FORMAT_TIME;
-    GValue     v      = {0};
+    GValue     v      = {0, {{0}}};
 
     gint64  timestamp;
     gdouble timeleft, current_volume;
@@ -163,6 +163,8 @@ _bus_cb (GstBus     *bus,
          GstMessage *msg,
          gpointer    userdata)
 {
+    (void) bus;
+
     AudioStream *stream = (AudioStream*) userdata;
 
     switch (GST_MESSAGE_TYPE (msg)) {
@@ -261,6 +263,9 @@ _new_decoded_pad_cb (GstElement *element,
                      gboolean    is_last,
                      gpointer    userdata)
 {
+    (void) element;
+    (void) is_last;
+
     GstElement   *sink_element = (GstElement*) userdata;
     GstStructure *structure    = NULL;
     GstCaps      *caps         = NULL;
@@ -337,12 +342,14 @@ _gst_prepare (AudioInterface *iface,
 {
     NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
 
+    (void) iface;
+
     GstElement   *source    = NULL;
     GstElement   *decodebin = NULL;
     GstElement   *sink      = NULL;
     GstBus       *bus       = NULL;
     GstStructure *props     = NULL;
-    GValue        v         = {0};
+    GValue        v         = {0,{{0}}};
 
     if (!stream->source)
         return FALSE;
@@ -434,6 +441,8 @@ _gst_play (AudioInterface *iface,
 {
     NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
 
+    (void) iface;
+
     gst_element_set_state (stream->pipeline, GST_STATE_PLAYING);
     stream->paused = FALSE;
     return TRUE;
@@ -454,6 +463,8 @@ _gst_stop (AudioInterface *iface,
            AudioStream    *stream)
 {
     NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+
+    (void) iface;
 
     if (stream->pipeline) {
         gst_element_set_state (stream->pipeline, GST_STATE_NULL);

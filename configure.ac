@@ -46,6 +46,11 @@ PKG_CHECK_MODULES(GMODULE, gmodule-2.0)
 AC_SUBST(GMODULE_CFLAGS)
 AC_SUBST(GMODULE_LIBS)
 
+# Checks for check unit test framework.
+PKG_CHECK_MODULES(CHECK, check)
+AC_SUBST(CHECK_LIBS)
+AC_SUBST(CHECK_CFLAGS)
+
 # NGFD build compatibility variables.
 AC_SUBST(NGFD_CFLAGS, "$GLIB_CFLAGS $GMODULE_CFLAGS")
 AC_SUBST(NGFD_LIBS, "$GLIB_LIBS $GMODULE_LIBS")
@@ -53,7 +58,7 @@ AC_SUBST(NGFD_PLUGIN_CFLAGS, "$NGFD_CFLAGS")
 AC_SUBST(NGFD_PLUGIN_LIBS, "$NGFD_LIBS")
 
 AC_SUBST(NGFD_CONF_DIR, "\$(sysconfdir)/ngf")
-AC_SUBST(NGFD_PLUGIN_CONF_DIR, "\$(OHM_CONF_DIR)/plugins.d")
+AC_SUBST(NGFD_PLUGIN_CONF_DIR, "\$(NGFD_CONF_DIR)/plugins.d")
 AC_SUBST(NGFD_PLUGIN_DIR, "\$(libdir)/ngfd")
 
 # Debug flag.
@@ -84,7 +89,7 @@ AM_CONDITIONAL(BUILD_DBUS, test x$enable_dbus = xyes)
 
 # GStreamer plugin
 
-PKG_CHECK_MODULES(GST, gstreamer-0.10 gstreamer-controller-0.10, [has_gst=yes], [has_gst=no])
+PKG_CHECK_MODULES(GST, gstreamer-0.10 gstreamer-controller-0.10 libpulse, [has_gst=yes], [has_gst=no])
 AC_SUBST(GST_CFLAGS)
 AC_SUBST(GST_LIBS)
 
@@ -126,7 +131,7 @@ AM_CONDITIONAL(BUILD_PROFILE, test x$enable_profile = xyes)
 
 # MCE plugin
 
-PKG_CHECK_MODULES(MCE, mce-dev, [has_mce=yes], [has_mce=no])
+PKG_CHECK_MODULES(MCE, mce, [has_mce=yes], [has_mce=no])
 AC_SUBST(MCE_CFLAGS)
 AC_SUBST(MCE_LIBS)
 
@@ -156,6 +161,7 @@ AC_CONFIG_FILES([
 Makefile
 src/Makefile
 src/ngf/Makefile
+data/Makefile
 ])
 
 AC_OUTPUT

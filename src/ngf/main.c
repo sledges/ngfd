@@ -68,6 +68,8 @@ static DBusHandlerResult _dbus_event (DBusConnection * connection, DBusMessage *
     gchar *s1 = NULL;
     gchar *s2 = NULL;
 
+    (void) connection;
+
     if (dbus_message_is_signal
 	    (message, "org.freedesktop.DBus", "NameOwnerChanged")) {
         if (!dbus_message_get_args

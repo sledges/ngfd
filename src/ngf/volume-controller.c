@@ -70,6 +70,8 @@ filter_cb (DBusConnection *connection, DBusMessage *msg, void *data)
 {
     Context *context = (Context*) data;
 
+    (void) connection;
+
     if (dbus_message_has_interface (msg, DBUS_INTERFACE_LOCAL) &&
         dbus_message_has_path      (msg, DBUS_PATH_LOCAL) &&
         dbus_message_has_member    (msg, DISCONNECTED_SIG))

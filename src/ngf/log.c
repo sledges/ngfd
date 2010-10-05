@@ -104,6 +104,10 @@ log_message (LogLevel category, const char *function, int line, const char *fmt,
 void
 log_signal (int signum, siginfo_t *info, void *ptr)
 {
+    (void) signum;
+    (void) info;
+    (void) ptr;
+
     if (!_log_syslog) {
         _log_syslog = TRUE;
         openlog ("ngfd", 0, LOG_DAEMON);

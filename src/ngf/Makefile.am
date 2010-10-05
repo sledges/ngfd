@@ -50,7 +50,8 @@ ngfd_SOURCES = \
 	tone-mapper.h \
 	timestamp.h \
 	audio-gstreamer.h \
-	audio-gstreamer.c
+	audio-gstreamer.c \
+	tone-mapper-dummy.c
 
 if BUILD_PROFILE
 ngfd_CFLAGS += $(PROFILE_CFLAGS)
@@ -74,10 +75,4 @@ ngfd_LDFLAGS += $(MCE_LIBS)
 ngfd_SOURCES += backlight.c led.c
 else
 ngfd_SOURCES += backlight-dummy.c led-dummy.c
-endif
-
-if TONEMAPPER
-ngfd_SOURCES += tone-mapper.c
-else
-ngfd_SOURCES += tone-mapper-dummy.c
 endif
