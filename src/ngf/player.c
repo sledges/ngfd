@@ -83,7 +83,7 @@ static gboolean          playback_path_no_sound           (Request *request);
 static gboolean
 max_timeout_cb (gpointer userdata)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     Request *request = (Request*) userdata;
 
@@ -100,7 +100,7 @@ max_timeout_cb (gpointer userdata)
 static void
 setup_timeout (Request *request)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     Event   *event   = request->event;
     guint    timeout = 0;
@@ -112,14 +112,14 @@ setup_timeout (Request *request)
     if (timeout <= 0)
         return;
 
-    NGF_LOG_DEBUG ("%s >> set to %d milliseconds", __FUNCTION__, timeout);
+    N_DEBUG ("%s >> set to %d milliseconds", __FUNCTION__, timeout);
     request->max_timeout_id = g_timeout_add (timeout, max_timeout_cb, request);
 }
 
 static void
 remove_timeout (Request *request)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     if (request->max_timeout_id > 0) {
         g_source_remove (request->max_timeout_id);
@@ -136,7 +136,7 @@ set_stream_event_id (AudioStream *stream, const char *event_id)
         return;
 
     if (event_id) {
-        NGF_LOG_DEBUG ("%s >> set stream event id to %s", __FUNCTION__, event_id);
+        N_DEBUG ("%s >> set stream event id to %s", __FUNCTION__, event_id);
         g_value_init (&v, G_TYPE_STRING);
         g_value_set_string (&v, event_id);
         gst_structure_set_value (stream->properties, "event.id", &v);
@@ -154,7 +154,7 @@ set_stream_role_from_volume (AudioStream *stream, Volume *volume)
         return;
 
     value = (volume && volume->role) ? volume->role : "x-maemo";
-    NGF_LOG_DEBUG ("%s >> set stream role to %s", __FUNCTION__, value);
+    N_DEBUG ("%s >> set stream role to %s", __FUNCTION__, value);
 
     g_value_init (&v, G_TYPE_STRING);
     g_value_set_string (&v, value);
@@ -172,7 +172,7 @@ get_uncompressed_tone (Context *context, const char *tone)
 
     uncompressed = tone_mapper_get_tone (context, tone);
     if (uncompressed) {
-        NGF_LOG_DEBUG ("%s >> resolved uncompressed tone: %s", __FUNCTION__, uncompressed);
+        N_DEBUG ("%s >> resolved uncompressed tone: %s", __FUNCTION__, uncompressed);
         return uncompressed;
     }
 
@@ -182,7 +182,7 @@ get_uncompressed_tone (Context *context, const char *tone)
 static SoundPath*
 resolve_sound_path (Request *request, gboolean advance)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     SoundPath *sound_path = NULL;
 
@@ -213,7 +213,7 @@ resolve_sound_path (Request *request, gboolean advance)
     if (!sound_path)
         return NULL;
 
-    NGF_LOG_DEBUG ("%s >> (type=%d, filename=%s, key=%s, profile=%s)", __FUNCTION__,
+    N_DEBUG ("%s >> (type=%d, filename=%s, key=%s, profile=%s)", __FUNCTION__,
         sound_path->type, sound_path->filename, sound_path->key, sound_path->profile);
 
     return sound_path;
@@ -264,7 +264,7 @@ build_vibration_filename (const char *path, const char *source)
 static VibrationPattern*
 resolve_custom_pattern (Request *request, SoundPath *sound_path)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     Context          *context  = request->context;
     VibrationPattern *pattern  = NULL;
@@ -287,7 +287,7 @@ resolve_custom_pattern (Request *request, SoundPath *sound_path)
     pattern->filename = filename;
     pattern->data     = data;
 
-    NGF_LOG_DEBUG ("%s >> custom pattern (type=%d, filename=%s, pattern=%d)", __FUNCTION__,
+    N_DEBUG ("%s >> custom pattern (type=%d, filename=%s, pattern=%d)", __FUNCTION__,
         pattern->type, pattern->filename, pattern->pattern);
 
     return pattern;
@@ -296,7 +296,7 @@ resolve_custom_pattern (Request *request, SoundPath *sound_path)
 static VibrationPattern*
 resolve_vibration_pattern (Request *request, gboolean advance)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     VibrationPattern *pattern = NULL;
 
@@ -308,7 +308,7 @@ resolve_vibration_pattern (Request *request, gboolean advance)
 
     pattern = (VibrationPattern*) request->vibration_iterator->data;
 
-    NGF_LOG_DEBUG ("%s >> pattern (type=%d, filename=%s, pattern=%d)", __FUNCTION__,
+    N_DEBUG ("%s >> pattern (type=%d, filename=%s, pattern=%d)", __FUNCTION__,
         pattern->type, pattern->filename, pattern->pattern);
 
     return pattern;
@@ -317,7 +317,7 @@ resolve_vibration_pattern (Request *request, gboolean advance)
 static void
 synchronize_resources (Request *request)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     if (!request->synchronize_done) {
         request->synchronize_done = TRUE;
@@ -339,7 +339,7 @@ synchronize_resources (Request *request)
 static gboolean
 restart_next_stream (Request *request)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     SoundPath *sound_path = NULL;
     stop_stream (request);
@@ -353,7 +353,7 @@ restart_next_stream (Request *request)
 static void
 resynchronize_resources (Request *request)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     /* resynchronize is called upon when the stream is rewinded back
        to the start and put to paused state. we want to restart the vibration
@@ -371,7 +371,7 @@ resynchronize_resources (Request *request)
 static void
 stream_state_cb (AudioStream *stream, AudioStreamState state, gpointer userdata)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     (void) stream;
 
@@ -380,28 +380,28 @@ stream_state_cb (AudioStream *stream, AudioStreamState state, gpointer userdata)
 
     switch (state) {
         case AUDIO_STREAM_STATE_PREPARED:
-            NGF_LOG_DEBUG ("%s >> prepared", __FUNCTION__);
+            N_DEBUG ("%s >> prepared", __FUNCTION__);
             synchronize_resources (request);
             break;
 
         case AUDIO_STREAM_STATE_STARTED:
-            NGF_LOG_DEBUG ("%s >> started", __FUNCTION__);
+            N_DEBUG ("%s >> started", __FUNCTION__);
             callback_state = REQUEST_STATE_STARTED;
             break;
 
         case AUDIO_STREAM_STATE_FAILED:
-            NGF_LOG_DEBUG ("%s >> failed", __FUNCTION__);
+            N_DEBUG ("%s >> failed", __FUNCTION__);
             if (!restart_next_stream (request))
                 callback_state = REQUEST_STATE_FAILED;
             break;
 
         case AUDIO_STREAM_STATE_REWIND:
-            NGF_LOG_DEBUG ("%s >> repeat", __FUNCTION__);
+            N_DEBUG ("%s >> repeat", __FUNCTION__);
             resynchronize_resources (request);
             break;
 
         case AUDIO_STREAM_STATE_COMPLETED:
-            NGF_LOG_DEBUG ("%s >> completed", __FUNCTION__);
+            N_DEBUG ("%s >> completed", __FUNCTION__);
             callback_state = REQUEST_STATE_COMPLETED;
             break;
 
@@ -416,7 +416,7 @@ stream_state_cb (AudioStream *stream, AudioStreamState state, gpointer userdata)
 static gboolean
 prepare_stream (Request *request, SoundPath *sound_path)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     Context     *context       = request->context;
     Event       *event         = request->event;
@@ -473,7 +473,7 @@ prepare_stream (Request *request, SoundPath *sound_path)
 static gboolean
 play_stream (Request *request)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     Context *context = request->context;
 
@@ -489,7 +489,7 @@ play_stream (Request *request)
 static void
 stop_stream (Request *request)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     Context *context = request->context;
 
@@ -527,7 +527,7 @@ resume_stream (Request *request)
 static void
 vibration_completed_cb (Vibrator *vibrator, gpointer userdata)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     (void) vibrator;
 
@@ -545,7 +545,7 @@ vibration_completed_cb (Vibrator *vibrator, gpointer userdata)
 static gboolean
 play_vibration (Request *request, VibrationPattern *pattern)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     Context *context = request->context;
 
@@ -561,7 +561,7 @@ play_vibration (Request *request, VibrationPattern *pattern)
 static void
 stop_vibration (Request *request)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     Context *context = request->context;
 
@@ -598,7 +598,7 @@ resume_vibration (Request *request)
 static gboolean
 playback_path_tone_generator (Request *request)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     Context *context = request->context;
     Event   *event   = request->event;
@@ -612,7 +612,7 @@ playback_path_tone_generator (Request *request)
 static gboolean
 playback_path_synchronize (Request *request)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     SoundPath *sound_path = NULL;
 
@@ -629,7 +629,7 @@ playback_path_synchronize (Request *request)
 static gboolean
 playback_path_vibration (Request *request)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     Context          *context = request->context;
     Event            *event   = request->event;
@@ -664,7 +664,7 @@ playback_path_vibration (Request *request)
 static gboolean
 playback_path_leds_and_backlight (Request *request)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     Context *context = request->context;
     Event   *event   = request->event;
@@ -685,7 +685,7 @@ playback_path_leds_and_backlight (Request *request)
 static gboolean
 playback_path_no_sound (Request *request)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     setup_timeout                    (request);
     playback_path_vibration          (request);
@@ -697,7 +697,7 @@ playback_path_no_sound (Request *request)
 int
 play_request (Request *request)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     Context *context = request->context;
     Event   *event   = request->event;
@@ -732,7 +732,7 @@ play_request (Request *request)
 int
 stop_request (Request *request)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     Context *context = request->context;
     Event   *event   = request->event;

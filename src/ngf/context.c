@@ -104,7 +104,7 @@ context_add_volume (Context *context, Volume *volume)
         return NULL;
 
     if (!volume_generate_role (volume)) {
-        NGF_LOG_WARNING ("%s >> failed to generate role for volume!", __FUNCTION__);
+        N_WARNING ("%s >> failed to generate role for volume!", __FUNCTION__);
         volume_free (volume);
         return NULL;
     }

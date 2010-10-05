@@ -91,17 +91,17 @@ _request_state_cb (Request *request, guint state, gpointer userdata)
     switch (state) {
         case REQUEST_STATE_STARTED:
             TIMESTAMP ("REQUEST STARTED");
-            NGF_LOG_INFO ("request (%d) >> started", request->policy_id);
+            N_INFO ("request (%d) >> started", request->policy_id);
             break;
 
         case REQUEST_STATE_FAILED:
-            NGF_LOG_DEBUG ("request (%d) >> failed", request->policy_id);
+            N_DEBUG ("request (%d) >> failed", request->policy_id);
             dbus_if_send_status (context, request->policy_id, NGF_STATUS_FAILED);
             remove_request = TRUE;
             break;
 
         case REQUEST_STATE_COMPLETED:
-            NGF_LOG_INFO ("request (%d) >> completed", request->policy_id);
+            N_INFO ("request (%d) >> completed", request->policy_id);
             dbus_if_send_status (context, request->policy_id, NGF_STATUS_SUCCESS);
             remove_request = TRUE;
             break;
@@ -111,7 +111,7 @@ _request_state_cb (Request *request, guint state, gpointer userdata)
     }
 
     if (remove_request) {
-        NGF_LOG_INFO ("request (%d) >> removed", request->policy_id);
+        N_INFO ("request (%d) >> removed", request->policy_id);
 
         context->request_list = g_list_remove (context->request_list, request);
         stop_request (request);
@@ -138,7 +138,7 @@ play_handler (Context *context, const char *request_name, NProplist *proplist)
     /* Get the policy identifier */
     policy_id    = _properties_get_policy_id (proplist);
     if (policy_id == 0) {
-        NGF_LOG_WARNING ("No policy.id defined for request %s", request_name);
+        N_WARNING ("No policy.id defined for request %s", request_name);
         return 0;
     }
 
@@ -146,7 +146,7 @@ play_handler (Context *context, const char *request_name, NProplist *proplist)
        short requests. If not found, then it is an unrecognized request. */
 
     if ((def = g_hash_table_lookup (context->definitions, request_name)) == NULL) {
-        NGF_LOG_WARNING ("No request definition for request %s", request_name);
+        N_WARNING ("No request definition for request %s", request_name);
         dbus_if_send_status (context, policy_id, NGF_STATUS_FAILED);
         return 0;
     }
@@ -156,7 +156,7 @@ play_handler (Context *context, const char *request_name, NProplist *proplist)
        If no play mode then this is an invalid request. */
 
     if ((play_mode = _properties_get_play_mode (proplist)) == 0) {
-        NGF_LOG_WARNING ("No play.mode property for request %s", request_name);
+        N_WARNING ("No play.mode property for request %s", request_name);
         dbus_if_send_status (context, policy_id, NGF_STATUS_FAILED);
         return 0;
     }
@@ -173,7 +173,7 @@ play_handler (Context *context, const char *request_name, NProplist *proplist)
     }
 
     if ((event = g_hash_table_lookup (context->events, event_name)) == 0) {
-        NGF_LOG_WARNING ("Failed to get request event %s for request %s", event_name, request_name);
+        N_WARNING ("Failed to get request event %s for request %s", event_name, request_name);
         dbus_if_send_status (context, policy_id, NGF_STATUS_FAILED);
         return 0;
     }
@@ -185,14 +185,14 @@ play_handler (Context *context, const char *request_name, NProplist *proplist)
     resources    = _properties_get_resources (proplist);
 
     if (policy_id == 0 || resources == 0) {
-        NGF_LOG_WARNING ("No resources defined for request %s", request_name);
+        N_WARNING ("No resources defined for request %s", request_name);
         dbus_if_send_status (context, policy_id, NGF_STATUS_FAILED);
         return 0;
     }
 
-    NGF_LOG_INFO ("request_name=%s, event_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d (%s))",
+    N_INFO ("request_name=%s, event_name=%s, policy_id=%d, play_timeout=%d, resources=0x%X, play_mode=%d (%s))",
         request_name, event_name, policy_id, play_timeout, resources, play_mode, play_mode == REQUEST_PLAY_MODE_LONG ? "LONG" : "SHORT");
-    NGF_LOG_DEBUG ("Properties:");
+    N_DEBUG ("Properties:");
     n_proplist_dump (proplist);
 
     TIMESTAMP ("Request parsing completed");
@@ -201,7 +201,7 @@ play_handler (Context *context, const char *request_name, NProplist *proplist)
        to it. */
 
     if ((request = request_new (context, event)) == NULL) {
-        NGF_LOG_WARNING ("request (%d) >> failed create request", policy_id);
+        N_WARNING ("request (%d) >> failed create request", policy_id);
         dbus_if_send_status (context, policy_id, NGF_STATUS_FAILED);
         return 0;
     }
@@ -221,7 +221,7 @@ play_handler (Context *context, const char *request_name, NProplist *proplist)
 
     context->request_list = g_list_append (context->request_list, request);
     if (!play_request (request)) {
-        NGF_LOG_WARNING ("request (%d) >> failed to start", request->policy_id);
+        N_WARNING ("request (%d) >> failed to start", request->policy_id);
         dbus_if_send_status (context, policy_id, NGF_STATUS_FAILED);
         context->request_list = g_list_remove (context->request_list, request);
         request_free (request);
@@ -243,7 +243,7 @@ stop_handler (Context *context, guint policy_id)
     for (iter = g_list_first (context->request_list); iter; iter = g_list_next (context->request_list)) {
         request = (Request*) iter->data;
         if (policy_id == 0 || (request->policy_id == policy_id)) {
-            NGF_LOG_INFO ("request (%d) >> stop received", policy_id);
+            N_INFO ("request (%d) >> stop received", policy_id);
 
             context->request_list = g_list_remove (context->request_list, request);
 

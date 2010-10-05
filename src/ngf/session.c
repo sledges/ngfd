@@ -60,7 +60,7 @@ poll_session_bus_address_file (gpointer userdata)
     gchar   *address = NULL;
 
     if (g_file_test (SESSION_BUS_ADDRESS_FILENAME, G_FILE_TEST_EXISTS)) {
-        NGF_LOG_DEBUG ("%s >> session bus address file exists.", __FUNCTION__);
+        N_DEBUG ("%s >> session bus address file exists.", __FUNCTION__);
 
         if ((address = load_session_bus_address (SESSION_BUS_ADDRESS_FILENAME)) != NULL) {
             stop_file_polling  ();
@@ -77,7 +77,7 @@ poll_session_bus_address_file (gpointer userdata)
 static void
 setup_file_polling (Context *context)
 {
-    NGF_LOG_DEBUG ("%s >> polling for session bus address file every %d seconds.", __FUNCTION__, POLL_TIMEOUT);
+    N_DEBUG ("%s >> polling for session bus address file every %d seconds.", __FUNCTION__, POLL_TIMEOUT);
 
     if (poll_id > 0) {
         g_source_remove (poll_id);
@@ -91,7 +91,7 @@ static void
 stop_file_polling ()
 {
     if (poll_id > 0) {
-        NGF_LOG_DEBUG ("%s >> stopping session bus address file polling.", __FUNCTION__);
+        N_DEBUG ("%s >> stopping session bus address file polling.", __FUNCTION__);
         g_source_remove (poll_id);
         poll_id = 0;
     }
@@ -121,7 +121,7 @@ inotify_watch (GIOChannel *source, GIOCondition condition, gpointer userdata)
 
             if (event->mask & IN_DELETE_SELF) {
 
-                NGF_LOG_DEBUG ("%s >> session bus address file was removed.", __FUNCTION__);
+                N_DEBUG ("%s >> session bus address file was removed.", __FUNCTION__);
                 close_file_watcher ();
                 setup_file_polling (context);
 
@@ -246,7 +246,7 @@ load_session_bus_address (const char *filename)
         return NULL;
 
     if ((fp = fopen (filename, "r")) == NULL) {
-        NGF_LOG_DEBUG ("%s >> no address file %s", __FUNCTION__, filename);
+        N_DEBUG ("%s >> no address file %s", __FUNCTION__, filename);
         return NULL;
     }
 
@@ -256,24 +256,24 @@ load_session_bus_address (const char *filename)
 
     if (file_size > 0) {
         if ((buf = (char*) g_try_malloc0 (sizeof (char) * file_size)) == NULL) {
-            NGF_LOG_WARNING ("%s >> failed to allocate memory to read session bus address file.", __FUNCTION__);
+            N_WARNING ("%s >> failed to allocate memory to read session bus address file.", __FUNCTION__);
             fclose (fp);
             return NULL;
         }
 
         bytes_read = fread (buf, sizeof (char), file_size, fp);
         if (bytes_read != file_size) {
-            NGF_LOG_WARNING ("%s >> failed to read the session bus address file.", __FUNCTION__);
+            N_WARNING ("%s >> failed to read the session bus address file.", __FUNCTION__);
             g_free (buf);
             fclose (fp);
             return NULL;
         }
 
         if ((address = parse_address (buf)) != NULL) {
-            NGF_LOG_DEBUG ("%s >> parsed DBus session bus address: %s", __FUNCTION__, address);
+            N_DEBUG ("%s >> parsed DBus session bus address: %s", __FUNCTION__, address);
         }
         else {
-            NGF_LOG_WARNING ("%s >> failed to parse DBus session bus address.", __FUNCTION__);
+            N_WARNING ("%s >> failed to parse DBus session bus address.", __FUNCTION__);
         }
 
         g_free (buf);
@@ -291,22 +291,22 @@ session_new_bus (Context *context, const char *address)
 
     dbus_error_init (&error);
     if (context->session_bus != NULL) {
-        NGF_LOG_DEBUG ("%s >> received session bus address '%s'", __FUNCTION__, address);
+        N_DEBUG ("%s >> received session bus address '%s'", __FUNCTION__, address);
         dbus_connection_unref (context->session_bus);
         context->session_bus = NULL;
     }
     else
-        NGF_LOG_DEBUG ("%s >> received new session bus address '%s'", __FUNCTION__, address);
+        N_DEBUG ("%s >> received new session bus address '%s'", __FUNCTION__, address);
 
     if ((context->session_bus = dbus_connection_open (address, &error)) == NULL ||
         !dbus_bus_register (context->session_bus, &error))
     {
         if (dbus_error_is_set(&error)) {
-            NGF_LOG_WARNING ("%s >> failed to connect to session bus %s (%s)", __FUNCTION__, address, error.message);
+            N_WARNING ("%s >> failed to connect to session bus %s (%s)", __FUNCTION__, address, error.message);
             dbus_error_free (&error);
         }
         else
-            NGF_LOG_WARNING ("%s >> failed to connect to session bus %s", __FUNCTION__, address);
+            N_WARNING ("%s >> failed to connect to session bus %s", __FUNCTION__, address);
 
         return FALSE;
     }

@@ -54,11 +54,11 @@ retry_timeout_cb (gpointer userdata)
 
     disconnect_from_pulseaudio (context);
     if (!connect_to_pulseaudio (context)) {
-        NGF_LOG_WARNING ("%s >> failed to reconnect, trying again in %d seconds", __FUNCTION__, RETRY_TIMEOUT);
+        N_WARNING ("%s >> failed to reconnect, trying again in %d seconds", __FUNCTION__, RETRY_TIMEOUT);
         context->volume_retry_id = g_timeout_add_seconds (RETRY_TIMEOUT, retry_timeout_cb, context);
     }
     else {
-        NGF_LOG_DEBUG ("%s >> reconnected to pulseaudio.", __FUNCTION__);
+        N_DEBUG ("%s >> reconnected to pulseaudio.", __FUNCTION__);
         process_queued_ops (context);
     }
 
@@ -76,7 +76,7 @@ filter_cb (DBusConnection *connection, DBusMessage *msg, void *data)
         dbus_message_has_path      (msg, DBUS_PATH_LOCAL) &&
         dbus_message_has_member    (msg, DISCONNECTED_SIG))
     {
-        NGF_LOG_DEBUG ("%s >> pulseaudio disconnected, reconnecting in %d seconds", __FUNCTION__, RETRY_TIMEOUT);
+        N_DEBUG ("%s >> pulseaudio disconnected, reconnecting in %d seconds", __FUNCTION__, RETRY_TIMEOUT);
 
         disconnect_from_pulseaudio (context);
         context->volume_retry_id = g_timeout_add_seconds (RETRY_TIMEOUT, retry_timeout_cb, context);
@@ -138,13 +138,13 @@ add_entry (Context *context, const char *role, guint volume)
 
     if (!reply) {
         if (dbus_error_is_set (&error)) {
-            NGF_LOG_WARNING ("%s >> error: %s", __FUNCTION__, error.message);
+            N_WARNING ("%s >> error: %s", __FUNCTION__, error.message);
         }
 
         goto done;
     }
 
-    NGF_LOG_DEBUG ("%s >> volume for role %s set to %d", __FUNCTION__, role, vol);
+    N_DEBUG ("%s >> volume for role %s set to %d", __FUNCTION__, role, vol);
     success = TRUE;
 
 done:
@@ -165,7 +165,7 @@ process_queued_ops (Context *context)
         return;
 
     while ((queued_volume = g_queue_pop_head (context->volume_queue)) != NULL) {
-        NGF_LOG_DEBUG ("%s >> processing queued volume (role=%s, volume=%d)", __FUNCTION__, queued_volume->role, queued_volume->level);
+        N_DEBUG ("%s >> processing queued volume (role=%s, volume=%d)", __FUNCTION__, queued_volume->role, queued_volume->level);
         add_entry (context, queued_volume->role, queued_volume->level);
     }
 }
@@ -183,7 +183,7 @@ connect_to_pulseaudio (Context *context)
     context->volume_bus = dbus_connection_open (pulse_address, &error);
 
     if (dbus_error_is_set (&error)) {
-        NGF_LOG_WARNING ("%s >> failed to open connection to pulseaudio: %s", __FUNCTION__, error.message);
+        N_WARNING ("%s >> failed to open connection to pulseaudio: %s", __FUNCTION__, error.message);
         dbus_error_free (&error);
         return FALSE;
     }
@@ -191,7 +191,7 @@ connect_to_pulseaudio (Context *context)
     dbus_connection_setup_with_g_main (context->volume_bus, NULL);
 
     if (!dbus_connection_add_filter (context->volume_bus, filter_cb, context, NULL)) {
-        NGF_LOG_WARNING ("%s >> failed to add filter", __FUNCTION__);
+        N_WARNING ("%s >> failed to add filter", __FUNCTION__);
         return FALSE;
     }
 
@@ -225,7 +225,7 @@ volume_controller_create (Context *context)
         return FALSE;
 
     if (!connect_to_pulseaudio (context)) {
-        NGF_LOG_DEBUG ("%s >> failed to connect to Pulseaudio DBus, reconnecting in %d seconds.", __FUNCTION__, RETRY_TIMEOUT);
+        N_DEBUG ("%s >> failed to connect to Pulseaudio DBus, reconnecting in %d seconds.", __FUNCTION__, RETRY_TIMEOUT);
         context->volume_retry_id = g_timeout_add_seconds (RETRY_TIMEOUT, retry_timeout_cb, context);
     }
 
@@ -256,7 +256,7 @@ volume_controller_update (Context *context, Volume *volume)
         return FALSE;
 
     if (!context->volume_bus) {
-        NGF_LOG_DEBUG ("%s >> volume controller not ready, queueing op.", __FUNCTION__);
+        N_DEBUG ("%s >> volume controller not ready, queueing op.", __FUNCTION__);
         g_queue_push_tail (context->volume_queue, volume);
         return TRUE;
     }

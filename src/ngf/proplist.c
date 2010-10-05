@@ -313,7 +313,7 @@ n_proplist_dump (NProplist *proplist)
     g_hash_table_iter_init (&iter, proplist->values);
     while (g_hash_table_iter_next (&iter, (gpointer) &key, (gpointer) &value)) {
         str_value = n_value_to_string (value);
-        NGF_LOG_DEBUG (LOG_CAT "%s = %s", key, str_value);
+        N_DEBUG (LOG_CAT "%s = %s", key, str_value);
         g_free (str_value);
     }
 }

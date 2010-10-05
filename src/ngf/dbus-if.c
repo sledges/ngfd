@@ -272,7 +272,7 @@ _dbus_initialize (Context *context, const char *name, const char *path)
     ret = dbus_bus_request_name (context->system_bus, name, DBUS_NAME_FLAG_REPLACE_EXISTING, &error);
     if (ret != DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER) {
         if (dbus_error_is_set (&error)) {
-            NGF_LOG_WARNING ("Failed to get unique name: %s", error.message);
+            N_WARNING ("Failed to get unique name: %s", error.message);
             dbus_error_free (&error);
         }
 

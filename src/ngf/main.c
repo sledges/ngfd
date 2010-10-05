@@ -51,7 +51,7 @@ _get_dbus_connection (DBusBusType bus_type)
     dbus_error_init (&error);
     bus = dbus_bus_get (bus_type, &error);
     if (bus == NULL) {
-        NGF_LOG_WARNING ("%s >> failed to get %s bus: %s", bus_type == DBUS_BUS_SYSTEM ? "system" : "session", error.message);
+        N_WARNING ("%s >> failed to get %s bus: %s", bus_type == DBUS_BUS_SYSTEM ? "system" : "session", error.message);
         dbus_error_free (&error);
         return NULL;
     }
@@ -79,10 +79,10 @@ static DBusHandlerResult _dbus_event (DBusConnection * connection, DBusMessage *
             DBUS_TYPE_STRING, &s2,
             DBUS_TYPE_INVALID)) {
             if (error.message)
-                NGF_LOG_WARNING ("D-Bus error: %s",error.message);
+                N_WARNING ("D-Bus error: %s",error.message);
         } else {
             if (component && g_str_equal (component, "org.freedesktop.ohm")) {
-                NGF_LOG_INFO ("Ohmd restarted, stopping all requests");
+                N_INFO ("Ohmd restarted, stopping all requests");
                 stop_handler (context, 0);
             }
         }
@@ -92,6 +92,16 @@ static DBusHandlerResult _dbus_event (DBusConnection * connection, DBusMessage *
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
+static void
+log_target_toggle (int signum, siginfo_t *info, void *ptr)
+{
+    (void) signum;
+    (void) info;
+    (void) ptr;
+
+    n_log_set_target (N_LOG_TARGET_SYSLOG);
+}
+
 int
 context_create (Context **context)
 {
@@ -99,12 +109,12 @@ context_create (Context **context)
     struct sigaction act;
 
     if ((c = g_try_malloc0 (sizeof (Context))) == NULL) {
-        NGF_LOG_WARNING ("Failed to allocate memory for context!");
+        N_WARNING ("Failed to allocate memory for context!");
         return FALSE;
     }
 
     if ((c->loop = g_main_loop_new (NULL, 0)) == NULL) {
-        NGF_LOG_WARNING ("Failed to create the GLib mainloop!");
+        N_WARNING ("Failed to create the GLib mainloop!");
         return FALSE;
     }
 
@@ -116,45 +126,45 @@ context_create (Context **context)
     /* setup the interface */
 
     if (!dbus_if_create (c)) {
-        NGF_LOG_WARNING ("Failed to create D-Bus interface!");
+        N_WARNING ("Failed to create D-Bus interface!");
         return FALSE;
     }
 
     /* setup the backends */
 
     if (!volume_controller_create (c)) {
-        NGF_LOG_WARNING ("%s >> failed to create volume control.", __FUNCTION__);
+        N_WARNING ("%s >> failed to create volume control.", __FUNCTION__);
     }
 
     if (!profile_create (c)) {
-        NGF_LOG_WARNING ("Failed to create profile tracking!");
+        N_WARNING ("Failed to create profile tracking!");
         return FALSE;
     }
 
     if (!tone_mapper_create (c)) {
-        NGF_LOG_WARNING ("Failed to create tone mapper!");
+        N_WARNING ("Failed to create tone mapper!");
         return FALSE;
     }
 
     if ((c->audio = audio_create ()) == NULL) {
-        NGF_LOG_WARNING ("Failed to create Pulseaudio backend!");
+        N_WARNING ("Failed to create Pulseaudio backend!");
         return FALSE;
     }
 
     if ((c->vibrator = vibrator_create ()) == NULL) {
-        NGF_LOG_WARNING ("Failed to create Immersion backend!");
+        N_WARNING ("Failed to create Immersion backend!");
         return FALSE;
     }
 
     /* create the hash tables to hold definitions and events */
 
     if (!_request_manager_create (c)) {
-        NGF_LOG_WARNING ("Failed to create request manager!");
+        N_WARNING ("Failed to create request manager!");
         return FALSE;
     }
 
     if (!load_settings (c)) {
-        NGF_LOG_WARNING ("Failed to load settings!");
+        N_WARNING ("Failed to load settings!");
         return FALSE;
     }
 
@@ -169,12 +179,12 @@ context_create (Context **context)
     /* hook up the session watcher */
 
     if (!session_create (c)) {
-        NGF_LOG_WARNING ("%s >> failed to setup session watcher.", __FUNCTION__);
+        N_WARNING ("%s >> failed to setup session watcher.", __FUNCTION__);
         return FALSE;
     }
 
     memset(&act, 0, sizeof(act));
-    act.sa_sigaction = log_signal;
+    act.sa_sigaction = log_target_toggle;
     act.sa_flags = SA_SIGINFO;
     sigaction(SIGUSR1, &act, NULL);
 
@@ -259,7 +269,7 @@ static gboolean
 parse_cmdline (int argc, char **argv)
 {
     int opt, opt_index;
-    int level = LOG_LEVEL_NONE;
+    int level = N_LOG_LEVEL_NONE;
 
     static struct option long_opts[] = {
         { "verbose", 0, 0, 'v' },
@@ -278,7 +288,7 @@ parse_cmdline (int argc, char **argv)
         }
     }
 
-    log_set_level (level);
+    n_log_set_level (level);
 
     return TRUE;
 }
@@ -287,6 +297,8 @@ int
 main (int argc, char *argv[])
 {
     Context *context = NULL;
+
+    n_log_initialize (N_LOG_LEVEL_NONE);
 
     if (!parse_cmdline (argc, argv))
         return 1;

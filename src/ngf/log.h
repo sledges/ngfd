@@ -19,34 +19,42 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef LOG_H
-#define LOG_H
+#ifndef N_LOG_H
+#define N_LOG_H
 
-#include <stdio.h>
-#include <glib.h>
-#include <signal.h>
+#include <stdarg.h>
 
-typedef enum _LogLevel
+typedef enum _NLogTarget
 {
-    LOG_LEVEL_ENTER    = 0,
-    LOG_LEVEL_DEBUG   = 1,
-    LOG_LEVEL_INFO    = 2,
-    LOG_LEVEL_WARNING = 3,
-    LOG_LEVEL_NONE    = 4,
-} LogLevel;
+    N_LOG_TARGET_NONE = 0,
+    N_LOG_TARGET_STDOUT,
+    N_LOG_TARGET_SYSLOG
+} NLogTarget;
 
-void log_message   (LogLevel level, const char *function, int line, const char *fmt, ...);
-void log_signal (int signum, siginfo_t *info, void *ptr);
-void log_set_level (LogLevel level);
+typedef enum _NLogLevel
+{
+    N_LOG_LEVEL_ENTER   = 0,
+    N_LOG_LEVEL_DEBUG   = 1,
+    N_LOG_LEVEL_INFO    = 2,
+    N_LOG_LEVEL_WARNING = 3,
+    N_LOG_LEVEL_ERROR   = 4,
+    N_LOG_LEVEL_NONE    = 5
+} NLogLevel;
 
-#define NGF_LOG_ENTER(...) \
-    { log_message (LOG_LEVEL_ENTER, __FUNCTION__, __LINE__, __VA_ARGS__); }
-#define NGF_LOG_INFO(...) \
-    { log_message (LOG_LEVEL_INFO, __FUNCTION__, __LINE__, __VA_ARGS__); }
-#define NGF_LOG_DEBUG(...) \
-    { log_message (LOG_LEVEL_DEBUG, __FUNCTION__, __LINE__, __VA_ARGS__); }
-#define NGF_LOG_WARNING(...) \
-    { log_message (LOG_LEVEL_WARNING, __FUNCTION__, __LINE__, __VA_ARGS__); }
+void n_log_initialize (NLogLevel level);
+void n_log_set_level  (NLogLevel level);
+void n_log_set_target (NLogTarget target);
+void n_log_message    (NLogLevel level, const char *function, int line, const char *fmt, ...);
 
+#define N_ENTER(...) \
+    { n_log_message (N_LOG_LEVEL_ENTER, (const char*) __FUNCTION__, __LINE__, __VA_ARGS__); }
+#define N_DEBUG(...) \
+    { n_log_message (N_LOG_LEVEL_DEBUG, (const char*) __FUNCTION__, __LINE__, __VA_ARGS__); }
+#define N_INFO(...) \
+    { n_log_message (N_LOG_LEVEL_INFO, (const char*) __FUNCTION__, __LINE__, __VA_ARGS__); }
+#define N_WARNING(...) \
+    { n_log_message (N_LOG_LEVEL_WARNING, (const char*) __FUNCTION__, __LINE__, __VA_ARGS__); }
+#define N_ERROR(...) \
+    { n_log_message (N_LOG_LEVEL_ERROR, (const char*) __FUNCTION__, __LINE__, __VA_ARGS__); }
 
-#endif /* LOG_H */
+#endif /* N_LOG_H */

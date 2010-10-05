@@ -19,58 +19,38 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <signal.h>
 #include <syslog.h>
+#include <string.h>
+#include <time.h>
+
 #include "log.h"
 
-#ifdef ENABLE_DEBUG
-static LogLevel _log_level = LOG_LEVEL_ENTER;
-#else
-static LogLevel _log_level = LOG_LEVEL_NONE;
-#endif
+#define LOG_CAT "log: "
 
-static gboolean _log_syslog = FALSE;
-
-static const char*
-level_to_string (LogLevel category)
-{
-    switch (category) {
-        case LOG_LEVEL_ENTER:
-            return "ENTER";
-
-        case LOG_LEVEL_INFO:
-            return "INFO";
-
-        case LOG_LEVEL_DEBUG:
-            return "DEBUG";
-
-        case LOG_LEVEL_WARNING:
-            return "WARNING";
-
-        default:
-            break;
-    }
-
-    return "UNKNOWN";
-}
+static NLogLevel       _log_level       = N_LOG_LEVEL_ENTER;
+static NLogTarget      _log_target      = N_LOG_TARGET_STDOUT;
+static struct timespec _log_clock_start = { 0, 0 };
 
 static int
-level_to_syslevel (LogLevel category)
+n_log_syslog_priority_from_level (NLogLevel category)
 {
     switch (category) {
-        case LOG_LEVEL_ENTER:
+        case N_LOG_LEVEL_ENTER:
             return LOG_DEBUG;
 
-        case LOG_LEVEL_INFO:
+        case N_LOG_LEVEL_INFO:
             return LOG_INFO;
 
-        case LOG_LEVEL_DEBUG:
+        case N_LOG_LEVEL_DEBUG:
             return LOG_DEBUG;
 
-        case LOG_LEVEL_WARNING:
+        case N_LOG_LEVEL_WARNING:
             return LOG_WARNING;
+
+        case N_LOG_LEVEL_ERROR:
+            return LOG_ERR;
 
         default:
             break;
@@ -80,14 +60,98 @@ level_to_syslevel (LogLevel category)
 }
 
 void
-log_message (LogLevel category, const char *function, int line, const char *fmt, ...)
+n_log_set_level (NLogLevel level)
 {
+    _log_level = level;
+}
+
+void
+n_log_set_target (NLogTarget target)
+{
+    if (target == _log_target)
+        return;
+
+    _log_target = target;
+    if (target == N_LOG_TARGET_SYSLOG) {
+        openlog ("ngfd", 0, LOG_DAEMON);
+        N_INFO (LOG_CAT "logging enabled to syslog");
+    }
+    else {
+        N_INFO (LOG_CAT "logging enabled to stdout.");
+        closelog();
+    }
+}
+
+static const char*
+n_log_level_to_string (NLogLevel category)
+{
+    switch (category) {
+        case N_LOG_LEVEL_ENTER:
+            return "ENTER";
+
+        case N_LOG_LEVEL_INFO:
+            return "INFO";
+
+        case N_LOG_LEVEL_DEBUG:
+            return "DEBUG";
+
+        case N_LOG_LEVEL_WARNING:
+            return "WARNING";
+
+        case N_LOG_LEVEL_ERROR:
+            return "ERROR";
+
+        default:
+            break;
+    }
+
+    return "UNKNOWN";
+}
+
+static void
+n_log_get_clock_stamp (char *buffer, size_t len)
+{
+    struct timespec res;
+    struct timespec ts;
+    long ms = 0;
+
+    if (clock_gettime (CLOCK_MONOTONIC, &ts) < 0) {
+        snprintf (buffer, len, "no_time");
+        return;
+    }
+
+    res.tv_sec  = ts.tv_sec - _log_clock_start.tv_sec;
+    res.tv_nsec = ts.tv_nsec - _log_clock_start.tv_nsec;
+    ms = res.tv_nsec / 1000000;
+
+    snprintf (buffer, len, "%lu.%.3lu",  (long) res.tv_sec, ms);
+}
+
+void
+n_log_initialize (NLogLevel level)
+{
+    struct timespec ts;
+
+    if (clock_gettime (CLOCK_MONOTONIC, &ts) < 0)
+        return;
+
+    _log_clock_start = ts;
+    _log_level       = level;
+
+    N_DEBUG (LOG_CAT "clock time reset");
+}
+
+void
+n_log_message (NLogLevel category, const char *function, int line,
+               const char *fmt, ...)
+{
+    char clock_stamp[256];
     char buf[256];
 
     (void) function;
     (void) line;
 
-    if (category < _log_level)
+    if (category < _log_level || _log_target == N_LOG_TARGET_NONE)
         return;
 
     va_list fmt_args;
@@ -95,40 +159,11 @@ log_message (LogLevel category, const char *function, int line, const char *fmt,
     vsnprintf (buf, 256, fmt, fmt_args);
     va_end (fmt_args);
 
-    if (_log_syslog)
-        syslog (level_to_syslevel (category), "[%s] %s\n", level_to_string (category), buf);
-    else
-        fprintf (stdout, "[%s] %s\n", level_to_string (category), buf);
-}
-
-void
-log_signal (int signum, siginfo_t *info, void *ptr)
-{
-    (void) signum;
-    (void) info;
-    (void) ptr;
-
-    if (!_log_syslog) {
-        _log_syslog = TRUE;
-        openlog ("ngfd", 0, LOG_DAEMON);
-    } else {
-        closelog();
-        _log_syslog = FALSE;
+    if (_log_target == N_LOG_TARGET_SYSLOG) {
+        syslog (n_log_syslog_priority_from_level (category), "%s", buf);
     }
-
-    _log_level = LOG_LEVEL_ENTER;
-    NGF_LOG_INFO ("Logging enabled");
-}
-
-void
-log_set_level (LogLevel level)
-{
-    _log_level = level;
-
-    if (level < LOG_LEVEL_NONE) {
-        if (_log_syslog)
-            syslog (LOG_INFO, "Log level set to %s\n", level_to_string (level));
-        else
-            fprintf (stdout, "Log level set to %s\n", level_to_string (level));
+    else if (_log_target == N_LOG_TARGET_STDOUT) {
+        n_log_get_clock_stamp (clock_stamp, 256);
+        fprintf (stdout, "[%s] %s: %s\n", clock_stamp, n_log_level_to_string (category), buf);
     }
 }

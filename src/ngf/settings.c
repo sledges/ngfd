@@ -246,7 +246,7 @@ _parse_definitions (SettingsData *data, GKeyFile *k)
         def->short_event   = g_key_file_get_string (k, *group, "short", NULL);
         def->meeting_event = g_key_file_get_string (k, *group, "meeting", NULL);
 
-        NGF_LOG_DEBUG ("<new definition> %s (long=%s, short=%s, meeting=%s)", name, def->long_event, def->short_event, def->meeting_event);
+        N_DEBUG ("<new definition> %s (long=%s, short=%s, meeting=%s)", name, def->long_event, def->short_event, def->meeting_event);
         g_hash_table_replace (context->definitions, g_strdup (name), def);
     }
 
@@ -280,7 +280,7 @@ _add_property_int (NProplist  *proplist,
     result = g_key_file_get_integer (k, group, key, &error);
     if (error != NULL) {
         if (error->code == G_KEY_FILE_ERROR_INVALID_VALUE)
-            NGF_LOG_WARNING ("Invalid value for property %s, expected integer. Using default value %d", key, def_value);
+            N_WARNING ("Invalid value for property %s, expected integer. Using default value %d", key, def_value);
         g_error_free (error);
         result = def_value;
 
@@ -305,7 +305,7 @@ _add_property_bool (NProplist  *proplist,
     result = g_key_file_get_boolean (k, group, key, &error);
     if (error != NULL) {
         if (error->code == G_KEY_FILE_ERROR_INVALID_VALUE)
-            NGF_LOG_WARNING ("Invalid value for property %s, expected boolean. Using default value %s", key, def_value ? "TRUE" : "FALSE");
+            N_WARNING ("Invalid value for property %s, expected boolean. Using default value %s", key, def_value ? "TRUE" : "FALSE");
         g_error_free (error);
         result = def_value;
 
@@ -330,7 +330,7 @@ _add_property_string (NProplist  *proplist,
     result = g_key_file_get_string (k, group, key, &error);
     if (error != NULL) {
         if (error->code == G_KEY_FILE_ERROR_INVALID_VALUE)
-            NGF_LOG_WARNING ("Invalid value for property %s, expected string. Using default value %s", key, def_value);
+            N_WARNING ("Invalid value for property %s, expected string. Using default value %s", key, def_value);
         g_error_free (error);
 
         if (!set_default)

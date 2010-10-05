@@ -1,7 +1,7 @@
 bin_PROGRAMS = ngfd
 
 ngfd_CFLAGS = $(NGFD_CFLAGS) $(GST_CFLAGS) $(DBUS_CFLAGS) $(IMMVIBE_CFLAGS) -I$(top_srcdir)/src
-ngfd_LDFLAGS = $(NGFD_LIBS) $(GST_LIBS) $(DBUS_LIBS) $(IMMVIBE_LIBS)
+ngfd_LDFLAGS = $(NGFD_LIBS) $(GST_LIBS) $(DBUS_LIBS) $(IMMVIBE_LIBS) -lrt
 
 ngfd_SOURCES = \
 	main.c \

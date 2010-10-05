@@ -63,7 +63,7 @@ pipeline_rewind (GstElement *pipeline, gboolean flush)
 
     event = gst_event_new_seek (1.0, GST_FORMAT_BYTES, flags, GST_SEEK_TYPE_SET, 0, GST_SEEK_TYPE_END, GST_CLOCK_TIME_NONE);
     if (!gst_element_send_event (pipeline, event)) {
-        NGF_LOG_WARNING ("pipeline_rewind: failed to send event\n");
+        N_WARNING ("pipeline_rewind: failed to send event\n");
     }
 }
 
@@ -103,13 +103,13 @@ reset_linear_volume (AudioStream *stream, gboolean query_position)
 
     if (query_position) {
         if (!gst_element_query_position (stream->pipeline, &fmt, &timestamp)) {
-            NGF_LOG_DEBUG ("%s >> unable to query stream position",
+            N_DEBUG ("%s >> unable to query stream position",
                 __FUNCTION__);
             goto finish_controller;
         }
 
         if (!(GST_CLOCK_TIME_IS_VALID (timestamp) && fmt == GST_FORMAT_TIME)) {
-            NGF_LOG_DEBUG ("%s >> queried position or format is not valid",
+            N_DEBUG ("%s >> queried position or format is not valid",
                 __FUNCTION__);
             goto finish_controller;
         }
@@ -127,7 +127,7 @@ reset_linear_volume (AudioStream *stream, gboolean query_position)
     }
 
     if (timeleft > 0.0) {
-        NGF_LOG_DEBUG ("%s >> query=%s, timeleft = %f, current_volume = %f\n",
+        N_DEBUG ("%s >> query=%s, timeleft = %f, current_volume = %f\n",
             __FUNCTION__, query_position ? "TRUE" : "FALSE", timeleft,
             current_volume);
 
@@ -152,7 +152,7 @@ reset_linear_volume (AudioStream *stream, gboolean query_position)
 
 finish_controller:
     if (stream->controller) {
-        NGF_LOG_DEBUG ("%s >> controller finished\n", __FUNCTION__);
+        N_DEBUG ("%s >> controller finished\n", __FUNCTION__);
         g_object_unref (stream->controller);
         stream->controller = NULL;
     }
@@ -294,7 +294,7 @@ _gst_element_preload (gchar * name)
 	GstElement *element = NULL;
 
 	if ((element = gst_element_factory_make (name, NULL)) == NULL) {
-		NGF_LOG_WARNING ("Preloading element %s failed", name);
+		N_WARNING ("Preloading element %s failed", name);
 		return;
 	}
 
@@ -304,7 +304,7 @@ _gst_element_preload (gchar * name)
 static gboolean
 _gst_initialize (AudioInterface * iface)
 {
-	NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+	N_ENTER ("%s >> entering", __FUNCTION__);
 
 	(void) iface;
 
@@ -331,7 +331,7 @@ _gst_initialize (AudioInterface * iface)
 static void
 _gst_shutdown (AudioInterface *iface)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     (void) iface;
 }
@@ -340,7 +340,7 @@ static gboolean
 _gst_prepare (AudioInterface *iface,
               AudioStream    *stream)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     (void) iface;
 
@@ -439,7 +439,7 @@ static gboolean
 _gst_play (AudioInterface *iface,
            AudioStream    *stream)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     (void) iface;
 
@@ -462,7 +462,7 @@ static void
 _gst_stop (AudioInterface *iface,
            AudioStream    *stream)
 {
-    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+    N_ENTER ("%s >> entering", __FUNCTION__);
 
     (void) iface;
 
