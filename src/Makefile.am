@@ -1,1 +1,1 @@
-SUBDIRS = ngf
+SUBDIRS = ngf plugins

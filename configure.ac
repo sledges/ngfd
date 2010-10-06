@@ -161,6 +161,8 @@ AC_CONFIG_FILES([
 Makefile
 src/Makefile
 src/ngf/Makefile
+src/plugins/Makefile
+src/plugins/fake/Makefile
 data/Makefile
 ])
 
