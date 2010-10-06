@@ -11,6 +11,9 @@ ngfd_SOURCES = \
 	core-internal.h \
 	core.h \
 	core.c \
+	sinkinterface-internal.h \
+	sinkinterface.h \
+	sinkinterface.c \
 	context.h \
 	context.c \
 	settings.h \

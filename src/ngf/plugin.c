@@ -89,3 +89,13 @@ n_plugin_get_params (NPlugin *plugin)
 
     return plugin->params;
 }
+
+void
+n_plugin_register_sink (NPlugin *plugin, const NSinkInterfaceDecl *decl)
+{
+    if (!plugin || !decl)
+        return;
+
+    n_core_register_sink (plugin->core, decl);
+}
+

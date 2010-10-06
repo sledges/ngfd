@@ -22,12 +22,14 @@
 #ifndef N_PLUGIN_H
 #define N_PLUGIN_H
 
-#include <ngf/log.h>
-#include <ngf/proplist.h>
-
 typedef struct _NPlugin NPlugin;
 
-const NProplist* n_plugin_get_params (NPlugin *plugin);
+#include <ngf/log.h>
+#include <ngf/proplist.h>
+#include <ngf/sinkinterface.h>
+
+const NProplist* n_plugin_get_params    (NPlugin *plugin);
+void             n_plugin_register_sink (NPlugin *plugin, const NSinkInterfaceDecl *decl);
 
 #define N_PLUGIN_NAME(p_name)                   \
     const char* n_plugin__get_name () {         \

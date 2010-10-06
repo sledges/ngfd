@@ -19,36 +19,29 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#ifndef N_CORE_INTERNAL_H
-#define N_CORE_INTERNAL_H
-
-
-#include <glib.h>
-
-#include "core.h"
-#include "plugin-internal.h"
 #include "sinkinterface-internal.h"
+#include "core-internal.h"
 
-struct _NCore
+void
+n_sink_interface_synchronize (NSinkInterface *iface /*, NRequest *request */)
 {
-    gchar            *conf_path;            /* configuration path */
-    gchar            *plugin_path;          /* plugin path */
+    (void) iface;
 
-    GList            *required_plugins;     /* plugins to load (required) */
-    GList            *plugins;              /* NPlugin* */
+    /* n_core_sink_synchronize (iface->core, iface, request); */
+}
 
-    NSinkInterface  **sinks;                /* sink interfaces registered */
-    unsigned int      num_sinks;
+void
+n_sink_interface_completed (NSinkInterface *iface /*, NRequest *request */)
+{
+    (void) iface;
 
-    gboolean          shutdown_done;        /* shutdown has been run. */
-};
+    /* n_core_sink_completed (iface->core, iface, request); */
+}
 
-NCore*    n_core_new            (int *argc, char **argv);
-void      n_core_free           (NCore *core);
-int       n_core_initialize     (NCore *core);
-void      n_core_shutdown       (NCore *core);
+void
+n_sink_interface_failed (NSinkInterface *iface /*, NRequest *request */)
+{
+    (void) iface;
 
-void      n_core_register_sink  (NCore *core, const NSinkInterfaceDecl *iface);
-
-#endif /* N_CORE_INTERNAL_H */
-
+    /* n_core_sink_failed (iface->core, iface, request); */
+}

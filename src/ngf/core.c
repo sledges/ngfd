@@ -209,8 +209,9 @@ n_core_initialize (NCore *core)
     g_assert (core->conf_path != NULL);
     g_assert (core->plugin_path != NULL);
 
-    NPlugin *plugin = NULL;
-    GList   *p      = NULL;
+    NSinkInterface **sink   = NULL;
+    NPlugin         *plugin = NULL;
+    GList           *p      = NULL;
 
     if (!core->required_plugins) {
         N_ERROR (LOG_CAT "no plugins to load defined in configuration");
@@ -224,6 +225,20 @@ n_core_initialize (NCore *core)
             goto failed_init;
 
         core->plugins = g_list_append (core->plugins, plugin);
+    }
+
+    /* initialize all sinks. if no sinks, we're done. */
+
+    if (!core->sinks) {
+        N_ERROR (LOG_CAT "no plugin has registered sink interface");
+        goto failed_init;
+    }
+
+    for (sink = core->sinks; *sink; ++sink) {
+        if ((*sink)->funcs.initialize && !(*sink)->funcs.initialize (*sink)) {
+            N_ERROR (LOG_CAT "sink '%s' failed to initialize", (*sink)->name);
+            goto failed_init;
+        }
     }
 
     return TRUE;
@@ -245,6 +260,17 @@ n_core_shutdown (NCore *core)
 {
     g_assert (core != NULL);
 
+    NSinkInterface **sink = NULL;
+
+    /* shutdown all sinks */
+
+    if (core->sinks) {
+        for (sink = core->sinks; *sink; ++sink) {
+            if ((*sink)->funcs.shutdown)
+                (*sink)->funcs.shutdown (*sink);
+        }
+    }
+
     if (core->plugins) {
         g_list_foreach (core->plugins, unload_plugin_cb, core);
         g_list_free (core->plugins);
@@ -258,5 +284,29 @@ n_core_shutdown (NCore *core)
     }
 
     core->shutdown_done = TRUE;
+}
+
+void
+n_core_register_sink (NCore *core, const NSinkInterfaceDecl *iface)
+{
+    g_assert (core != NULL);
+    g_assert (iface->name != NULL);
+    g_assert (iface->play != NULL);
+    g_assert (iface->stop != NULL);
+
+    NSinkInterface *sink = NULL;
+    sink = g_new0 (NSinkInterface, 1);
+    sink->name  = iface->name;
+    sink->core  = core;
+    sink->funcs = *iface;
+
+    core->num_sinks++;
+    core->sinks = (NSinkInterface**) g_realloc (core->sinks,
+        sizeof (NSinkInterface*) * (core->num_sinks + 1));
+
+    core->sinks[core->num_sinks-1] = sink;
+    core->sinks[core->num_sinks]   = NULL;
+
+    N_DEBUG (LOG_CAT "sink interface '%s' registered", sink->name);
 }
 
