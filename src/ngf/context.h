@@ -41,8 +41,13 @@ typedef struct _Context Context;
 #include "vibration-pattern.h"
 #include "volume.h"
 
+#include "core-internal.h"
+
 struct _Context
 {
+    NCore             *core;                /* core plugin loading functionality */
+    GList             *required_plugins;
+
     GMainLoop         *loop;
 
     GHashTable        *definitions;

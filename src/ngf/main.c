@@ -188,6 +188,16 @@ context_create (Context **context)
     act.sa_flags = SA_SIGINFO;
     sigaction(SIGUSR1, &act, NULL);
 
+    /* create the core */
+
+    c->core = n_core_new (NULL, NULL);
+    c->core->required_plugins = c->required_plugins;
+
+    if (!n_core_initialize (c->core)) {
+        N_WARNING ("%s >> failed to setup core for plugin loading.", __FUNCTION__);
+        return FALSE;
+    }
+
     *context = c;
     return TRUE;
 }
@@ -195,6 +205,12 @@ context_create (Context **context)
 void
 context_destroy (Context *context)
 {
+    if (context->core) {
+        n_core_shutdown (context->core);
+        n_core_free (context->core);
+        context->core = NULL;
+    }
+
     dbus_connection_remove_filter (context->system_bus, _dbus_event, context);
     dbus_if_destroy           (context);
     profile_destroy           (context);

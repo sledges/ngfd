@@ -162,6 +162,23 @@ _parse_group_parent (const char *group)
 }
 
 static void
+_parse_required_plugins (SettingsData *data, GKeyFile *k)
+{
+    Context  *context = data->context;
+    gchar    *value   = NULL;
+    gchar   **arr     = NULL;
+    gchar   **name    = NULL;
+
+    value = g_key_file_get_string (k, GROUP_GENERAL, "plugins", NULL);
+    if (!value)
+        return;
+
+    arr = g_strsplit (value, " ", -1);
+    for (name = arr; *name; ++name)
+        context->required_plugins = g_list_append (context->required_plugins, g_strdup (*name));
+}
+
+static void
 _parse_general (SettingsData *data, GKeyFile *k)
 {
     Context *context = data->context;
@@ -169,6 +186,8 @@ _parse_general (SettingsData *data, GKeyFile *k)
     gchar **split  = NULL;
     gchar **item = NULL;
     guint i = 0;
+
+    _parse_required_plugins (data, k);
 
     context->patterns_path      = g_key_file_get_string (k, GROUP_GENERAL, "vibration_search_path", NULL);
     context->sound_path      = g_key_file_get_string (k, GROUP_GENERAL, "sound_search_path", NULL);

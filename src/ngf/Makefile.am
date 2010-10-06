@@ -5,6 +5,12 @@ ngfd_LDFLAGS = $(NGFD_LIBS) $(GST_LIBS) $(DBUS_LIBS) $(IMMVIBE_LIBS) -lrt
 
 ngfd_SOURCES = \
 	main.c \
+	plugin-internal. \
+	plugin.h \
+	plugin.c \
+	core-internal.h \
+	core.h \
+	core.c \
 	context.h \
 	context.c \
 	settings.h \
