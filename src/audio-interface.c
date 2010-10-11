@@ -71,6 +71,12 @@ audio_interface_play (AudioInterface *iface, AudioStream *stream)
 }
 
 void
+audio_interface_pause (AudioInterface *iface, AudioStream *stream)
+{
+    return iface->pause (iface, stream);
+}
+
+void
 audio_interface_stop (AudioInterface *iface, AudioStream *stream)
 {
     iface->stop (iface, stream);

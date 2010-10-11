@@ -116,6 +116,15 @@ audio_play (Audio *self, AudioStream *stream)
 }
 
 void
+audio_pause (Audio *self, AudioStream *stream)
+{
+    if (self == NULL || stream == NULL)
+        return;
+
+    audio_interface_pause (stream->iface, stream);
+}
+
+void
 audio_stop (Audio *self, AudioStream *stream)
 {
     if (self == NULL || stream == NULL)
@@ -123,3 +132,4 @@ audio_stop (Audio *self, AudioStream *stream)
 
     audio_interface_stop (stream->iface, stream);
 }
+

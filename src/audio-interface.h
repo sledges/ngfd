@@ -34,6 +34,7 @@ struct _AudioInterface
     void     (*shutdown)   (AudioInterface *iface);
     gboolean (*prepare)    (AudioInterface *iface, AudioStream *stream);
     gboolean (*play)       (AudioInterface *iface, AudioStream *stream);
+    void     (*pause)      (AudioInterface *iface, AudioStream *stream);
     void     (*stop)       (AudioInterface *iface, AudioStream *stream);
 
     gpointer data;
@@ -45,6 +46,7 @@ AudioStream*    audio_interface_create_stream  (AudioInterface *iface);
 void            audio_interface_destroy_stream (AudioInterface *iface, AudioStream *stream);
 gboolean        audio_interface_prepare        (AudioInterface *iface, AudioStream *stream);
 gboolean        audio_interface_play           (AudioInterface *iface, AudioStream *stream);
+void            audio_interface_pause          (AudioInterface *iface, AudioStream *stream);
 void            audio_interface_stop           (AudioInterface *iface, AudioStream *stream);
 
 #endif /* AUDIO_INTERFACE_H */

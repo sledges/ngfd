@@ -37,6 +37,7 @@ struct _Pattern
     gpointer         data;          /* effect data */
     guint            poll_id;       /* source id for poll */
     Vibrator        *vibrator;
+    gboolean         paused;
 
     VibratorCompletedCallback callback;
     gpointer                  userdata;
@@ -63,7 +64,7 @@ pattern_poll_cb (gpointer userdata)
     Pattern  *p        = (Pattern*) userdata;
     Vibrator *vibrator = p->vibrator;
 
-    if (pattern_is_completed (vibrator, p->id)) {
+    if (!p->paused && pattern_is_completed (vibrator, p->id)) {
         NGF_LOG_DEBUG ("%s >> vibration has been completed.", __FUNCTION__);
 
         p->poll_id = 0;
@@ -264,6 +265,41 @@ vibrator_start (Vibrator *vibrator, gpointer data, gint pattern_id, VibratorComp
     } while (retry);
 
     return 0;
+}
+
+void
+vibrator_pause (Vibrator *self, guint id)
+{
+    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+
+    Pattern *p = NULL;
+
+    if (self == NULL || id == 0)
+        return;
+
+    if ((p = pattern_lookup (self, id))) {
+        NGF_LOG_DEBUG ("%s >> pausing effect %d", __FUNCTION__, id);
+        p->paused = TRUE;
+        (void) ImmVibePausePlayingEffect (self->device, id);
+    }
+
+}
+
+void
+vibrator_resume (Vibrator *self, guint id)
+{
+    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+
+    Pattern *p = NULL;
+
+    if (self == NULL || id == 0)
+        return;
+
+    if ((p = pattern_lookup (self, id))) {
+        NGF_LOG_DEBUG ("%s >> resuming effect %d", __FUNCTION__, id);
+        p->paused = FALSE;
+        (void) ImmVibeResumePausedEffect (self->device, id);
+    }
 }
 
 void

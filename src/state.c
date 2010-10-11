@@ -301,3 +301,28 @@ stop_handler (Context *context, guint policy_id)
         }
     }
 }
+
+void
+pause_handler (Context *context, guint policy_id, gboolean pause)
+{
+    Request *request = NULL;
+    GList *iter = NULL;
+
+    if (context->request_list == NULL)
+        return;
+
+    for (iter = g_list_first (context->request_list); iter; iter = g_list_next (context->request_list)) {
+        request = (Request*) iter->data;
+        if (policy_id == 0 || (request->policy_id == policy_id)) {
+            NGF_LOG_INFO ("request (%d) >> %s received", policy_id,
+                pause ? "pause" : "resume");
+
+            if (pause)
+                pause_request (request);
+            else
+                resume_request (request);
+            break;
+        }
+    }
+}
+

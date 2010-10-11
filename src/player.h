@@ -27,5 +27,7 @@
 
 int play_request (Request *request);
 int stop_request (Request *request);
+void pause_request (Request *request);
+void resume_request (Request *request);
 
 #endif /* PLAYER_H */

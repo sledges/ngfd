@@ -63,10 +63,14 @@ static void              stream_state_cb                  (AudioStream *stream, 
 static gboolean          prepare_stream                   (Request *request, SoundPath *sound_path);
 static gboolean          play_stream                      (Request *request);
 static void              stop_stream                      (Request *request);
+static void              pause_stream                     (Request *request);
+static void              resume_stream                    (Request *request);
 
 static void              vibration_completed_cb           (Vibrator *vibrator, gpointer userdata);
 static gboolean          play_vibration                   (Request *request, VibrationPattern *pattern);
 static void              stop_vibration                   (Request *request);
+static void              pause_vibration                  (Request *request);
+static void              resume_vibration                 (Request *request);
 
 static gboolean          playback_path_tone_generator     (Request *request);
 static gboolean          playback_path_synchronize        (Request *request);
@@ -495,6 +499,30 @@ stop_stream (Request *request)
 }
 
 static void
+pause_stream (Request *request)
+{
+    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+
+    Context *context = request->context;
+
+    if (request->stream) {
+        audio_pause (context->audio, request->stream);
+    }
+}
+
+static void
+resume_stream (Request *request)
+{
+    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+
+    Context *context = request->context;
+
+    if (request->stream) {
+        audio_play (context->audio, request->stream);
+    }
+}
+
+static void
 vibration_completed_cb (Vibrator *vibrator, gpointer userdata)
 {
     NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
@@ -536,6 +564,30 @@ stop_vibration (Request *request)
     if (request->vibration_id > 0) {
         vibrator_stop (context->vibrator, request->vibration_id);
         request->vibration_id = 0;
+    }
+}
+
+static void
+pause_vibration (Request *request)
+{
+    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+
+    Context *context = request->context;
+
+    if (request->vibration_id > 0) {
+        vibrator_pause (context->vibrator, request->vibration_id);
+    }
+}
+
+static void
+resume_vibration (Request *request)
+{
+    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+
+    Context *context = request->context;
+
+    if (request->vibration_id > 0) {
+        vibrator_resume (context->vibrator, request->vibration_id);
     }
 }
 
@@ -697,3 +749,22 @@ stop_request (Request *request)
 
     return TRUE;
 }
+
+void
+pause_request (Request *request)
+{
+    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+
+    pause_stream    (request);
+    pause_vibration (request);
+}
+
+void
+resume_request (Request *request)
+{
+    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+
+    resume_stream    (request);
+    resume_vibration (request);
+}
+

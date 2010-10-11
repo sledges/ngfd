@@ -31,6 +31,8 @@ Vibrator* vibrator_create       ();
 void      vibrator_destroy      (Vibrator *self);
 gpointer  vibrator_load         (const char *filename);
 guint     vibrator_start        (Vibrator *self, gpointer data, gint pattern_id, VibratorCompletedCallback callback, gpointer userdata);
+void      vibrator_pause        (Vibrator *self, guint id);
+void      vibrator_resume       (Vibrator *self, guint id);
 void      vibrator_stop         (Vibrator *self, guint id);
 
 #endif /* VIBRATOR_H */

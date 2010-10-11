@@ -35,6 +35,7 @@ AudioStream* audio_create_stream       (Audio *self, AudioStreamType type);
 void         audio_destroy_stream      (Audio *self, AudioStream *stream);
 gboolean     audio_prepare             (Audio *self, AudioStream *stream);
 gboolean     audio_play                (Audio *self, AudioStream *stream);
+void         audio_pause               (Audio *self, AudioStream *stream);
 void         audio_stop                (Audio *self, AudioStream *stream);
 
 #endif /* AUDIO_H */

@@ -71,6 +71,7 @@ struct _AudioStream
     guint                   num_repeats;
     guint                   current_repeat;
     GstElement              *volume_element;
+    gboolean                paused;
 };
 
 #endif /* AUDIO_STREAM_H */

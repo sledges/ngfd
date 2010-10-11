@@ -27,5 +27,6 @@
 
 guint play_handler (Context *context, const char *event, GHashTable *properties);
 void  stop_handler (Context *context, guint policy_id);
+void  pause_handler (Context *context, guint policy_id, gboolean pause);
 
 #endif /* STATE_H */

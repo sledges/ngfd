@@ -35,8 +35,9 @@
 #define NGF_DBUS_UPDATE      "Update"
 #define NGF_DBUS_STATUS      "Status"
 
-#define NGF_DBUS_METHOD_PLAY "Play"
-#define NGF_DBUS_METHOD_STOP "Stop"
+#define NGF_DBUS_METHOD_PLAY  "Play"
+#define NGF_DBUS_METHOD_STOP  "Stop"
+#define NGF_DBUS_METHOD_PAUSE "Pause"
 
 static gboolean
 _msg_parse_variant (DBusMessageIter *iter, Property **value)
@@ -214,6 +215,34 @@ _handle_stop (DBusConnection *connection,
 }
 
 static DBusHandlerResult
+_handle_pause (DBusConnection *connection,
+               DBusMessage *msg,
+               void *userdata)
+{
+    Context *context = (Context*) userdata;
+
+    DBusMessage   *reply = NULL;
+    dbus_uint32_t  id    = 0;
+    dbus_bool_t    pause = 0;
+
+    if (dbus_message_get_args (msg, NULL,
+                               DBUS_TYPE_UINT32, &id,
+                               DBUS_TYPE_BOOLEAN, &pause,
+                               DBUS_TYPE_INVALID)) {
+        /* call the pause handler */
+        pause_handler (context, id, pause);
+    }
+
+    reply = dbus_message_new_method_return (msg);
+    if (reply) {
+        dbus_connection_send (connection, reply, NULL);
+        dbus_message_unref (reply);
+    }
+
+    return DBUS_HANDLER_RESULT_HANDLED;
+}
+
+static DBusHandlerResult
 _message_function (DBusConnection *connection,
                    DBusMessage *msg,
                    void *userdata)
@@ -231,6 +260,9 @@ _message_function (DBusConnection *connection,
 
     else if (g_str_equal (member, NGF_DBUS_METHOD_STOP))
         return _handle_stop (connection, msg, userdata);
+
+    else if (g_str_equal (member, NGF_DBUS_METHOD_PAUSE))
+        return _handle_pause (connection, msg, userdata);
 
     return DBUS_HANDLER_RESULT_HANDLED;
 }

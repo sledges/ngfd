@@ -197,6 +197,9 @@ _bus_cb (GstBus     *bus,
             }
 
             else if (old_state == GST_STATE_PAUSED && new_state == GST_STATE_PLAYING) {
+                if (stream->paused)
+                    break;
+
                 stream->current_repeat++;
                 if (stream->callback)
                     stream->callback (stream, AUDIO_STREAM_STATE_STARTED, stream->userdata);
@@ -432,7 +435,18 @@ _gst_play (AudioInterface *iface,
     NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
 
     gst_element_set_state (stream->pipeline, GST_STATE_PLAYING);
+    stream->paused = FALSE;
     return TRUE;
+}
+
+static void
+_gst_pause (AudioInterface *iface,
+            AudioStream    *stream)
+{
+    NGF_LOG_ENTER ("%s >> entering", __FUNCTION__);
+
+    stream->paused = TRUE;
+    gst_element_set_state (stream->pipeline, GST_STATE_PAUSED);
 }
 
 static void
@@ -462,6 +476,7 @@ audio_gstreamer_create ()
         .shutdown   = _gst_shutdown,
         .prepare    = _gst_prepare,
         .play       = _gst_play,
+        .pause      = _gst_pause,
         .stop       = _gst_stop
     };
 
