@@ -117,12 +117,12 @@ n_core_load_params (NCore *core, const char *plugin_name)
 
     proplist = n_proplist_new ();
     for (iter = keys; *iter; ++iter) {
-        if ((value = g_key_file_get_string (keyfile, plugin_name, *iter, NULL))) {
-            N_DEBUG (LOG_CAT "parameter for '%s': %s = %s", plugin_name, *iter,
-                value);
-            n_proplist_set_string (proplist, *iter, value);
-            g_free (value);
-        }
+        if ((value = g_key_file_get_string (keyfile, plugin_name, *iter, NULL)) == NULL)
+            continue;
+
+        N_DEBUG (LOG_CAT "+ plugin parameter: %s = %s", *iter, value);
+        n_proplist_set_string (proplist, *iter, value);
+        g_free (value);
     }
 
     g_strfreev (keys);
@@ -211,6 +211,9 @@ n_core_new (int *argc, char **argv)
     core->events = g_hash_table_new_full (g_str_hash, g_str_equal,
         g_free, NULL);
 
+    core->key_types = g_hash_table_new_full (g_str_hash, g_str_equal,
+        g_free, NULL);
+
     return core;
 }
 
@@ -239,6 +242,8 @@ n_core_free (NCore *core)
 
     if (!core->shutdown_done)
         n_core_shutdown (core);
+
+    g_hash_table_destroy (core->key_types);
 
     g_hash_table_foreach (core->events, n_core_free_event_list_cb, NULL);
     g_hash_table_destroy (core->events);
@@ -481,6 +486,9 @@ n_core_add_event (NCore *core, NEvent *event)
     else
         N_DEBUG (LOG_CAT "+ default");
 
+    N_DEBUG (LOG_CAT "properties");
+    n_proplist_foreach (event->properties, n_core_dump_value_cb, NULL);
+
     event_list = g_list_append (event_list, event);
     event_list = g_list_sort (event_list, n_core_sort_event_cb);
     g_hash_table_replace (core->events, g_strdup (event->name), event_list);
@@ -513,7 +521,7 @@ n_core_parse_events_from_file (NCore *core, const char *filename)
 
     group_list = g_key_file_get_groups (keyfile, NULL);
     for (group = group_list; *group; ++group) {
-        event = n_event_new_from_group (keyfile, *group);
+        event = n_event_new_from_group (core, keyfile, *group);
         if (event)
             n_core_add_event (core, event);
     }
@@ -554,6 +562,47 @@ n_core_parse_events (NCore *core)
     return TRUE;
 }
 
+static void
+n_core_parse_keytypes (NCore *core, GKeyFile *keyfile)
+{
+    gchar **conf_keys = NULL;
+    gchar **key       = NULL;
+    gchar  *value     = NULL;
+    int     key_type  = 0;
+
+    /* load all the event configuration key entries. */
+
+    conf_keys = g_key_file_get_keys (keyfile, "keytypes", NULL, NULL);
+    if (!conf_keys)
+        return;
+
+    for (key = conf_keys; *key; ++key) {
+        value = g_key_file_get_string (keyfile, "keytypes", *key, NULL);
+        if (!value) {
+            N_WARNING (LOG_CAT "no datatype defined for key '%s'", *key);
+            continue;
+        }
+
+        if (strncmp (value, "INTEGER", 7) == 0)
+            key_type = N_VALUE_TYPE_INT;
+        else if (strncmp (value, "STRING", 6) == 0)
+            key_type = N_VALUE_TYPE_STRING;
+        else if (strncmp (value, "BOOLEAN", 7) == 0)
+            key_type = N_VALUE_TYPE_BOOL;
+
+        if (!key_type) {
+            N_WARNING (LOG_CAT "unrecognized datatype '%s' for key '%s'",
+                value, *key);
+            g_free (value);
+            continue;
+        }
+
+        N_DEBUG (LOG_CAT "new key type '%s' = %s", *key, value);
+        g_hash_table_replace (core->key_types, g_strdup (*key), (gpointer) key_type);
+        g_free (value);
+    }
+}
+
 static int
 n_core_parse_configuration (NCore *core)
 {
@@ -589,6 +638,10 @@ n_core_parse_configuration (NCore *core)
         }
         g_strfreev (plugins);
     }
+
+    /* load all the event configuration key entries. */
+
+    n_core_parse_keytypes (core, keyfile);
 
     g_key_file_free (keyfile);
     g_free          (filename);
@@ -711,5 +764,4 @@ n_core_get_requests (NCore *core)
 
     return core->requests;
 }
-
 

@@ -28,8 +28,8 @@
 static int        n_event_parse_rule        (const char *rule, NProplist *proplist);
 static int        n_event_parse_group_title (const char *value, gchar **out_title,
                                              NProplist **out_rules);
-static NProplist* n_event_parse_properties  (GKeyFile *keyfile, const char *group);
-static NEvent*    n_event_parse_group       (GKeyFile *keyfile, const char *group);
+static NProplist* n_event_parse_properties  (GKeyFile *keyfile, const char *group, GHashTable *key_types);
+static NEvent*    n_event_parse_group       (GKeyFile *keyfile, const char *group, GHashTable *key_types);
 
 
 
@@ -40,12 +40,12 @@ n_event_new ()
 }
 
 NEvent*
-n_event_new_from_group (GKeyFile *keyfile, const char *group)
+n_event_new_from_group (NCore *core, GKeyFile *keyfile, const char *group)
 {
     g_assert (keyfile != NULL);
     g_assert (group != NULL);
 
-    return n_event_parse_group (keyfile, group);
+    return n_event_parse_group (keyfile, group, core->key_types);
 }
 
 void
@@ -128,23 +128,42 @@ done:
 }
 
 static NProplist*
-n_event_parse_properties (GKeyFile *keyfile, const char *group)
+n_event_parse_properties (GKeyFile *keyfile, const char *group,
+                          GHashTable *keytypes)
 {
     g_assert (keyfile != NULL);
     g_assert (group != NULL);
+    g_assert (keytypes != NULL);
 
     NProplist  *proplist = NULL;
     gchar     **key_list = NULL;
     gchar     **key      = NULL;
     gchar      *value    = NULL;
+    gboolean    bvalue   = FALSE;
+    gint        ivalue   = 0;
+    int         key_type = 0;
 
     proplist = n_proplist_new ();
 
     key_list = g_key_file_get_keys (keyfile, group, NULL, NULL);
     for (key = key_list; *key; ++key) {
-        value = g_key_file_get_string (keyfile, group, *key, NULL);
-        n_proplist_set_string (proplist, *key, value);
-        g_free (value);
+        key_type = (int) g_hash_table_lookup (keytypes, *key);
+
+        switch (key_type) {
+            case N_VALUE_TYPE_INT:
+                ivalue = g_key_file_get_integer (keyfile, group, *key, NULL);
+                n_proplist_set_int (proplist, *key, ivalue);
+                break;
+            case N_VALUE_TYPE_BOOL:
+                bvalue = g_key_file_get_boolean (keyfile, group, *key, NULL);
+                n_proplist_set_bool (proplist, *key, bvalue);
+                break;
+            default:
+                value = g_key_file_get_string (keyfile, group, *key, NULL);
+                n_proplist_set_string (proplist, *key, value);
+                g_free (value);
+                break;
+        }
     }
     g_strfreev (key_list);
 
@@ -152,10 +171,11 @@ n_event_parse_properties (GKeyFile *keyfile, const char *group)
 }
 
 static NEvent*
-n_event_parse_group (GKeyFile *keyfile, const char *group)
+n_event_parse_group (GKeyFile *keyfile, const char *group, GHashTable *keytypes)
 {
     g_assert (keyfile != NULL);
     g_assert (group != NULL);
+    g_assert (keytypes != NULL);
 
     NEvent    *event = NULL;
     NProplist *props = NULL;
@@ -169,7 +189,7 @@ n_event_parse_group (GKeyFile *keyfile, const char *group)
 
     /* convert the group content entries to property list. */
 
-    props = n_event_parse_properties (keyfile, group);
+    props = n_event_parse_properties (keyfile, group, keytypes);
 
     /* create a new event based on the parsed data. */
 

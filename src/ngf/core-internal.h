@@ -48,6 +48,7 @@ struct _NCore
 
     NContext         *context;              /* global context for broadcasting and sharing values */
     GHashTable       *events;               /* hash table of GList* containing NEvent* */
+    GHashTable       *key_types;
     GList            *requests;             /* active requests */
 
     gboolean          shutdown_done;        /* shutdown has been run. */

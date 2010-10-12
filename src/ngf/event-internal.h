@@ -37,7 +37,7 @@ struct _NEvent
 };
 
 NEvent* n_event_new            ();
-NEvent* n_event_new_from_group (GKeyFile *keyfile, const char *group);
+NEvent* n_event_new_from_group (NCore *core, GKeyFile *keyfile, const char *group);
 void    n_event_free           (NEvent *event);
 
 #endif /* N_EVENT_INTERNAL_H */
