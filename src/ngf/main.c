@@ -20,266 +20,16 @@
  */
 
 #include <glib.h>
-#include <dbus/dbus.h>
-#include <dbus/dbus-glib-lowlevel.h>
-
 #include <getopt.h>
-#include <unistd.h>
-#include <signal.h>
-#include <string.h>
 
 #include "log.h"
-#include "context.h"
-#include "dbus-if.h"
-#include "profile.h"
-#include "settings.h"
-#include "session.h"
-#include "state.h"
-#include "volume-controller.h"
+#include "core-internal.h"
 
-static gboolean _request_manager_create         (Context *context);
-static void     _request_manager_destroy        (Context *context);
-static DBusHandlerResult _dbus_event            (DBusConnection * connection, DBusMessage * message,
-	      void *userdata);
-
-static DBusConnection*
-_get_dbus_connection (DBusBusType bus_type)
+typedef struct _AppData
 {
-    DBusConnection *bus = NULL;
-    DBusError       error;
-
-    dbus_error_init (&error);
-    bus = dbus_bus_get (bus_type, &error);
-    if (bus == NULL) {
-        N_WARNING ("%s >> failed to get %s bus: %s", bus_type == DBUS_BUS_SYSTEM ? "system" : "session", error.message);
-        dbus_error_free (&error);
-        return NULL;
-    }
-
-    return bus;
-}
-
-static DBusHandlerResult _dbus_event (DBusConnection * connection, DBusMessage * message,
-	      void *userdata)
-{
-    Context *context = (Context *) userdata;
-    DBusError error = DBUS_ERROR_INIT;
-    gchar *component = NULL;
-    gchar *s1 = NULL;
-    gchar *s2 = NULL;
-
-    (void) connection;
-
-    if (dbus_message_is_signal
-	    (message, "org.freedesktop.DBus", "NameOwnerChanged")) {
-        if (!dbus_message_get_args
-            (message, &error,
-            DBUS_TYPE_STRING, &component,
-            DBUS_TYPE_STRING, &s1,
-            DBUS_TYPE_STRING, &s2,
-            DBUS_TYPE_INVALID)) {
-            if (error.message)
-                N_WARNING ("D-Bus error: %s",error.message);
-        } else {
-            if (component && g_str_equal (component, "org.freedesktop.ohm")) {
-                N_INFO ("Ohmd restarted, stopping all requests");
-                stop_handler (context, 0);
-            }
-        }
-        dbus_error_free (&error);
-    }
-
-    return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-}
-
-static void
-log_target_toggle (int signum, siginfo_t *info, void *ptr)
-{
-    (void) signum;
-    (void) info;
-    (void) ptr;
-
-    n_log_set_target (N_LOG_TARGET_SYSLOG);
-}
-
-int
-context_create (Context **context)
-{
-    Context *c = NULL;
-    struct sigaction act;
-
-    if ((c = g_try_malloc0 (sizeof (Context))) == NULL) {
-        N_WARNING ("Failed to allocate memory for context!");
-        return FALSE;
-    }
-
-    if ((c->loop = g_main_loop_new (NULL, 0)) == NULL) {
-        N_WARNING ("Failed to create the GLib mainloop!");
-        return FALSE;
-    }
-
-    if ((c->system_bus = _get_dbus_connection (DBUS_BUS_SYSTEM)) == NULL)
-        return FALSE;
-
-    dbus_connection_setup_with_g_main (c->system_bus, NULL);
-
-    /* setup the interface */
-
-    if (!dbus_if_create (c)) {
-        N_WARNING ("Failed to create D-Bus interface!");
-        return FALSE;
-    }
-
-    /* setup the backends */
-
-    if (!volume_controller_create (c)) {
-        N_WARNING ("%s >> failed to create volume control.", __FUNCTION__);
-    }
-
-    if (!profile_create (c)) {
-        N_WARNING ("Failed to create profile tracking!");
-        return FALSE;
-    }
-
-    if (!tone_mapper_create (c)) {
-        N_WARNING ("Failed to create tone mapper!");
-        return FALSE;
-    }
-
-    if ((c->audio = audio_create ()) == NULL) {
-        N_WARNING ("Failed to create Pulseaudio backend!");
-        return FALSE;
-    }
-
-    if ((c->vibrator = vibrator_create ()) == NULL) {
-        N_WARNING ("Failed to create Immersion backend!");
-        return FALSE;
-    }
-
-    /* create the hash tables to hold definitions and events */
-
-    if (!_request_manager_create (c)) {
-        N_WARNING ("Failed to create request manager!");
-        return FALSE;
-    }
-
-    if (!load_settings (c)) {
-        N_WARNING ("Failed to load settings!");
-        return FALSE;
-    }
-
-    /* hook cleanup function to ohmd restarts */
-
-    dbus_bus_add_match (c->system_bus,
-    "type='signal',sender='org.freedesktop.DBus',member='NameOwnerChanged',arg0='org.freedesktop.ohm'",
-	NULL);
-
-    dbus_connection_add_filter (c->system_bus, _dbus_event, c, NULL);
-
-    /* hook up the session watcher */
-
-    if (!session_create (c)) {
-        N_WARNING ("%s >> failed to setup session watcher.", __FUNCTION__);
-        return FALSE;
-    }
-
-    memset(&act, 0, sizeof(act));
-    act.sa_sigaction = log_target_toggle;
-    act.sa_flags = SA_SIGINFO;
-    sigaction(SIGUSR1, &act, NULL);
-
-    /* create the core */
-
-    c->core = n_core_new (NULL, NULL);
-    c->core->required_plugins = c->required_plugins;
-
-    if (!n_core_initialize (c->core)) {
-        N_WARNING ("%s >> failed to setup core for plugin loading.", __FUNCTION__);
-        return FALSE;
-    }
-
-    *context = c;
-    return TRUE;
-}
-
-void
-context_destroy (Context *context)
-{
-    if (context->core) {
-        n_core_shutdown (context->core);
-        n_core_free (context->core);
-        context->core = NULL;
-    }
-
-    dbus_connection_remove_filter (context->system_bus, _dbus_event, context);
-    dbus_if_destroy           (context);
-    profile_destroy           (context);
-    tone_mapper_destroy       (context);
-    session_destroy           (context);
-    volume_controller_destroy (context);
-
-    if (context->session_bus) {
-        dbus_connection_unref (context->session_bus);
-        context->session_bus = NULL;
-    }
-
-    if (context->system_bus) {
-        dbus_connection_unref (context->system_bus);
-        context->system_bus = NULL;
-    }
-
-    if (context->vibrator) {
-        vibrator_destroy (context->vibrator);
-        context->vibrator = NULL;
-    }
-
-    if (context->audio) {
-        audio_destroy (context->audio);
-        context->audio = NULL;
-    }
-
-    _request_manager_destroy (context);
-
-    if (context->loop) {
-        g_main_loop_unref (context->loop);
-        context->loop = NULL;
-    }
-
-    sound_path_array_free        (context->sounds);
-    vibration_pattern_array_free (context->patterns);
-    volume_array_free            (context->volumes);
-    g_free                       (context->patterns_path);
-
-    g_free (context);
-}
-
-static gboolean
-_request_manager_create (Context *context)
-{
-    context->definitions = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) definition_free);
-    if (context->definitions == NULL)
-        return FALSE;
-
-    context->events = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) event_free);
-    if (context->events == NULL)
-        return FALSE;
-
-    return TRUE;
-}
-
-static void
-_request_manager_destroy (Context *context)
-{
-    if (context->events) {
-        g_hash_table_destroy (context->events);
-        context->events = NULL;
-    }
-
-    if (context->definitions) {
-        g_hash_table_destroy (context->definitions);
-        context->definitions = NULL;
-    }
-}
+    GMainLoop *loop;
+    NCore     *core;
+} AppData;
 
 static gboolean
 parse_cmdline (int argc, char **argv)
@@ -312,18 +62,24 @@ parse_cmdline (int argc, char **argv)
 int
 main (int argc, char *argv[])
 {
-    Context *context = NULL;
+    AppData *app = NULL;
 
     n_log_initialize (N_LOG_LEVEL_NONE);
 
     if (!parse_cmdline (argc, argv))
         return 1;
 
-    if (!context_create (&context))
+    app = g_new0 (AppData, 1);
+    app->loop = g_main_loop_new (NULL, 0);
+    app->core = n_core_new (&argc, argv);
+
+    if (!n_core_initialize (app->core))
         return 1;
 
-    g_main_loop_run (context->loop);
-    context_destroy (context);
+    g_main_loop_run   (app->loop);
+    n_core_shutdown   (app->core);
+    n_core_free       (app->core);
+    g_main_loop_unref (app->loop);
 
     return 0;
 }

@@ -16,51 +16,17 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this work; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#ifndef EVENT_H
-#define EVENT_H
+#ifndef N_EVENT_H
+#define N_EVENT_H
 
-#include <glib.h>
-#include <pulse/proplist.h>
+typedef struct _NEvent NEvent;
 
-#include "sound-path.h"
-#include "vibration-pattern.h"
-#include "volume.h"
-#include "proplist.h"
+#include <ngf/proplist.h>
 
-typedef struct _Event Event;
+const char*      n_event_get_name       (NEvent *event);
+const NProplist* n_event_get_properties (NEvent *event);
 
-struct _Event
-{
-    NProplist        *properties;               /* collection of properties. */
-
-    gboolean          allow_custom;             /* allow custom sound */
-    gint              max_timeout;              /* maximum timeout for event */
-
-    GList            *sounds;                   /* sounds defined for the event. collection of pointers to context->sounds */
-    Volume           *volume;                   /* volume for the event, pointer to context->volumes */
-    gboolean          silent_enabled;           /* play in silent mode */
-    gboolean          repeat;                   /* repeat sound */
-    gint              num_repeats;              /* number of times to repeat or 0 for infinite */
-    gchar            *event_id;                 /* event id for stream */
-
-    gboolean          lookup_pattern;           /* lookup a custom vibration pattern */
-    GList            *patterns;                 /* vibration patterns in the order of importance */
-
-    gint              tone_generator_pattern;   /* tone generator pattern */
-    gchar            *led_pattern;
-
-    gboolean          tone_generator_enabled;
-    gboolean          audio_enabled;
-    gboolean          vibration_enabled;
-    gboolean          leds_enabled;
-
-    gboolean          backlight_enabled;        /* keep the backlight alive */
-};
-
-Event* event_new   ();
-void   event_free  (Event *event);
-
-#endif /* EVENT_H */
+#endif /* N_EVENT_H */

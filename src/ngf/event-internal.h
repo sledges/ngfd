@@ -16,20 +16,28 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this work; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#ifndef DBUS_IF_H
-#define DBUS_IF_H
+#ifndef N_EVENT_INTERNAL_H
+#define N_EVENT_INTERNAL_H
 
-#include <glib.h>
-#include "context.h"
+/* typedef struct _NEvent NEvent; */
 
-#define NGF_STATUS_SUCCESS  0
-#define NGF_STATUS_FAILED   1
+#include "event.h"
 
-int  dbus_if_create               (Context *context);
-void dbus_if_destroy              (Context *context);
-void dbus_if_send_status          (Context *context, guint id, guint status);
+#include "proplist.h"
+#include "core-internal.h"
 
-#endif /* DBUSIF_H */
+struct _NEvent
+{
+    gchar      *name;               /* event name */
+    NProplist  *properties;         /* properties */
+    NProplist  *rules;
+};
+
+NEvent* n_event_new            ();
+NEvent* n_event_new_from_group (GKeyFile *keyfile, const char *group);
+void    n_event_free           (NEvent *event);
+
+#endif /* N_EVENT_INTERNAL_H */

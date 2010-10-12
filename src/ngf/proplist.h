@@ -35,9 +35,11 @@ void        n_proplist_merge       (NProplist *target, NProplist *source);
 void        n_proplist_merge_keys  (NProplist *target, NProplist *source, GList *keys);
 void        n_proplist_free        (NProplist *proplist);
 
+int         n_proplist_size        (NProplist *proplist);
 void        n_proplist_foreach     (NProplist *proplist, NProplistFunc func, gpointer userdata);
 gboolean    n_proplist_is_empty    (NProplist *proplist);
 gboolean    n_proplist_has_key     (NProplist *proplist, const char *key);
+gboolean    n_proplist_match_exact (NProplist *a, NProplist *b);
 
 void        n_proplist_set         (NProplist *proplist, const char *key, NValue *value);
 NValue*     n_proplist_get         (NProplist *proplist, const char *key);

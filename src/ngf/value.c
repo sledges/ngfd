@@ -1,4 +1,5 @@
 #include <string.h>
+#include "log.h"
 #include "value.h"
 
 struct _NValue
@@ -95,6 +96,48 @@ n_value_type (NValue *value)
         return 0;
 
     return value->type;
+}
+
+gboolean
+n_value_equals (const NValue *a, const NValue *b)
+{
+    if (!a || !b) {
+        N_DEBUG ("++ a or b null");
+        return FALSE;
+    }
+
+    if (a->type != b->type) {
+        N_DEBUG ("a->type=%d, b->type=%d", a->type, b->type);
+        N_DEBUG ("++ a and b types do not match");
+        return FALSE;
+    }
+
+    switch (a->type) {
+        case N_VALUE_TYPE_STRING:
+            if (g_str_equal (a->value.s, b->value.s))
+                return TRUE;
+            break;
+        case N_VALUE_TYPE_INT:
+            if (a->value.i == b->value.i)
+                return TRUE;
+            break;
+        case N_VALUE_TYPE_UINT:
+            if (a->value.u == b->value.u)
+                return TRUE;
+            break;
+        case N_VALUE_TYPE_BOOL:
+            if (a->value.b == b->value.b)
+                return TRUE;
+            break;
+        case N_VALUE_TYPE_POINTER:
+            if (a->value.p == b->value.p)
+                return TRUE;
+            break;
+        default:
+            break;
+    }
+
+    return FALSE;
 }
 
 void

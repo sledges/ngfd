@@ -110,6 +110,15 @@ n_proplist_free (NProplist *proplist)
     g_slice_free (NProplist, proplist);
 }
 
+int
+n_proplist_size (NProplist *proplist)
+{
+    if (!proplist)
+        return 0;
+
+    return g_hash_table_size (proplist->values);
+}
+
 void
 n_proplist_foreach (NProplist *proplist, NProplistFunc func, gpointer userdata)
 {
@@ -136,6 +145,32 @@ gboolean
 n_proplist_has_key (NProplist *proplist, const char *key)
 {
     return (proplist && g_hash_table_lookup (proplist->values, key) != NULL) ? TRUE : FALSE;
+}
+
+gboolean
+n_proplist_match_exact (NProplist *a, NProplist *b)
+{
+    const char *key   = NULL;
+    NValue     *value = NULL;
+    NValue     *match = NULL;
+    GHashTableIter iter;
+
+    if (!a || !b)
+        return FALSE;
+
+    if (n_proplist_size (a) != n_proplist_size (b))
+        return FALSE;
+
+    /* check if the keys and values match. */
+
+    g_hash_table_iter_init (&iter, a->values);
+    while (g_hash_table_iter_next (&iter, (gpointer) &key, (gpointer) &value)) {
+        match = (NValue*) g_hash_table_lookup (b->values, key);
+        if (!n_value_equals (value, match))
+            return FALSE;
+    }
+
+    return TRUE;
 }
 
 void

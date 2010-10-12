@@ -59,7 +59,7 @@ AC_SUBST(NGFD_PLUGIN_LIBS, "$NGFD_LIBS")
 
 AC_SUBST(NGFD_CONF_DIR, "\$(sysconfdir)/ngf")
 AC_SUBST(NGFD_PLUGIN_CONF_DIR, "\$(NGFD_CONF_DIR)/plugins.d")
-AC_SUBST(NGFD_PLUGIN_DIR, "\$(libdir)/ngfd")
+AC_SUBST(NGFD_PLUGIN_DIR, "\$(libdir)/ngf")
 
 # Debug flag.
 
@@ -163,6 +163,7 @@ src/Makefile
 src/ngf/Makefile
 src/plugins/Makefile
 src/plugins/fake/Makefile
+src/plugins/dbus/Makefile
 data/Makefile
 ])
 

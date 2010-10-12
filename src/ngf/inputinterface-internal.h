@@ -16,40 +16,25 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this work; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#include "tone-mapper.h"
+#ifndef N_INPUT_INTERFACE_INTERNAL_H
+#define N_INPUT_INTERFACE_INTERNAL_H
 
-int
-tone_mapper_create (Context *context)
+#include "inputinterface.h"
+
+#include "request-internal.h"
+#include "core-internal.h"
+
+/* typedef struct _NInputInterface NInputInterface; */
+
+struct _NInputInterface
 {
-    (void) context;
+    const char          *name;
+    NInputInterfaceDecl  funcs;     /* interface functions */
+    NCore               *core;
+    void                *userdata;
+};
 
-    return TRUE;
-}
-
-int
-tone_mapper_reconnect (Context *context)
-{
-    (void) context;
-
-    return TRUE;
-}
-
-void
-tone_mapper_destroy (Context *context)
-{
-    (void) context;
-
-    return;
-}
-
-const char*
-tone_mapper_get_tone (Context *context, const char *orig)
-{
-    (void) context;
-    (void) orig;
-
-    return NULL;
-}
+#endif /* N_INPUT_INTERFACE_INTERNAL_H */

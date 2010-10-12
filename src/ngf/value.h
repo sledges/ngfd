@@ -41,6 +41,7 @@ void         n_value_init        (NValue *value);
 void         n_value_clean       (NValue *value);
 NValue*      n_value_copy        (NValue *value);
 int          n_value_type        (NValue *value);
+gboolean     n_value_equals      (const NValue *a, const NValue *b);
 
 void         n_value_set_string  (NValue *value, const char *in_value);
 const gchar* n_value_get_string  (NValue *value);

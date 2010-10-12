@@ -24,7 +24,7 @@
 
 typedef struct _NSinkInterface NSinkInterface;
 
-/* #include <ngf/request.h> */
+#include <ngf/request.h>
 
 typedef struct _NSinkInterfaceDecl
 {
@@ -32,14 +32,15 @@ typedef struct _NSinkInterfaceDecl
 
     int  (*initialize) (NSinkInterface *iface);
     void (*shutdown)   (NSinkInterface *iface);
-    int  (*can_handle) (NSinkInterface *iface /*, NRequest *request */);
-    int  (*prepare)    (NSinkInterface *iface /*, NRequest *request */);
-    int  (*play)       (NSinkInterface *iface /*, NRequest *request */);
-    void (*stop)       (NSinkInterface *iface /*, NRequest *request */);
+    int  (*can_handle) (NSinkInterface *iface, NRequest *request);
+    int  (*prepare)    (NSinkInterface *iface, NRequest *request);
+    int  (*play)       (NSinkInterface *iface, NRequest *request);
+    int  (*pause)      (NSinkInterface *iface, NRequest *request);
+    void (*stop)       (NSinkInterface *iface, NRequest *request);
 } NSinkInterfaceDecl;
 
-void n_sink_interface_synchronize (NSinkInterface *iface/*, NRequest *request */);
-void n_sink_interface_completed   (NSinkInterface *iface/*, NRequest *request */);
-void n_sink_interface_failed      (NSinkInterface *iface/*, NRequest *request */);
+void n_sink_interface_synchronize (NSinkInterface *iface, NRequest *request);
+void n_sink_interface_complete    (NSinkInterface *iface, NRequest *request);
+void n_sink_interface_fail        (NSinkInterface *iface, NRequest *request);
 
 #endif /* N_SINK_INTERFACE_H */

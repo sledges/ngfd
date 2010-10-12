@@ -27,9 +27,11 @@ typedef struct _NPlugin NPlugin;
 #include <ngf/log.h>
 #include <ngf/proplist.h>
 #include <ngf/sinkinterface.h>
+#include <ngf/inputinterface.h>
 
-const NProplist* n_plugin_get_params    (NPlugin *plugin);
-void             n_plugin_register_sink (NPlugin *plugin, const NSinkInterfaceDecl *decl);
+const NProplist* n_plugin_get_params     (NPlugin *plugin);
+void             n_plugin_register_sink  (NPlugin *plugin, const NSinkInterfaceDecl *decl);
+void             n_plugin_register_input (NPlugin *plugin, const NInputInterfaceDecl *decl);
 
 #define N_PLUGIN_NAME(p_name)                   \
     const char* n_plugin__get_name () {         \

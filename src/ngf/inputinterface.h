@@ -16,16 +16,24 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this work; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#ifndef LED_H
-#define LED_H
+#ifndef N_INPUT_INTERFACE_H
+#define N_INPUT_INTERFACE_H
 
-#include <glib.h>
-#include <dbus/dbus.h>
+#include <ngf/request.h>
 
-gboolean led_activate_pattern (DBusConnection *system_bus, const char *pattern);
-gboolean led_deactivate_pattern (DBusConnection *system_bus, const char *pattern);
+typedef struct _NInputInterface NInputInterface;
 
-#endif /* LED_H */
+typedef struct _NInputInterfaceDecl
+{
+    const char *name;
+
+    int  (*initialize) (NInputInterface *iface);
+    void (*shutdown)   (NInputInterface *iface);
+    void (*send_error) (NInputInterface *iface, NRequest *request, const char *err_msg);
+    void (*send_reply) (NInputInterface *iface, NRequest *request, int ret_code);
+} NInputInterfaceDecl;
+
+#endif /* N_INPUT_INTERFACE_H */

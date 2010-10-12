@@ -23,25 +23,28 @@
 #include "core-internal.h"
 
 void
-n_sink_interface_synchronize (NSinkInterface *iface /*, NRequest *request */)
+n_sink_interface_synchronize (NSinkInterface *iface, NRequest *request)
 {
     (void) iface;
+    (void) request;
 
     /* n_core_sink_synchronize (iface->core, iface, request); */
 }
 
 void
-n_sink_interface_completed (NSinkInterface *iface /*, NRequest *request */)
+n_sink_interface_completed (NSinkInterface *iface, NRequest *request)
 {
     (void) iface;
+    (void) request;
 
     /* n_core_sink_completed (iface->core, iface, request); */
 }
 
 void
-n_sink_interface_failed (NSinkInterface *iface /*, NRequest *request */)
+n_sink_interface_failed (NSinkInterface *iface, NRequest *request)
 {
     (void) iface;
+    (void) request;
 
     /* n_core_sink_failed (iface->core, iface, request); */
 }

@@ -16,26 +16,32 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this work; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#ifndef AUDIO_H
-#define AUDIO_H
+#ifndef N_REQUEST_INTERNAL_H
+#define N_REQUEST_INTERNAL_H
 
-#include <glib.h>
+#include "request.h"
 
-#include "audio-stream.h"
+#include "proplist.h"
+#include "core-internal.h"
+#include "event-internal.h"
 
-typedef struct _Audio Audio;
+/* typedef struct _NRequest NRequest; */
 
-Audio*       audio_create              ();
-void         audio_destroy             (Audio *self);
+struct _NRequest
+{
+    gchar           *name;          /* request name */
+    NProplist       *properties;    /* request custom properties */
 
-AudioStream* audio_create_stream       (Audio *self, AudioStreamType type);
-void         audio_destroy_stream      (Audio *self, AudioStream *stream);
-gboolean     audio_prepare             (Audio *self, AudioStream *stream);
-gboolean     audio_play                (Audio *self, AudioStream *stream);
-void         audio_pause               (Audio *self, AudioStream *stream);
-void         audio_stop                (Audio *self, AudioStream *stream);
+    guint            id;            /* unique request identifier */
+    NEvent          *event;
+    NCore           *core;
+    NInputInterface *input_iface;
+};
 
-#endif /* AUDIO_H */
+NRequest* n_request_new  ();
+void      n_request_free (NRequest *request);
+
+#endif /* N_REQUEST_INTERNAL_H */

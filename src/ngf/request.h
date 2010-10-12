@@ -16,75 +16,24 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this work; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#ifndef REQUEST_H
-#define REQUEST_H
+#ifndef N_REQUEST_H
+#define N_REQUEST_H
 
-#include <glib.h>
+typedef struct _NRequest NRequest;
 
-#include "context.h"
-#include "audio-stream.h"
-#include "resources.h"
-#include "sound-path.h"
-#include "vibration-pattern.h"
-#include "event.h"
+#include <ngf/proplist.h>
 
-enum
-{
-    REQUEST_PLAY_MODE_LONG = 1,
-    REQUEST_PLAY_MODE_SHORT
-};
+NRequest*        n_request_new            ();
+NRequest*        n_request_new_with_event (const char *event);
+void             n_request_free           (NRequest *request);
+unsigned int     n_request_get_id         (NRequest *request);
+const char*      n_request_get_name       (NRequest *request);
+void             n_request_set_properties (NRequest *request, NProplist *properties);
+const NProplist* n_request_get_properties (NRequest *request);
+void             n_request_store_data     (NRequest *request, const char *key, void *data);
+void*            n_request_get_data       (NRequest *request, const char *key);
 
-enum
-{
-    REQUEST_STATE_NONE = 0,
-    REQUEST_STATE_STARTED,
-    REQUEST_STATE_COMPLETED,
-    REQUEST_STATE_FAILED
-};
-
-typedef struct  _Request Request;
-
-struct _Request
-{
-    /* user */
-
-    guint             policy_id;                    /* policy identifier */
-    gint              resources;                    /* bitmask of resources @see resources.h */
-    gint              play_mode;                    /* REQUEST_PLAY_MODE_LONG or REQUEST_PLAY_MODE_SHORT */
-    gint              play_timeout;                 /* play timeout in seconds */
-
-    SoundPath        *custom_sound;                 /* custom sound */
-
-    void              (*callback) (Request *request, guint state, gpointer userdata);
-    gpointer          userdata;
-
-    /* internal */
-
-    Context          *context;
-    Event            *event;                        /* event the request is based on */
-
-    guint             max_timeout_id;               /* maximum timeout source id */
-
-    SoundPath        *active_sound;                 /* currently active sound path */
-    GList            *sound_iterator;               /* position in the sound list */
-    AudioStream      *stream;                       /* audio playback stream */
-
-    VibrationPattern *active_pattern;               /* currently active vibration pattern */
-    VibrationPattern *custom_pattern;               /* custom vibration pattern */
-    GList            *vibration_iterator;           /* position in the vibration list */
-    guint             vibration_id;                 /* vibration play id */
-
-    gboolean          synchronize_done;             /* synchronization has been done */
-    gboolean          tone_generator_active;        /* tone generator has been activated */
-    gboolean          leds_active;
-    gboolean          backlight_active;
-};
-
-Request* request_new              (Context *context, Event *event);
-void     request_free             (Request *request);
-void     request_set_custom_sound (Request *request, const char *path);
-
-#endif /* REQUEST_H */
+#endif /* N_REQUEST_H */

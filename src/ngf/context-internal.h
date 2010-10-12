@@ -16,20 +16,15 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this work; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#ifndef TIMESTAMP_H
-#define TIMESTAMP_H
+#ifndef N_CONTEXT_INTERNAL_H
+#define N_CONTEXT_INTERNAL_H
 
-#include "config.h"
+#include "context.h"
 
-#ifdef HAVE_TIMESTAMP
-    #include <sp_timestamp.h>
-    #define TIMESTAMP(A)    sp_timestamp(A);
-#else
-    #define TIMESTAMP(A)
-#endif /* HAVE_TIMESTAMP */
+NContext* n_context_new  ();
+void      n_context_free (NContext *context);
 
-
-#endif /* TIMESTAMP_H */
+#endif /* N_CONTEXT_H */

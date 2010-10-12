@@ -99,3 +99,12 @@ n_plugin_register_sink (NPlugin *plugin, const NSinkInterfaceDecl *decl)
     n_core_register_sink (plugin->core, decl);
 }
 
+void
+n_plugin_register_input (NPlugin *plugin, const NInputInterfaceDecl *decl)
+{
+    if (!plugin || !decl)
+        return;
+
+    n_core_register_input (plugin->core, decl);
+}
+

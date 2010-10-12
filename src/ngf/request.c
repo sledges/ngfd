@@ -16,54 +16,87 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this work; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#include <string.h>
+#include "request-internal.h"
 
-#include "log.h"
-#include "request.h"
-
-Request*
-request_new (Context *context, Event *event)
+NRequest*
+n_request_new ()
 {
-    Request *request = NULL;
+    NRequest *request = NULL;
 
-    if (context == NULL || event == NULL)
-        return NULL;
-
-    if ((request = g_try_malloc0 (sizeof (Request))) == NULL)
-        return NULL;
-
-    request->context = context;
-    request->event   = event;
+    request = g_slice_new0 (NRequest);
+    request->properties = n_proplist_new ();
 
     return request;
 }
 
-void
-request_free (Request *request)
+NRequest*
+n_request_new_with_event (const char *event)
 {
-    if (request == NULL)
-        return;
+    if (!event)
+        return NULL;
 
-    if (request->custom_sound) {
-        sound_path_free (request->custom_sound);
-        request->custom_sound = NULL;
-    }
-
-    g_free (request);
+    NRequest *request = n_request_new ();
+    request->name = g_strdup (event);
+    return request;
 }
 
 void
-request_set_custom_sound (Request *request, const char *path)
+n_request_free (NRequest *request)
 {
-    if (path == NULL || (path && !g_file_test (path, G_FILE_TEST_EXISTS)))
-        return;
+    n_proplist_free (request->properties);
+    request->properties = NULL;
 
-    request->custom_sound = sound_path_new ();
-    request->custom_sound->type     = SOUND_PATH_TYPE_FILENAME;
-    request->custom_sound->filename = g_strdup (path);
+    g_free (request->name);
+    request->name = NULL;
+
+    g_slice_free (NRequest, request);
 }
 
+unsigned int
+n_request_get_id (NRequest *request)
+{
+    return (request != NULL) ? request->id : 0;
+}
 
+const char*
+n_request_get_name (NRequest *request)
+{
+    return (request != NULL) ? (const char*) request->name : NULL;
+}
+
+void
+n_request_set_properties (NRequest *request, NProplist *properties)
+{
+    if (!request || !properties)
+        return;
+
+    n_proplist_free (request->properties);
+    request->properties = n_proplist_copy (properties);
+}
+
+const NProplist*
+n_request_get_properties (NRequest *request)
+{
+    return (request != NULL) ? (const NProplist*) request->properties : NULL;
+}
+
+void
+n_request_store_data (NRequest *request, const char *key, void *data)
+{
+    if (!request || !key)
+        return;
+
+    n_proplist_set_pointer (request->properties, key, data);
+}
+
+void*
+n_request_get_data (NRequest *request, const char *key)
+{
+    if (!request || !key)
+        return NULL;
+
+    return n_proplist_get_pointer (request->properties, key);
+}

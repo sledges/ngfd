@@ -28,6 +28,10 @@
 #include "core.h"
 #include "plugin-internal.h"
 #include "sinkinterface-internal.h"
+#include "inputinterface-internal.h"
+#include "event-internal.h"
+#include "request-internal.h"
+#include "context-internal.h"
 
 struct _NCore
 {
@@ -39,16 +43,25 @@ struct _NCore
 
     NSinkInterface  **sinks;                /* sink interfaces registered */
     unsigned int      num_sinks;
+    NInputInterface **inputs;               /* input interfaces registered */
+    unsigned int      num_inputs;
+
+    NContext         *context;              /* global context for broadcasting and sharing values */
+    GHashTable       *events;               /* hash table of GList* containing NEvent* */
+    GList            *requests;             /* active requests */
 
     gboolean          shutdown_done;        /* shutdown has been run. */
 };
 
-NCore*    n_core_new            (int *argc, char **argv);
-void      n_core_free           (NCore *core);
-int       n_core_initialize     (NCore *core);
-void      n_core_shutdown       (NCore *core);
+NCore*    n_core_new              (int *argc, char **argv);
+void      n_core_free             (NCore *core);
+int       n_core_initialize       (NCore *core);
+void      n_core_shutdown         (NCore *core);
 
-void      n_core_register_sink  (NCore *core, const NSinkInterfaceDecl *iface);
+void      n_core_register_sink    (NCore *core, const NSinkInterfaceDecl *iface);
+void      n_core_register_input   (NCore *core, const NInputInterfaceDecl *iface);
+void      n_core_add_event        (NCore *core, NEvent *event);
+NEvent*   n_core_evaluate_request (NCore *core, NRequest *request);
 
 #endif /* N_CORE_INTERNAL_H */
 
