@@ -1,4 +1,4 @@
-SUBDIRS = fake
+SUBDIRS = fake mce
 
 if BUILD_DBUS
 SUBDIRS += dbus

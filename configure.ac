@@ -132,8 +132,6 @@ AM_CONDITIONAL(BUILD_PROFILE, test x$enable_profile = xyes)
 # MCE plugin
 
 PKG_CHECK_MODULES(MCE, mce, [has_mce=yes], [has_mce=no])
-AC_SUBST(MCE_CFLAGS)
-AC_SUBST(MCE_LIBS)
 
 if test x$has_mce = xyes; then
     enable_mce=yes
@@ -164,6 +162,7 @@ src/ngf/Makefile
 src/plugins/Makefile
 src/plugins/fake/Makefile
 src/plugins/dbus/Makefile
+src/plugins/mce/Makefile
 data/Makefile
 ])
 
