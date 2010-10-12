@@ -25,26 +25,26 @@
 void
 n_sink_interface_synchronize (NSinkInterface *iface, NRequest *request)
 {
-    (void) iface;
-    (void) request;
+    if (!iface || !request)
+        return;
 
-    /* n_core_sink_synchronize (iface->core, iface, request); */
+    n_core_synchronize_sink (iface->core, iface, request);
 }
 
 void
-n_sink_interface_completed (NSinkInterface *iface, NRequest *request)
+n_sink_interface_complete (NSinkInterface *iface, NRequest *request)
 {
-    (void) iface;
-    (void) request;
+    if (!iface || !request)
+        return;
 
-    /* n_core_sink_completed (iface->core, iface, request); */
+    n_core_complete_sink (iface->core, iface, request);
 }
 
 void
-n_sink_interface_failed (NSinkInterface *iface, NRequest *request)
+n_sink_interface_fail (NSinkInterface *iface, NRequest *request)
 {
-    (void) iface;
-    (void) request;
+    if (!iface || !request)
+        return;
 
-    /* n_core_sink_failed (iface->core, iface, request); */
+    n_core_fail_sink (iface->core, iface, request);
 }

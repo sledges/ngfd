@@ -1,6 +1,14 @@
 #include <ngf/plugin.h>
 
-#define LOG_CAT "fake: "
+#define FAKE_KEY "plugin.fake.data"
+#define LOG_CAT  "fake: "
+
+typedef struct _FakeData
+{
+    NRequest       *request;
+    NSinkInterface *iface;
+    guint           timeout_id;
+} FakeData;
 
 N_PLUGIN_NAME        ("fake")
 N_PLUGIN_VERSION     ("0.1")
@@ -23,34 +31,88 @@ fake_sink_shutdown (NSinkInterface *iface)
 }
 
 static int
-fake_sink_can_handle (NSinkInterface *iface /*, NRequest *request */)
+fake_sink_can_handle (NSinkInterface *iface, NRequest *request)
 {
     (void) iface;
+    (void) request;
+
     N_DEBUG (LOG_CAT "sink can_handle");
     return TRUE;
 }
 
 static int
-fake_sink_prepare (NSinkInterface *iface /*, NRequest *request */)
+fake_sink_prepare (NSinkInterface *iface, NRequest *request)
 {
-    (void) iface;
     N_DEBUG (LOG_CAT "sink prepare");
+
+    FakeData *data = g_slice_new0 (FakeData);
+
+    data->request    = request;
+    data->iface      = iface;
+    data->timeout_id = 0;
+
+    n_request_store_data (request, FAKE_KEY, data);
+    n_sink_interface_synchronize (iface, request);
+
+    return TRUE;
+}
+
+static gboolean
+timeout_cb (gpointer userdata)
+{
+    N_DEBUG (LOG_CAT "sink play timeout");
+
+    FakeData *data = (FakeData*) userdata;
+    g_assert (data != NULL);
+
+    data->timeout_id = 0;
+    n_sink_interface_complete (data->iface, data->request);
+
+    return FALSE;
+}
+
+static int
+fake_sink_play (NSinkInterface *iface, NRequest *request)
+{
+    N_DEBUG (LOG_CAT "sink play");
+
+    (void) iface;
+
+    FakeData *data = (FakeData*) n_request_get_data (request, FAKE_KEY);
+    g_assert (data != NULL);
+
+    data->timeout_id = g_timeout_add_seconds (2, timeout_cb, data);
+
     return TRUE;
 }
 
 static int
-fake_sink_play (NSinkInterface *iface /*, NRequest *request */)
+fake_sink_pause (NSinkInterface *iface, NRequest *request)
 {
+    N_DEBUG (LOG_CAT "sink pause");
+
     (void) iface;
-    N_DEBUG (LOG_CAT "sink play");
+    (void) request;
+
     return TRUE;
 }
 
 static void
-fake_sink_stop (NSinkInterface *iface /*, NRequest *request */)
+fake_sink_stop (NSinkInterface *iface, NRequest *request)
 {
-    (void) iface;
     N_DEBUG (LOG_CAT "sink stop");
+
+    (void) iface;
+
+    FakeData *data = (FakeData*) n_request_get_data (request, FAKE_KEY);
+    g_assert (data != NULL);
+
+    if (data->timeout_id > 0) {
+        g_source_remove (data->timeout_id);
+        data->timeout_id = 0;
+    }
+
+    g_slice_free (FakeData, data);
 }
 
 N_PLUGIN_LOAD (plugin)
@@ -64,6 +126,7 @@ N_PLUGIN_LOAD (plugin)
         .can_handle = fake_sink_can_handle,
         .prepare    = fake_sink_prepare,
         .play       = fake_sink_play,
+        .pause      = fake_sink_pause,
         .stop       = fake_sink_stop
     };
 

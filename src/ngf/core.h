@@ -24,4 +24,8 @@
 
 typedef struct _NCore NCore;
 
+#include <glib.h>
+
+GList* n_core_get_requests (NCore *core);
+
 #endif /* N_CORE_H */

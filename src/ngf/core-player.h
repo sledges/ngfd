@@ -19,23 +19,19 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#ifndef N_REQUEST_H
-#define N_REQUEST_H
+#ifndef N_CORE_PLAYER_H
+#define N_CORE_PLAYER_H
 
-typedef struct _NRequest NRequest;
+#include "request-internal.h"
+#include "core-internal.h"
+#include "sinkinterface-internal.h"
 
-#include <ngf/proplist.h>
+int  n_core_play_request     (NCore *core, NRequest *request);
+int  n_core_pause_request    (NCore *core, NRequest *request);
+void n_core_stop_request     (NCore *core, NRequest *request);
 
-NRequest*        n_request_new            ();
-NRequest*        n_request_new_with_event (const char *event);
-void             n_request_free           (NRequest *request);
-unsigned int     n_request_get_id         (NRequest *request);
-const char*      n_request_get_name       (NRequest *request);
-void             n_request_set_properties (NRequest *request, NProplist *properties);
-const NProplist* n_request_get_properties (NRequest *request);
-void             n_request_store_data     (NRequest *request, const char *key, void *data);
-void*            n_request_get_data       (NRequest *request, const char *key);
+void n_core_synchronize_sink (NCore *core, NSinkInterface *sink, NRequest *request);
+void n_core_complete_sink    (NCore *core, NSinkInterface *sink, NRequest *request);
+void n_core_fail_sink        (NCore *core, NSinkInterface *sink, NRequest *request);
 
-NRequest*        n_request_new_with_event_and_properties (const char *event, const NProplist *properties);
-
-#endif /* N_REQUEST_H */
+#endif /* N_CORE_PLAYER_ H */

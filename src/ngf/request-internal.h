@@ -27,6 +27,7 @@
 #include "proplist.h"
 #include "core-internal.h"
 #include "event-internal.h"
+#include "inputinterface-internal.h"
 
 /* typedef struct _NRequest NRequest; */
 

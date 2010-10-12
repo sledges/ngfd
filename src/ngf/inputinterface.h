@@ -22,9 +22,10 @@
 #ifndef N_INPUT_INTERFACE_H
 #define N_INPUT_INTERFACE_H
 
-#include <ngf/request.h>
-
 typedef struct _NInputInterface NInputInterface;
+
+#include <ngf/core.h>
+#include <ngf/request.h>
 
 typedef struct _NInputInterfaceDecl
 {
@@ -35,5 +36,10 @@ typedef struct _NInputInterfaceDecl
     void (*send_error) (NInputInterface *iface, NRequest *request, const char *err_msg);
     void (*send_reply) (NInputInterface *iface, NRequest *request, int ret_code);
 } NInputInterfaceDecl;
+
+NCore* n_input_interface_get_core      (NInputInterface *iface);
+int    n_input_interface_play_request  (NInputInterface *iface, NRequest *request);
+int    n_input_interface_pause_request (NInputInterface *iface, NRequest *request);
+void   n_input_interface_stop_request  (NInputInterface *iface, NRequest *request);
 
 #endif /* N_INPUT_INTERFACE_H */

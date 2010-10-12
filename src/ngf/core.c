@@ -702,3 +702,14 @@ n_core_evaluate_request (NCore *core, NRequest *request)
 
     return found;
 }
+
+GList*
+n_core_get_requests (NCore *core)
+{
+    if (!core)
+        return NULL;
+
+    return core->requests;
+}
+
+

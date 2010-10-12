@@ -27,8 +27,6 @@ n_request_new ()
     NRequest *request = NULL;
 
     request = g_slice_new0 (NRequest);
-    request->properties = n_proplist_new ();
-
     return request;
 }
 
@@ -43,11 +41,26 @@ n_request_new_with_event (const char *event)
     return request;
 }
 
+NRequest*
+n_request_new_with_event_and_properties (const char *event, const NProplist *properties)
+{
+    if (!event)
+        return NULL;
+
+    NRequest *request = g_slice_new0 (NRequest);
+    request->name       = g_strdup (event);
+    request->properties = n_proplist_copy ((NProplist*) properties);
+
+    return request;
+}
+
 void
 n_request_free (NRequest *request)
 {
-    n_proplist_free (request->properties);
-    request->properties = NULL;
+    if (request->properties) {
+        n_proplist_free (request->properties);
+        request->properties = NULL;
+    }
 
     g_free (request->name);
     request->name = NULL;

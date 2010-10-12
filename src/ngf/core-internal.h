@@ -22,10 +22,10 @@
 #ifndef N_CORE_INTERNAL_H
 #define N_CORE_INTERNAL_H
 
-
 #include <glib.h>
 
 #include "core.h"
+#include "core-player.h"
 #include "plugin-internal.h"
 #include "sinkinterface-internal.h"
 #include "inputinterface-internal.h"

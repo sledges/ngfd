@@ -11,6 +11,8 @@ ngfd_SOURCES =                \
     core-internal.h           \
     core.h                    \
     core.c                    \
+    core-player.h             \
+    core-player.c             \
     context-internal.h        \
     context.h                 \
     context.c                 \
