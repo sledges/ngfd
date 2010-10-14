@@ -214,7 +214,7 @@ n_proplist_set_string (NProplist *proplist, const char *key, const char *value)
 }
 
 const char*
-n_proplist_get_string (NProplist *proplist, const char *key)
+n_proplist_get_string (const NProplist *proplist, const char *key)
 {
     NValue *value = NULL;
 
@@ -227,7 +227,7 @@ n_proplist_get_string (NProplist *proplist, const char *key)
 }
 
 gchar*
-n_proplist_dup_string (NProplist *proplist, const char *key)
+n_proplist_dup_string (const NProplist *proplist, const char *key)
 {
     return g_strdup (n_proplist_get_string (proplist, key));
 }

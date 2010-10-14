@@ -37,6 +37,7 @@ typedef struct _MceData
 {
     NRequest       *request;
     NSinkInterface *iface;
+    gchar          *pattern;
 } MceData;
 
 DBusConnection *bus = NULL;
@@ -67,6 +68,35 @@ backlight_on (void)
 
     ret = call_dbus_method (bus, msg);
     dbus_message_unref (msg);
+
+    return ret;
+}
+
+static gboolean
+toggle_pattern (const char *pattern, gboolean activate)
+{
+    DBusMessage *msg = NULL;
+    gboolean     ret = FALSE;
+
+    if (bus == NULL || pattern == NULL)
+        return FALSE;
+
+    msg = dbus_message_new_method_call (MCE_SERVICE, MCE_REQUEST_PATH, MCE_REQUEST_IF,
+        activate ? MCE_ACTIVATE_LED_PATTERN : MCE_DEACTIVATE_LED_PATTERN);
+
+    if (msg == NULL)
+        return FALSE;
+
+    if (!dbus_message_append_args (msg, DBUS_TYPE_STRING, &pattern, DBUS_TYPE_INVALID)) {
+        dbus_message_unref (msg);
+        return FALSE;
+    }
+
+    ret = call_dbus_method (bus, msg);
+    dbus_message_unref (msg);
+
+    if (ret)
+        N_DEBUG ("%s >> led pattern %s %s.", __FUNCTION__, pattern, activate ? "activated" : "deactivated");
 
     return ret;
 }
@@ -129,6 +159,8 @@ mce_sink_play (NSinkInterface *iface, NRequest *request)
 {
     const NProplist *props = n_request_get_properties (request);
     (void) iface;
+    const gchar *pattern = NULL;
+    gboolean completed = TRUE;
 
     MceData *data = (MceData*) n_request_get_data (request, MCE_KEY);
     g_assert (data != NULL);
@@ -136,7 +168,15 @@ mce_sink_play (NSinkInterface *iface, NRequest *request)
     if (n_proplist_get_bool (props, "mce.backlight_on"))
         backlight_on ();
 
-    n_sink_interface_complete (data->iface, data->request);
+    pattern = n_proplist_get_string (props, "mce.led_pattern");
+    if (pattern != NULL) {
+        data->pattern = g_strdup (pattern);
+        if (toggle_pattern (pattern, TRUE))
+            completed = FALSE;
+    }
+
+    if (completed)
+        n_sink_interface_complete (data->iface, data->request);
     
     return TRUE;
 }
@@ -154,7 +194,17 @@ static void
 mce_sink_stop (NSinkInterface *iface, NRequest *request)
 {
     (void) iface;
-    (void) request;
+
+    MceData *data = (MceData*) n_request_get_data (request, MCE_KEY);
+    g_assert (data != NULL);
+
+    if (data->pattern) {
+        toggle_pattern (data->pattern, FALSE);
+        g_free (data->pattern);
+        data->pattern = NULL;
+    }
+
+    g_slice_free (MceData, data);
 }
 
 N_PLUGIN_LOAD (plugin)

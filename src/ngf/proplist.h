@@ -48,8 +48,8 @@ NValue*     n_proplist_get         (NProplist *proplist, const char *key);
 
 void        n_proplist_unset       (NProplist *proplist, const char *key);
 void        n_proplist_set_string  (NProplist *proplist, const char *key, const char *value);
-const char* n_proplist_get_string  (NProplist *proplist, const char *key);
-gchar*      n_proplist_dup_string  (NProplist *proplist, const char *key);
+const char* n_proplist_get_string  (const NProplist *proplist, const char *key);
+gchar*      n_proplist_dup_string  (const NProplist *proplist, const char *key);
 void        n_proplist_set_int     (NProplist *proplist, const char *key, gint value);
 gint        n_proplist_get_int     (NProplist *proplist, const char *key);
 void        n_proplist_set_uint    (NProplist *proplist, const char *key, guint value);
