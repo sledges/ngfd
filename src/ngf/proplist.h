@@ -38,7 +38,7 @@ void        n_proplist_free        (NProplist *proplist);
 int         n_proplist_size        (NProplist *proplist);
 void        n_proplist_foreach     (NProplist *proplist, NProplistFunc func, gpointer userdata);
 gboolean    n_proplist_is_empty    (NProplist *proplist);
-gboolean    n_proplist_has_key     (NProplist *proplist, const char *key);
+gboolean    n_proplist_has_key     (const NProplist *proplist, const char *key);
 gboolean    n_proplist_match_exact (NProplist *a, NProplist *b);
 
 void        n_proplist_set         (NProplist *proplist, const char *key, NValue *value);
@@ -55,9 +55,9 @@ gint        n_proplist_get_int     (NProplist *proplist, const char *key);
 void        n_proplist_set_uint    (NProplist *proplist, const char *key, guint value);
 guint       n_proplist_get_uint    (NProplist *proplist, const char *key);
 void        n_proplist_set_bool    (NProplist *proplist, const char *key, gboolean value);
-gboolean    n_proplist_get_bool    (NProplist *proplist, const char *key);
+gboolean    n_proplist_get_bool    (const NProplist *proplist, const char *key);
 void        n_proplist_set_pointer (NProplist *proplist, const char *key, gpointer value);
 gpointer    n_proplist_get_pointer (NProplist *proplist, const char *key);
-void        n_proplist_dump        (NProplist *proplist);
+void        n_proplist_dump        (const NProplist *proplist);
 
 #endif /* N_PROPLIST_H */

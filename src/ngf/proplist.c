@@ -142,7 +142,7 @@ n_proplist_is_empty (NProplist *proplist)
 }
 
 gboolean
-n_proplist_has_key (NProplist *proplist, const char *key)
+n_proplist_has_key (const NProplist *proplist, const char *key)
 {
     return (proplist && g_hash_table_lookup (proplist->values, key) != NULL) ? TRUE : FALSE;
 }
@@ -298,7 +298,7 @@ n_proplist_set_bool (NProplist *proplist, const char *key, gboolean value)
 }
 
 gboolean
-n_proplist_get_bool (NProplist *proplist, const char *key)
+n_proplist_get_bool (const NProplist *proplist, const char *key)
 {
     NValue *value = NULL;
 
@@ -338,7 +338,7 @@ n_proplist_get_pointer (NProplist *proplist, const char *key)
 }
 
 void
-n_proplist_dump (NProplist *proplist)
+n_proplist_dump (const NProplist *proplist)
 {
     GHashTableIter iter;
     gchar *key = NULL;
