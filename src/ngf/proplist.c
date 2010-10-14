@@ -53,7 +53,7 @@ n_proplist_copy (NProplist *source)
 }
 
 NProplist*
-n_proplist_copy_keys (NProplist *source, GList *keys)
+n_proplist_copy_keys (const NProplist *source, GList *keys)
 {
     NProplist  *proplist = NULL;
     NValue     *value    = NULL;
@@ -71,7 +71,7 @@ n_proplist_copy_keys (NProplist *source, GList *keys)
 }
 
 void
-n_proplist_merge (NProplist *target, NProplist *source)
+n_proplist_merge (NProplist *target, const NProplist *source)
 {
     if (!target || !source)
         return;
@@ -81,7 +81,7 @@ n_proplist_merge (NProplist *target, NProplist *source)
 }
 
 void
-n_proplist_merge_keys (NProplist *target, NProplist *source, GList *keys)
+n_proplist_merge_keys (NProplist *target, const NProplist *source, GList *keys)
 {
     NValue *value = NULL;
     GList  *iter  = NULL;
@@ -111,7 +111,7 @@ n_proplist_free (NProplist *proplist)
 }
 
 int
-n_proplist_size (NProplist *proplist)
+n_proplist_size (const NProplist *proplist)
 {
     if (!proplist)
         return 0;
@@ -120,7 +120,7 @@ n_proplist_size (NProplist *proplist)
 }
 
 void
-n_proplist_foreach (NProplist *proplist, NProplistFunc func, gpointer userdata)
+n_proplist_foreach (const NProplist *proplist, NProplistFunc func, gpointer userdata)
 {
     const char     *key   = NULL;
     NValue         *value = NULL;
@@ -136,7 +136,7 @@ n_proplist_foreach (NProplist *proplist, NProplistFunc func, gpointer userdata)
 }
 
 gboolean
-n_proplist_is_empty (NProplist *proplist)
+n_proplist_is_empty (const NProplist *proplist)
 {
     return (proplist && g_hash_table_size (proplist->values) == 0) ? TRUE : FALSE;
 }
@@ -148,7 +148,7 @@ n_proplist_has_key (const NProplist *proplist, const char *key)
 }
 
 gboolean
-n_proplist_match_exact (NProplist *a, NProplist *b)
+n_proplist_match_exact (const NProplist *a, const NProplist *b)
 {
     const char *key   = NULL;
     NValue     *value = NULL;
@@ -192,7 +192,7 @@ n_proplist_set (NProplist *proplist, const char *key, NValue *value)
 }
 
 NValue*
-n_proplist_get (NProplist *proplist, const char *key)
+n_proplist_get (const NProplist *proplist, const char *key)
 {
     if (!proplist || !key)
         return NULL;
@@ -246,7 +246,7 @@ n_proplist_set_int (NProplist *proplist, const char *key, gint value)
 }
 
 gint
-n_proplist_get_int (NProplist *proplist, const char *key)
+n_proplist_get_int (const NProplist *proplist, const char *key)
 {
     NValue *value = NULL;
 
@@ -272,7 +272,7 @@ n_proplist_set_uint (NProplist *proplist, const char *key, guint value)
 }
 
 guint
-n_proplist_get_uint (NProplist *proplist, const char *key)
+n_proplist_get_uint (const NProplist *proplist, const char *key)
 {
     NValue *value = NULL;
 
@@ -325,7 +325,7 @@ n_proplist_set_pointer (NProplist *proplist, const char *key, gpointer value)
 }
 
 gpointer
-n_proplist_get_pointer (NProplist *proplist, const char *key)
+n_proplist_get_pointer (const NProplist *proplist, const char *key)
 {
     NValue *value = NULL;
 
