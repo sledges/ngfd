@@ -163,6 +163,7 @@ src/plugins/Makefile
 src/plugins/fake/Makefile
 src/plugins/dbus/Makefile
 src/plugins/mce/Makefile
+src/plugins/immvibe/Makefile
 data/Makefile
 ])
 
