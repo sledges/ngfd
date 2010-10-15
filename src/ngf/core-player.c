@@ -302,6 +302,7 @@ n_core_fail_sink (NCore *core, NSinkInterface *sink, NRequest *request)
 
     NPlayData *play_data = NULL;
 
+    play_data = (NPlayData*) n_request_get_data (request, N_KEY_PLAY_DATA);
     N_WARNING (LOG_CAT "sink '%s' failed request '%s'",
         sink->name, request->name);
 
