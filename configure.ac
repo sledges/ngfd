@@ -165,6 +165,7 @@ src/plugins/dbus/Makefile
 src/plugins/mce/Makefile
 src/plugins/immvibe/Makefile
 src/plugins/resource/Makefile
+src/plugins/profile/Makefile
 data/Makefile
 ])
 

@@ -11,3 +11,7 @@ endif
 if BUILD_IMMVIBE
 SUBDIRS += immvibe
 endif
+
+if BUILD_PROFILE
+SUBDIRS += profile
+endif
