@@ -26,6 +26,8 @@ typedef struct _NCore NCore;
 
 #include <glib.h>
 
+#include <ngf/core-hooks.h>
+#include <ngf/hook.h>
 #include <ngf/sinkinterface.h>
 #include <ngf/context.h>
 
@@ -33,5 +35,8 @@ NContext*        n_core_get_context  (NCore *core);
 GList*           n_core_get_requests (NCore *core);
 NSinkInterface** n_core_get_sinks    (NCore *core);
 GList*           n_core_get_events   (NCore *core);
+
+int              n_core_connect      (NCore *core, NCoreHook hook, int priority, NHookCallback callback, void *userdata);
+void             n_core_disconnect   (NCore *core, NCoreHook hook, NHookCallback callback, void *userdata);
 
 #endif /* N_CORE_H */

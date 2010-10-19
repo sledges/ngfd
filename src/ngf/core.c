@@ -267,6 +267,12 @@ n_core_initialize (NCore *core)
     NPlugin          *plugin = NULL;
     GList            *p      = NULL;
 
+    /* setup hooks */
+
+    n_hook_init (&core->hooks[N_CORE_HOOK_INIT_DONE]);
+    n_hook_init (&core->hooks[N_CORE_HOOK_TRANSFORM_PROPERTIES]);
+    n_hook_init (&core->hooks[N_CORE_HOOK_FILTER_SINKS]);
+
     /* load the default configuration. */
 
     if (!n_core_parse_configuration (core))
@@ -320,6 +326,10 @@ n_core_initialize (NCore *core)
             goto failed_init;
         }
     }
+
+    /* fire the init done hook. */
+
+    n_core_fire_hook (core, N_CORE_HOOK_INIT_DONE, NULL);
 
     return TRUE;
 
@@ -790,4 +800,45 @@ n_core_get_events (NCore *core)
         return NULL;
 
     return core->event_list;
+}
+
+int
+n_core_connect (NCore *core, NCoreHook hook, int priority,
+                NHookCallback callback, void *userdata)
+{
+    if (!core || !callback)
+        return FALSE;
+
+    if (hook >= N_CORE_HOOK_LAST)
+        return FALSE;
+
+    N_DEBUG (LOG_CAT "0x%X connected to hook '%s'", (unsigned int) callback,
+        n_core_hook_to_string (hook));
+
+    n_hook_connect (&core->hooks[hook], priority, callback, userdata);
+
+    return TRUE;
+}
+
+void
+n_core_disconnect (NCore *core, NCoreHook hook, NHookCallback callback,
+                   void *userdata)
+{
+    if (!core || !callback)
+        return;
+
+    if (hook >= N_CORE_HOOK_LAST)
+        return;
+
+    n_hook_disconnect (&core->hooks[hook], callback, userdata);
+}
+
+void
+n_core_fire_hook (NCore *core, NCoreHook hook, void *data)
+{
+    if (!core || hook >= N_CORE_HOOK_LAST)
+        return;
+
+    N_DEBUG (LOG_CAT "firing hook '%s'", n_core_hook_to_string (hook));
+    n_hook_fire (&core->hooks[hook], data);
 }

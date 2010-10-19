@@ -54,6 +54,8 @@ struct _NCore
     GHashTable       *key_types;
     GList            *requests;             /* active requests */
 
+    NHook             hooks[N_CORE_HOOK_LAST];
+
     gboolean          shutdown_done;        /* shutdown has been run. */
 };
 
@@ -66,6 +68,8 @@ void      n_core_register_sink    (NCore *core, const NSinkInterfaceDecl *iface)
 void      n_core_register_input   (NCore *core, const NInputInterfaceDecl *iface);
 void      n_core_add_event        (NCore *core, NEvent *event);
 NEvent*   n_core_evaluate_request (NCore *core, NRequest *request);
+
+void      n_core_fire_hook        (NCore *core, NCoreHook hook, void *data);
 
 #endif /* N_CORE_INTERNAL_H */
 

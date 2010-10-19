@@ -117,6 +117,9 @@ n_core_play_request (NCore *core, NRequest *request)
     GList           *all_sinks = NULL;
     GList           *iter      = NULL;
 
+    NCoreHookTransformPropertiesData transform_data;
+    NCoreHookFilterSinksData         filter_sinks_data;
+
     /* evaluate the request and context to resolve the correct event for
        this specific request. if no event, then there is no default event
        defined and we are done here. */
@@ -138,6 +141,12 @@ n_core_play_request (NCore *core, NRequest *request)
     n_proplist_free (request->properties);
     request->properties = props;
 
+    /* execute transform properties hook to allow plugins to modify
+       properties for the request. */
+
+    transform_data.request = request;
+    n_core_fire_hook (core, N_CORE_HOOK_TRANSFORM_PROPERTIES, &transform_data);
+
     /* query if the sinks can handle the request */
 
     for (sink_iter = core->sinks; *sink_iter; ++sink_iter) {
@@ -146,6 +155,16 @@ n_core_play_request (NCore *core, NRequest *request)
 
         all_sinks = g_list_append (all_sinks, *sink_iter);
     }
+
+    /* execute the filter sinks hook to allow plugins to modify available
+       sinks for the request. */
+
+    filter_sinks_data.request = request;
+    filter_sinks_data.sinks   = all_sinks;
+    n_core_fire_hook (core, N_CORE_HOOK_FILTER_SINKS, &filter_sinks_data);
+    all_sinks = filter_sinks_data.sinks;
+
+    /* if no sinks left, then nothing to do. */
 
     if (!all_sinks) {
         N_WARNING (LOG_CAT "no sinks that can handle the request '%s'",
