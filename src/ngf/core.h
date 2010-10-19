@@ -26,6 +26,12 @@ typedef struct _NCore NCore;
 
 #include <glib.h>
 
-GList* n_core_get_requests (NCore *core);
+#include <ngf/sinkinterface.h>
+#include <ngf/context.h>
+
+NContext*        n_core_get_context  (NCore *core);
+GList*           n_core_get_requests (NCore *core);
+NSinkInterface** n_core_get_sinks    (NCore *core);
+GList*           n_core_get_events   (NCore *core);
 
 #endif /* N_CORE_H */

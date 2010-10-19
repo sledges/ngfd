@@ -81,6 +81,15 @@ n_plugin_unload (NPlugin *plugin)
     g_free (plugin);
 }
 
+NCore*
+n_plugin_get_core (NPlugin *plugin)
+{
+    if (!plugin)
+        return NULL;
+
+    return plugin->core;
+}
+
 const NProplist*
 n_plugin_get_params (NPlugin *plugin)
 {

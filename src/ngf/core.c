@@ -208,7 +208,7 @@ n_core_new (int *argc, char **argv)
     core->plugin_path = n_core_get_path ("NGF_PLUGIN_PATH", DEFAULT_PLUGIN_PATH);
     core->context     = n_context_new ();
 
-    core->events = g_hash_table_new_full (g_str_hash, g_str_equal,
+    core->event_table = g_hash_table_new_full (g_str_hash, g_str_equal,
         g_free, NULL);
 
     core->key_types = g_hash_table_new_full (g_str_hash, g_str_equal,
@@ -245,8 +245,9 @@ n_core_free (NCore *core)
 
     g_hash_table_destroy (core->key_types);
 
-    g_hash_table_foreach (core->events, n_core_free_event_list_cb, NULL);
-    g_hash_table_destroy (core->events);
+    g_list_free          (core->event_list);
+    g_hash_table_foreach (core->event_table, n_core_free_event_list_cb, NULL);
+    g_hash_table_destroy (core->event_table);
 
     n_context_free (core->context);
     g_free (core->plugin_path);
@@ -456,7 +457,7 @@ n_core_add_event (NCore *core, NEvent *event)
 
     /* get the event list for the specific event name. */
 
-    event_list = g_hash_table_lookup (core->events, event->name);
+    event_list = g_hash_table_lookup (core->event_table, event->name);
 
     /* iterate through the event list and try to find an event that has the
        same rules. */
@@ -491,7 +492,9 @@ n_core_add_event (NCore *core, NEvent *event)
 
     event_list = g_list_append (event_list, event);
     event_list = g_list_sort (event_list, n_core_sort_event_cb);
-    g_hash_table_replace (core->events, g_strdup (event->name), event_list);
+    g_hash_table_replace (core->event_table, g_strdup (event->name), event_list);
+
+    core->event_list = g_list_append (core->event_list, event);
 }
 
 static void
@@ -719,7 +722,7 @@ n_core_evaluate_request (NCore *core, NRequest *request)
 
     /* find the list of events that have the same name. */
 
-    event_list = (GList*) g_hash_table_lookup (core->events, request->name);
+    event_list = (GList*) g_hash_table_lookup (core->event_table, request->name);
     if (!event_list)
         return NULL;
 
@@ -756,6 +759,12 @@ n_core_evaluate_request (NCore *core, NRequest *request)
     return found;
 }
 
+NContext*
+n_core_get_context (NCore *core)
+{
+    return (core != NULL) ? core->context : NULL;
+}
+
 GList*
 n_core_get_requests (NCore *core)
 {
@@ -765,3 +774,20 @@ n_core_get_requests (NCore *core)
     return core->requests;
 }
 
+NSinkInterface**
+n_core_get_sinks (NCore *core)
+{
+    if (!core)
+        return NULL;
+
+    return core->sinks;
+}
+
+GList*
+n_core_get_events (NCore *core)
+{
+    if (!core)
+        return NULL;
+
+    return core->event_list;
+}

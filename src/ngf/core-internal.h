@@ -24,6 +24,7 @@
 
 #include <glib.h>
 
+#include "log.h"
 #include "core.h"
 #include "core-player.h"
 #include "plugin-internal.h"
@@ -47,7 +48,9 @@ struct _NCore
     unsigned int      num_inputs;
 
     NContext         *context;              /* global context for broadcasting and sharing values */
-    GHashTable       *events;               /* hash table of GList* containing NEvent* */
+    GHashTable       *event_table;          /* hash table of GList* containing NEvent* for easy lookup */
+    GList            *event_list;           /* list of all events */
+
     GHashTable       *key_types;
     GList            *requests;             /* active requests */
 
