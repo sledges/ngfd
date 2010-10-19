@@ -39,6 +39,8 @@ typedef struct _NSinkInterfaceDecl
     void (*stop)       (NSinkInterface *iface, NRequest *request);
 } NSinkInterfaceDecl;
 
+const char* n_sink_interface_get_name (NSinkInterface *iface);
+
 void n_sink_interface_synchronize (NSinkInterface *iface, NRequest *request);
 void n_sink_interface_complete    (NSinkInterface *iface, NRequest *request);
 void n_sink_interface_fail        (NSinkInterface *iface, NRequest *request);

@@ -22,6 +22,12 @@
 #include "sinkinterface-internal.h"
 #include "core-internal.h"
 
+const char*
+n_sink_interface_get_name (NSinkInterface *iface)
+{
+    return (iface != NULL) ? (const char*) iface->name : NULL;
+}
+
 void
 n_sink_interface_synchronize (NSinkInterface *iface, NRequest *request)
 {

@@ -221,7 +221,7 @@ n_proplist_get_string (const NProplist *proplist, const char *key)
     if (!proplist || !key)
         return NULL;
 
-    value = n_proplist_get (proplist, key);
+    value = n_proplist_get ((NProplist*) proplist, key);
     return (value && n_value_type (value) == N_VALUE_TYPE_STRING) ?
         (const char*) n_value_get_string (value) : NULL;
 }
@@ -305,7 +305,7 @@ n_proplist_get_bool (const NProplist *proplist, const char *key)
     if (!proplist || !key)
         return FALSE;
 
-    value = n_proplist_get (proplist, key);
+    value = n_proplist_get ((NProplist*) proplist, key);
     return (value && n_value_type (value) == N_VALUE_TYPE_BOOL) ?
         n_value_get_bool (value) : FALSE;
 }
