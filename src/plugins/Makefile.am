@@ -1,4 +1,4 @@
-SUBDIRS = fake
+SUBDIRS = fake resource
 
 if BUILD_DBUS
 SUBDIRS += dbus
