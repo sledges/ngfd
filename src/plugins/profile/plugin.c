@@ -41,6 +41,9 @@
 #define SYSTEM_SUFFIX           ".sound.level"
 #define PATTERN_SUFFIX          ".pattern"
 
+#define CLAMP_VALUE(in_v,in_min,in_max) \
+    ((in_v) <= (in_min) ? (in_min) : ((in_v) >= (in_max) ? (in_max) : (in_v)))
+
 N_PLUGIN_NAME        ("profile")
 N_PLUGIN_VERSION     ("0.1")
 N_PLUGIN_AUTHOR      ("Harri Mahonen <ext-harri.mahonen@nokia.com>")
@@ -53,8 +56,10 @@ typedef struct _ProfileEntry
     gchar  *target;
 } ProfileEntry;
 
-static GList      *request_keys    = NULL;
-static GHashTable *profile_entries = NULL;
+static guint       num_system_sound_levels = 0;
+static int        *system_sound_levels     = NULL;
+static GList      *request_keys            = NULL;
+static GHashTable *profile_entries         = NULL;
 
 static void          transform_properties_cb      (NHook *hook,
                                                    void *data,
@@ -265,14 +270,22 @@ update_context_value (NContext *context, const char *profile, const char *key,
 {
     gchar  *context_key = NULL;
     NValue *context_val = NULL;
+    gint    level       = 0;
 
     context_key = construct_context_key (profile, key);
     context_val = n_value_new ();
 
-    if (g_str_has_suffix (key, ".volume") || g_str_has_suffix (key, ".level"))
+    if (g_str_has_suffix (key, VOLUME_SUFFIX)) {
         n_value_set_int (context_val, profile_parse_int (value));
-    else
+    }
+    else if (g_str_has_suffix (key, SYSTEM_SUFFIX)) {
+        level = profile_parse_int (value);
+        level = CLAMP_VALUE (level, 0, (gint) num_system_sound_levels-1);
+        n_value_set_int (context_val, system_sound_levels[level]);
+    }
+    else {
         n_value_set_string (context_val, value);
+    }
 
     n_context_set_value (context, context_key, context_val);
     g_free (context_key);
@@ -376,9 +389,41 @@ query_current_values (NCore *core)
     profile_free_profiles (profiles);
 }
 
+static void
+setup_system_sound_levels (NValue *value)
+{
+    gchar **split = NULL;
+    gchar **iter  = NULL;
+    guint   i     = 0;
+
+    if (!value) {
+        N_WARNING (LOG_CAT "no system-sound-levels key defined "
+                           "in profile.ini!");
+        return;
+    }
+
+    if (n_value_type (value) != N_VALUE_TYPE_STRING) {
+        N_WARNING (LOG_CAT "invalid value type for system sound levels!");
+        return;
+    }
+
+    split = g_strsplit (n_value_get_string (value), ";", -1);
+    for (iter = split; *iter; ++iter)
+        ++num_system_sound_levels;
+
+    system_sound_levels = (int*) g_malloc0 (sizeof (int) * num_system_sound_levels);
+    for (iter = split, i = 0; *iter; ++iter, ++i) {
+        system_sound_levels[i] = atoi (*iter);
+        system_sound_levels[i] = CLAMP_VALUE (system_sound_levels[i], 0, 100);
+    }
+
+    g_strfreev (split);
+}
+
 N_PLUGIN_LOAD (plugin)
 {
-    NCore *core = NULL;
+    NCore     *core   = NULL;
+    NProplist *params = NULL;
 
     profile_entries = g_hash_table_new_full (g_str_hash, g_str_equal,
         g_free, (GDestroyNotify) free_entry);
@@ -392,6 +437,12 @@ N_PLUGIN_LOAD (plugin)
 
     (void) n_core_connect (core, N_CORE_HOOK_TRANSFORM_PROPERTIES,
         0, transform_properties_cb, core);
+
+    /* query the system sound volume levels */
+
+    params = (NProplist*) n_plugin_get_params (plugin);
+    setup_system_sound_levels (n_proplist_get (params,
+        "system-sound-levels"));
 
     /* setup the profile client */
 
@@ -416,6 +467,7 @@ N_PLUGIN_UNLOAD (plugin)
     session_shutdown     ();
     profile_tracker_quit ();
 
+    g_free               (system_sound_levels);
     g_hash_table_destroy (profile_entries);
     g_list_foreach       (request_keys, (GFunc) g_free, NULL);
     g_list_free          (request_keys);
