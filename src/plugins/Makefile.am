@@ -15,3 +15,7 @@ endif
 if BUILD_PROFILE
 SUBDIRS += profile
 endif
+
+if BUILD_STREAMRESTORE
+SUBDIRS += streamrestore
+endif

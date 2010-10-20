@@ -141,6 +141,16 @@ fi
 
 AM_CONDITIONAL(BUILD_MCE, test x$enable_mce = xyes)
 
+# Stream restore plugin needs DBus
+
+if test x$enable_dbus = xyes ; then
+    enable_streamrestore=yes
+else
+    enable_streamrestore=no
+fi
+
+AM_CONDITIONAL(BUILD_STREAMRESTORE, test x$enable_streamrestore = xyes)
+
 echo "
  == $PACKAGE_NAME $VERSION ==
 
@@ -153,6 +163,7 @@ echo "
     Immvibe plugin:         ${enable_immvibe}
     Profile plugin:         ${enable_profile}
     MCE plugin:             ${enable_mce}
+    Stream restore plugin:  ${enable_streamrestore}
 "
 
 AC_CONFIG_FILES([
@@ -166,6 +177,7 @@ src/plugins/mce/Makefile
 src/plugins/immvibe/Makefile
 src/plugins/resource/Makefile
 src/plugins/profile/Makefile
+src/plugins/streamrestore/Makefile
 data/Makefile
 ])
 

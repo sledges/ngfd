@@ -38,7 +38,7 @@ n_context_broadcast_change (NContext *context, const char *key,
         g_free (new_str);
         g_free (old_str);
 
-        if (g_str_equal (subscriber->key, key)) {
+        if ((subscriber->key && g_str_equal (subscriber->key, key)) || !subscriber->key) {
             subscriber->callback (context, key, old_value, new_value, subscriber->userdata);
         }
     }
@@ -62,7 +62,10 @@ n_context_set_value (NContext *context, const char *key,
 const NValue*
 n_context_get_value (NContext *context, const char *key)
 {
-    return (context && key) ? (const NValue*) n_proplist_get (context->values, key) : NULL;
+    if (!context || !key)
+        return NULL;
+
+    return (const NValue*) n_proplist_get (context->values, key);
 }
 
 int
@@ -72,7 +75,7 @@ n_context_subscribe_value_change (NContext *context, const char *key,
 {
     NContextSubscriber *subscriber = NULL;
 
-    if (!context || !key || !callback)
+    if (!context || !callback)
         return FALSE;
 
     subscriber = g_slice_new0 (NContextSubscriber);
@@ -82,7 +85,7 @@ n_context_subscribe_value_change (NContext *context, const char *key,
 
     context->subscribers = g_list_append (context->subscribers, subscriber);
 
-    N_DEBUG (LOG_CAT "subscriber added for key '%s'", key);
+    N_DEBUG (LOG_CAT "subscriber added for key '%s'", key ? key : "<all keys>");
 
     return TRUE;
 }
