@@ -190,6 +190,7 @@ src/plugins/resource/Makefile
 src/plugins/profile/Makefile
 src/plugins/streamrestore/Makefile
 src/plugins/tonegen/Makefile
+src/plugins/gst/Makefile
 data/Makefile
 ])
 
