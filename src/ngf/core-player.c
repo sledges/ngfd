@@ -14,11 +14,13 @@ struct _NPlayData
     GList    *all_sinks;        /* all sinks available for the request */
     GList    *sinks_preparing;  /* sinks not yet synchronized and still preparing */
     GList    *sinks_playing;    /* sinks currently playing */
+    gboolean  failed;
 };
 
 static int      n_core_sink_priority_cmp        (gconstpointer in_a, gconstpointer in_b);
 static gboolean n_core_sink_synchronize_done_cb (gpointer userdata);
 static gboolean n_core_request_done_cb          (gpointer userdata);
+static void     n_core_stop_sinks               (GList *sinks, NRequest *request);
 
 
 
@@ -64,14 +66,24 @@ n_core_sink_synchronize_done_cb (gpointer userdata)
     return FALSE;
 }
 
+static void
+n_core_stop_sinks (GList *sinks, NRequest *request)
+{
+    GList          *iter = NULL;
+    NSinkInterface *sink = NULL;
+
+    for (iter = g_list_first (sinks); iter; iter = g_list_next (iter)) {
+        sink = (NSinkInterface*) iter->data;
+        sink->funcs.stop (sink, request);
+    }
+}
+
 static gboolean
 n_core_request_done_cb (gpointer userdata)
 {
-    NPlayData      *play_data = (NPlayData*) userdata;
-    NCore          *core      = play_data->core;
-    NRequest       *request   = play_data->request;
-    GList          *iter      = NULL;
-    NSinkInterface *sink      = NULL;
+    NPlayData *play_data = (NPlayData*) userdata;
+    NCore     *core      = play_data->core;
+    NRequest  *request   = play_data->request;
 
     /* all sinks have been either completed or the request failed. we will run
        a stop on each sink and then clear out the request. */
@@ -80,10 +92,7 @@ n_core_request_done_cb (gpointer userdata)
     core->requests = g_list_remove (core->requests, request);
 
     N_DEBUG (LOG_CAT "stopping all sinks for request '%s'", request->name);
-    for (iter = g_list_first (play_data->all_sinks); iter; iter = g_list_next (iter)) {
-        sink = (NSinkInterface*) iter->data;
-        sink->funcs.stop (sink, request);
-    }
+    n_core_stop_sinks (play_data->all_sinks, request);
 
     g_list_free (play_data->sinks_playing);
     g_list_free (play_data->sinks_preparing);
@@ -92,9 +101,17 @@ n_core_request_done_cb (gpointer userdata)
 
     /* send the reply to the input interface, if any. */
 
-    if (request->input_iface->funcs.send_reply) {
-        request->input_iface->funcs.send_reply (request->input_iface,
-            request, 0);
+    if (play_data->failed) {
+        if (request->input_iface->funcs.send_error) {
+            request->input_iface->funcs.send_error (request->input_iface,
+                request, "request failed");
+        }
+    }
+    else {
+        if (request->input_iface->funcs.send_reply) {
+            request->input_iface->funcs.send_reply (request->input_iface,
+                request, 0);
+        }
     }
 
     /* free the actual request */
@@ -120,6 +137,14 @@ n_core_play_request (NCore *core, NRequest *request)
     NCoreHookTransformPropertiesData transform_data;
     NCoreHookFilterSinksData         filter_sinks_data;
 
+    /* create and store play data for request. */
+
+    play_data = g_slice_new0 (NPlayData);
+    play_data->core            = core;
+    play_data->request         = request;
+
+    n_request_store_data (request, N_KEY_PLAY_DATA, play_data);
+
     /* evaluate the request and context to resolve the correct event for
        this specific request. if no event, then there is no default event
        defined and we are done here. */
@@ -128,7 +153,7 @@ n_core_play_request (NCore *core, NRequest *request)
     if (!request->event) {
         N_WARNING (LOG_CAT "unable to resolve event for request '%s'",
             request->name);
-        return FALSE;
+        goto fail_request;
     }
 
     N_DEBUG (LOG_CAT "request '%s' resolved to event '%s'", request->name,
@@ -169,7 +194,7 @@ n_core_play_request (NCore *core, NRequest *request)
     if (!all_sinks) {
         N_WARNING (LOG_CAT "no sinks that can handle the request '%s'",
             request->name);
-        return FALSE;
+        goto fail_request;
     }
 
     /* sort the sinks based on their priority. priority is set automatically for
@@ -177,18 +202,11 @@ n_core_play_request (NCore *core, NRequest *request)
 
     all_sinks = g_list_sort (all_sinks, n_core_sink_priority_cmp);
 
-    /* create the play and synchronization data */
+    /* setup the sinks for the play data */
 
-    play_data = g_slice_new0 (NPlayData);
-    play_data->core            = core;
-    play_data->request         = request;
     play_data->all_sinks       = all_sinks;
     play_data->sinks_preparing = g_list_copy (all_sinks);
     play_data->sinks_playing   = g_list_copy (all_sinks);
-
-    /* store the sync data for later reference */
-
-    n_request_store_data (request, N_KEY_PLAY_DATA, play_data);
 
     /* prepare all sinks that can handle the event. if there is no preparation
        function defined within the sink, then it is synchronized immediately. */
@@ -209,11 +227,17 @@ n_core_play_request (NCore *core, NRequest *request)
                 sink->name, request->name);
 
             n_core_fail_sink (core, sink, request);
-            break;
+            return FALSE;
         }
     }
 
     return TRUE;
+
+fail_request:
+    play_data->failed         = TRUE;
+    play_data->stop_source_id = g_idle_add (n_core_request_done_cb, play_data);
+
+    return FALSE;
 }
 
 int
@@ -329,6 +353,7 @@ n_core_fail_sink (NCore *core, NSinkInterface *sink, NRequest *request)
         return;
 
     /* sink failed, so request failed */
-    play_data = (NPlayData*) n_request_get_data (request, N_KEY_PLAY_DATA);
+
+    play_data->failed         = TRUE;
     play_data->stop_source_id = g_idle_add (n_core_request_done_cb, play_data);
 }
