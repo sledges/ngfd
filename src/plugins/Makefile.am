@@ -19,3 +19,7 @@ endif
 if BUILD_STREAMRESTORE
 SUBDIRS += streamrestore
 endif
+
+if BUILD_TONEGEN
+SUBDIRS += tonegen
+endif

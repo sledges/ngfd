@@ -151,6 +151,16 @@ fi
 
 AM_CONDITIONAL(BUILD_STREAMRESTORE, test x$enable_streamrestore = xyes)
 
+# Tonegen plugin needs DBus
+
+if test x$enable_dbus = xyes ; then
+    enable_tonegen=yes
+else
+    enable_tonegen=no
+fi
+
+AM_CONDITIONAL(BUILD_TONEGEN, test x$enable_tonegen = xyes)
+
 echo "
  == $PACKAGE_NAME $VERSION ==
 
@@ -164,6 +174,7 @@ echo "
     Profile plugin:         ${enable_profile}
     MCE plugin:             ${enable_mce}
     Stream restore plugin:  ${enable_streamrestore}
+    Tone generator plugin:  ${enable_tonegen}
 "
 
 AC_CONFIG_FILES([
@@ -178,6 +189,7 @@ src/plugins/immvibe/Makefile
 src/plugins/resource/Makefile
 src/plugins/profile/Makefile
 src/plugins/streamrestore/Makefile
+src/plugins/tonegen/Makefile
 data/Makefile
 ])
 
