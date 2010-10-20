@@ -121,6 +121,12 @@ transform_properties_cb (NHook *hook, void *data, void *userdata)
         if (!entry)
             continue;
 
+        /* if there already is a target key within the request, then nothing to
+           do here. */
+
+        if (n_proplist_has_key (props, entry->target))
+            continue;
+
         context_key = construct_context_key (entry->profile, entry->key);
         value = (NValue*) n_context_get_value (context, context_key);
 
