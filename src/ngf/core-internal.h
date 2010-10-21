@@ -44,6 +44,8 @@ struct _NCore
 
     NSinkInterface  **sinks;                /* sink interfaces registered */
     unsigned int      num_sinks;
+    GList            *sink_order;           /* order of sinks */
+
     NInputInterface **inputs;               /* input interfaces registered */
     unsigned int      num_inputs;
 

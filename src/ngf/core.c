@@ -57,6 +57,8 @@ static gint       n_core_sort_event_cb          (gconstpointer a, gconstpointer 
 static void       n_core_dump_value_cb          (const char *key, const NValue *value, gpointer userdata);
 static void       n_core_parse_events_from_file (NCore *core, const char *filename);
 static int        n_core_parse_events           (NCore *core);
+static void       n_core_parse_keytypes         (NCore *core, GKeyFile *keyfile);
+static void       n_core_parse_sink_order       (NCore *core, GKeyFile *keyfile);
 static int        n_core_parse_configuration    (NCore *core);
 static void       n_core_match_event_rule_cb    (const char *key, const NValue *value, gpointer userdata);
 
@@ -243,6 +245,11 @@ n_core_free (NCore *core)
     if (!core->shutdown_done)
         n_core_shutdown (core);
 
+    if (core->sink_order) {
+        g_list_foreach (core->sink_order, (GFunc) g_free, NULL);
+        g_list_free (core->sink_order);
+    }
+
     g_hash_table_destroy (core->key_types);
 
     g_list_free          (core->event_list);
@@ -253,6 +260,36 @@ n_core_free (NCore *core)
     g_free (core->plugin_path);
     g_free (core->conf_path);
     g_free (core);
+}
+
+static void
+n_core_set_sink_priorities (NSinkInterface **sink_list, GList *sink_order)
+{
+    NSinkInterface **sink = NULL;
+    GList           *list = NULL;
+    GList           *iter = NULL;
+    const char      *name = NULL;
+    int              prio = 0;
+
+    list = g_list_copy (sink_order);
+    list = g_list_reverse (list);
+
+    for (iter = g_list_first (list); iter; iter = g_list_next (iter)) {
+        name = (const char*) iter->data;
+
+        for (sink = sink_list; *sink; ++sink) {
+            if (g_str_equal ((*sink)->name, name)) {
+                N_DEBUG (LOG_CAT "sink '%s' priority set to %d",
+                    (*sink)->name, prio);
+
+                (*sink)->priority = prio;
+                ++prio;
+                break;
+            }
+        }
+    }
+
+    g_list_free (list);
 }
 
 int
@@ -298,6 +335,10 @@ n_core_initialize (NCore *core)
 
         core->plugins = g_list_append (core->plugins, plugin);
     }
+
+    /* setup the sink priorities based on the sink-order */
+
+    n_core_set_sink_priorities (core->sinks, core->sink_order);
 
     /* initialize all sinks. if no sinks, we're done. */
 
@@ -578,6 +619,9 @@ n_core_parse_events (NCore *core)
 static void
 n_core_parse_keytypes (NCore *core, GKeyFile *keyfile)
 {
+    g_assert (core != NULL);
+    g_assert (keyfile != NULL);
+
     gchar **conf_keys = NULL;
     gchar **key       = NULL;
     gchar  *value     = NULL;
@@ -614,6 +658,30 @@ n_core_parse_keytypes (NCore *core, GKeyFile *keyfile)
         g_hash_table_replace (core->key_types, g_strdup (*key), (gpointer) key_type);
         g_free (value);
     }
+}
+
+static void
+n_core_parse_sink_order (NCore *core, GKeyFile *keyfile)
+{
+    g_assert (core != NULL);
+    g_assert (keyfile != NULL);
+
+    gchar **sink_list = NULL;
+    gchar **item      = NULL;
+    gsize   num_items = 0;
+
+    sink_list = g_key_file_get_string_list (keyfile, "general", "sink-order",
+        &num_items, NULL);
+
+    if (!sink_list) {
+        N_WARNING (LOG_CAT "no sink-order, re-synchronization may be undefined.");
+        return;
+    }
+
+    for (item = sink_list; *item; ++item)
+        core->sink_order = g_list_append (core->sink_order, g_strdup (*item));
+
+    g_strfreev (sink_list);
 }
 
 static int
@@ -655,6 +723,10 @@ n_core_parse_configuration (NCore *core)
     /* load all the event configuration key entries. */
 
     n_core_parse_keytypes (core, keyfile);
+
+    /* load the sink order. the first sink has the highest priority. */
+
+    n_core_parse_sink_order (core, keyfile);
 
     g_key_file_free (keyfile);
     g_free          (filename);
