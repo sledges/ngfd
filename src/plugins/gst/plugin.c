@@ -26,7 +26,6 @@
 #include <gst/controller/gstcontroller.h>
 #include <gst/controller/gstinterpolationcontrolsource.h>
 #include <gio/gio.h>
-#include <pulse/proplist.h>
 
 #include "volume.h"
 
@@ -65,7 +64,6 @@ static void          reset_linear_volume        (GstData *data, gboolean query_p
 static void          gst_element_preload        (const gchar *name);
 static void          pipeline_rewind            (GstElement *pipeline, gboolean flush);
 static gboolean      bus_cb                     (GstBus *bus, GstMessage *msg, gpointer userdata);
-static gboolean      structure_to_proplist_cb   (GQuark field_id, const GValue *value, gpointer userdata);
 static void          new_decoded_pad_cb         (GstElement *element, GstPad *pad, gboolean is_last, gpointer userdata);
 static void          set_stream_properties      (GstElement *sink, const GstStructure *properties);
 static int           set_structure_string       (GstStructure *s, const char *key, const char *value);
@@ -257,17 +255,6 @@ bus_cb (GstBus *bus, GstMessage *msg, gpointer userdata)
     return TRUE;
 }
 
-static gboolean
-structure_to_proplist_cb (GQuark field_id, const GValue *value, gpointer userdata)
-{
-    pa_proplist *proplist = (pa_proplist*) userdata;
-
-    if (G_VALUE_HOLDS_STRING (value))
-        pa_proplist_sets (proplist, g_quark_to_string (field_id), g_value_get_string (value));
-
-    return TRUE;
-}
-
 static void
 new_decoded_pad_cb (GstElement *element, GstPad *pad, gboolean is_last,
                     gpointer userdata)
@@ -301,21 +288,11 @@ new_decoded_pad_cb (GstElement *element, GstPad *pad, gboolean is_last,
 static void
 set_stream_properties (GstElement *sink, const GstStructure *properties)
 {
-    pa_proplist *proplist = NULL;
-
     if (!sink | !properties)
         return;
 
     if (g_object_class_find_property (G_OBJECT_GET_CLASS (sink), "stream-properties") != NULL) {
         g_object_set (G_OBJECT (sink), "stream-properties", properties, NULL);
-    }
-
-    else if (g_object_class_find_property (G_OBJECT_GET_CLASS (sink), "proplist") != NULL) {
-        proplist = pa_proplist_new ();
-        gst_structure_foreach (properties, structure_to_proplist_cb, proplist);
-        g_object_set (G_OBJECT (sink), "proplist", proplist, NULL);
-
-        /* no need ot unref proplist, ownership is taken by the sink */
     }
 }
 
