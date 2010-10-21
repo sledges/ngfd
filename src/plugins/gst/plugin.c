@@ -16,16 +16,16 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this work; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
 #include <ngf/plugin.h>
+
 #include <glib.h>
 #include <gst/gst.h>
 #include <gst/controller/gstcontroller.h>
 #include <gst/controller/gstinterpolationcontrolsource.h>
 #include <gio/gio.h>
-
 #include <pulse/proplist.h>
 
 #include "volume.h"
@@ -36,22 +36,24 @@
 
 typedef struct _GstData
 {
-    NRequest       *request;
-    NSinkInterface *iface;
-    GstElement              *pipeline;
-    Volume                  *volume;
-    GstElement              *volume_element;
-    GstController           *controller;
+    NRequest                      *request;
+    NSinkInterface                *iface;
+
+    GstElement                    *pipeline;
+    Volume                        *volume;
+    GstElement                    *volume_element;
+    GstController                 *controller;
     GstInterpolationControlSource *csource;
-    const gchar                  *source;
-    GstStructure           *properties;
-    gdouble                 time_played;
-    gint                    buffer_time;
-    gint                    latency_time;
-    gboolean                paused;
-    guint                   current_repeat;
-    guint                   num_repeats;
-    gboolean                repeating;
+    const gchar                   *source;
+    GstStructure                  *properties;
+
+    gdouble                        time_played;
+    gint                           buffer_time;
+    gint                           latency_time;
+    gboolean                       paused;
+    guint                          current_repeat;
+    guint                          num_repeats;
+    gboolean                       repeating;
 } GstData;
 
 N_PLUGIN_NAME        ("gst")
@@ -59,8 +61,16 @@ N_PLUGIN_VERSION     ("0.1")
 N_PLUGIN_AUTHOR      ("Harri Mahonen <ext-harri.mahonen@nokia.com>")
 N_PLUGIN_DESCRIPTION ("GStreamer plugin")
 
-static int           set_structure_string     (GstStructure *s, const char *key, const char *value);
-static GstStructure* create_stream_properties (NProplist *props);
+static void          reset_linear_volume        (GstData *data, gboolean query_position);
+static void          gst_element_preload        (const gchar *name);
+static void          pipeline_rewind            (GstElement *pipeline, gboolean flush);
+static gboolean      bus_cb                     (GstBus *bus, GstMessage *msg, gpointer userdata);
+static gboolean      structure_to_proplist_cb   (GQuark field_id, const GValue *value, gpointer userdata);
+static void          new_decoded_pad_cb         (GstElement *element, GstPad *pad, gboolean is_last, gpointer userdata);
+static void          set_stream_properties      (GstElement *sink, const GstStructure *properties);
+static int           set_structure_string       (GstStructure *s, const char *key, const char *value);
+static void          convert_stream_property_cb (const char *key, const NValue *value, gpointer userdata);
+static GstStructure* create_stream_properties   (NProplist *props);
 
 
 
@@ -70,22 +80,21 @@ reset_linear_volume (GstData *data, gboolean query_position)
     Volume    *volume = data->volume;
     GstFormat  fmt    = GST_FORMAT_TIME;
     GValue     v = {0,{{0}}};
-    gint64  timestamp;
-    gdouble timeleft, current_volume;
+
+    gint64     timestamp;
+    gdouble    timeleft, current_volume;
 
     if (!volume || volume->type != VOLUME_TYPE_LINEAR)
         return;
 
     if (query_position) {
         if (!gst_element_query_position (data->pipeline, &fmt, &timestamp)) {
-            N_DEBUG ("%s >> unable to query data position",
-                __FUNCTION__);
+            N_WARNING (LOG_CAT "unable to query data position");
             goto finish_controller;
         }
 
         if (!(GST_CLOCK_TIME_IS_VALID (timestamp) && fmt == GST_FORMAT_TIME)) {
-            N_DEBUG ("%s >> queried position or format is not valid",
-                __FUNCTION__);
+            N_WARNING (LOG_CAT "queried position or format is not valid");
             goto finish_controller;
         }
 
@@ -102,9 +111,8 @@ reset_linear_volume (GstData *data, gboolean query_position)
     }
 
     if (timeleft > 0.0) {
-        N_DEBUG ("%s >> query=%s, timeleft = %f, current_volume = %f\n",
-            __FUNCTION__, query_position ? "TRUE" : "FALSE", timeleft,
-            current_volume);
+        N_DEBUG (LOG_CAT "query=%s, timeleft = %f, current_volume = %f",
+            query_position ? "TRUE" : "FALSE", timeleft, current_volume);
 
         gst_controller_set_disabled (data->controller, TRUE);
         gst_interpolation_control_source_unset_all (data->csource);
@@ -127,23 +135,23 @@ reset_linear_volume (GstData *data, gboolean query_position)
 
 finish_controller:
     if (data->controller) {
-        N_DEBUG ("%s >> controller finished\n", __FUNCTION__);
+        N_DEBUG (LOG_CAT "controller finished");
         g_object_unref (data->controller);
         data->controller = NULL;
     }
 }
 
 static void
-gst_element_preload (gchar * name)
+gst_element_preload (const gchar *name)
 {
-	GstElement *element = NULL;
+    GstElement *element = NULL;
 
-	if ((element = gst_element_factory_make (name, NULL)) == NULL) {
-		N_WARNING ("Preloading element %s failed", name);
-		return;
-	}
+    if ((element = gst_element_factory_make (name, NULL)) == NULL) {
+        N_WARNING (LOG_CAT "preloading element %s failed", name);
+        return;
+    }
 
-	g_object_unref (element);
+    g_object_unref (element);
 }
 
 static void
@@ -162,14 +170,11 @@ pipeline_rewind (GstElement *pipeline, gboolean flush)
 }
 
 static gboolean
-bus_cb (GstBus     *bus,
-         GstMessage *msg,
-         gpointer    userdata)
+bus_cb (GstBus *bus, GstMessage *msg, gpointer userdata)
 {
     GstData *stream = (GstData*) userdata;
-    (void) bus;
 
-    N_DEBUG (LOG_CAT "Entering bus_cb");
+    (void) bus;
 
     switch (GST_MESSAGE_TYPE (msg)) {
         case GST_MESSAGE_ERROR: {
@@ -264,15 +269,14 @@ structure_to_proplist_cb (GQuark field_id, const GValue *value, gpointer userdat
 }
 
 static void
-new_decoded_pad_cb (GstElement *element,
-                     GstPad     *pad,
-                     gboolean    is_last,
-                     gpointer    userdata)
+new_decoded_pad_cb (GstElement *element, GstPad *pad, gboolean is_last,
+                    gpointer userdata)
 {
     GstElement   *sink_element = (GstElement*) userdata;
     GstStructure *structure    = NULL;
     GstCaps      *caps         = NULL;
     GstPad       *sink_pad     = NULL;
+
     (void) element;
     (void) is_last;
 
@@ -336,7 +340,7 @@ gst_sink_initialize (NSinkInterface *iface)
     gst_element_preload ("decodebin2");
     gst_element_preload ("volume");
     gst_element_preload ("pulsesink");
-    
+
     return TRUE;
 }
 
