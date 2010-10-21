@@ -30,8 +30,9 @@
 
 #include "volume.h"
 
-#define GST_KEY "plugin.gst.data"
-#define LOG_CAT  "gst: "
+#define GST_KEY           "plugin.gst.data"
+#define STREAM_PREFIX_KEY "sound.stream."
+#define LOG_CAT           "gst: "
 
 typedef struct _GstData
 {
@@ -56,7 +57,12 @@ typedef struct _GstData
 N_PLUGIN_NAME        ("gst")
 N_PLUGIN_VERSION     ("0.1")
 N_PLUGIN_AUTHOR      ("Harri Mahonen <ext-harri.mahonen@nokia.com>")
-N_PLUGIN_DESCRIPTION ("Gdataer plugin")
+N_PLUGIN_DESCRIPTION ("GStreamer plugin")
+
+static int           set_structure_string     (GstStructure *s, const char *key, const char *value);
+static GstStructure* create_stream_properties (NProplist *props);
+
+
 
 static void
 reset_linear_volume (GstData *data, gboolean query_position)
@@ -356,6 +362,71 @@ gst_sink_can_handle (NSinkInterface *iface, NRequest *request)
 }
 
 static int
+set_structure_string (GstStructure *s, const char *key, const char *value)
+{
+    g_assert (s != NULL);
+    g_assert (key != NULL);
+
+    GValue v = {0,{{0}}};
+
+    if (!value)
+        return FALSE;
+
+    g_value_init (&v, G_TYPE_STRING);
+    g_value_set_string (&v, value);
+    gst_structure_set_value (s, key, &v);
+    g_value_unset (&v);
+
+    return TRUE;
+}
+
+static void
+convert_stream_property_cb (const char *key, const NValue *value,
+                            gpointer userdata)
+{
+    GstStructure *target     = (GstStructure*) userdata;
+    const char   *prop_key   = NULL;
+    const char   *prop_value = NULL;
+
+    if (!g_str_has_prefix (key, STREAM_PREFIX_KEY))
+        return;
+
+    prop_key = key + strlen (STREAM_PREFIX_KEY);
+    if (*prop_key == '\0')
+        return;
+
+    prop_value = n_value_get_string ((NValue*) value);
+    if (set_structure_string (target, prop_key, prop_value)) {
+        N_DEBUG (LOG_CAT "set stream property '%s' to '%s'",
+            prop_key, prop_value);
+    }
+}
+
+static GstStructure*
+create_stream_properties (NProplist *props)
+{
+    g_assert (props != NULL);
+
+    GstStructure *s      = gst_structure_empty_new ("props");
+    const char   *source = NULL;
+
+    /* set the stream filename based on the sound file we're
+       about to play. */
+
+    source = n_proplist_get_string (props, "sound.filename");
+    g_assert (source != NULL);
+
+    set_structure_string (s, "media.filename", source);
+
+    /* convert all properties within the request that begin with
+       "sound.stream." prefix. */
+
+    n_proplist_foreach (props, convert_stream_property_cb, s);
+
+    return s;
+}
+
+static int
 gst_sink_prepare (NSinkInterface *iface, NRequest *request)
 {
     N_DEBUG (LOG_CAT "sink prepare");
@@ -364,8 +435,6 @@ gst_sink_prepare (NSinkInterface *iface, NRequest *request)
     GstElement   *decodebin = NULL;
     GstElement   *sink      = NULL;
     GstBus       *bus       = NULL;
-    GValue        v = {0,{{0}}};
-    const char *value = NULL;
 
     const NProplist *props = n_request_get_properties (request);
 
@@ -374,11 +443,10 @@ gst_sink_prepare (NSinkInterface *iface, NRequest *request)
 
     GstData *data = g_slice_new0 (GstData);
 
-    data->request    = request;
-    data->iface      = iface;
-    data->source = n_proplist_get_string (props, "sound.filename");
+    data->request   = request;
+    data->iface     = iface;
+    data->source    = n_proplist_get_string (props, "sound.filename");
     data->repeating = n_proplist_get_bool (props, "sound.repeat");
-    data->properties = gst_structure_empty_new ("props");
 
     n_request_store_data (request, GST_KEY, data);
 
@@ -423,27 +491,7 @@ gst_sink_prepare (NSinkInterface *iface, NRequest *request)
     N_DEBUG (LOG_CAT "Source is %s",data->source);
     g_object_set (G_OBJECT (source), "location", data->source, NULL);
 
-    g_value_init (&v, G_TYPE_STRING);
-    g_value_set_string (&v, data->source);
-    gst_structure_set_value (data->properties, "media.filename", &v);
-    g_value_unset (&v);
-
-    value = n_proplist_get_string (props, "sound.event_id");
-    if (value) {
-        N_DEBUG ("%s >> set stream event id to %s", __FUNCTION__, value);
-        g_value_init (&v, G_TYPE_STRING);
-        g_value_set_string (&v, value);
-        gst_structure_set_value (data->properties, "event.id", &v);
-        g_value_unset (&v);
-    }
-
-    value = n_proplist_get_string (props, "sound.stream-restore-id") ? n_proplist_get_string (props, "sound.stream-restore-id") : "x-maemo";
-    N_DEBUG ("%s >> set stream role to %s", __FUNCTION__, value);
-    g_value_init (&v, G_TYPE_STRING);
-    g_value_set_string (&v, value);
-    gst_structure_set_value (data->properties, "module-stream-restore.id", &v);
-    g_value_unset (&v);
-
+    data->properties = create_stream_properties ((NProplist*) props);
     set_stream_properties (sink, data->properties);
 
     if (data->buffer_time > 0)
