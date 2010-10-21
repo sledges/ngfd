@@ -22,6 +22,7 @@ endif
 
 if BUILD_TONEGEN
 SUBDIRS += tonegen
+endif
 
 if BUILD_GST
 SUBDIRS += gst
