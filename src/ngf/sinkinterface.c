@@ -22,6 +22,12 @@
 #include "sinkinterface-internal.h"
 #include "core-internal.h"
 
+NCore*
+n_sink_interface_get_core (NSinkInterface *iface)
+{
+    return (iface != NULL) ? iface->core : NULL;
+}
+
 const char*
 n_sink_interface_get_name (NSinkInterface *iface)
 {

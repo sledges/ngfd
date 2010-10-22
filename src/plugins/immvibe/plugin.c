@@ -32,14 +32,14 @@ typedef struct _ImmvibeData
 {
     NRequest       *request;
     NSinkInterface *iface;
-    guint            id;
+    guint           id;
     gpointer        pattern;
     gboolean        paused;
-    guint   poll_id;
+    guint           poll_id;
 } ImmvibeData;
 
-VibeInt32  device = VIBE_INVALID_DEVICE_HANDLE_VALUE;
-const gchar *search_path = NULL;
+static VibeInt32    device      = VIBE_INVALID_DEVICE_HANDLE_VALUE;
+static const gchar *search_path = NULL;
 
 N_PLUGIN_NAME        ("immvibe")
 N_PLUGIN_VERSION     ("0.1")
@@ -67,7 +67,7 @@ pattern_poll_cb (gpointer userdata)
     ImmvibeData *data = (ImmvibeData*) n_request_get_data ((NRequest *)userdata, IMMVIBE_KEY);
 
     if (!data->paused && pattern_is_completed (data->id)) {
-        N_DEBUG ("%s >> vibration has been completed.", __FUNCTION__);
+        N_DEBUG (LOG_CAT "vibration has been completed.");
 
         data->poll_id = 0;
         n_sink_interface_complete (data->iface, data->request);
@@ -184,13 +184,11 @@ build_vibration_filename (const char *path, const char *source)
 guint
 vibrator_start (gpointer pattern_data, gpointer userdata)
 {
-    N_ENTER ("%s >> entering", __FUNCTION__);
-
-    ImmvibeData *data = (ImmvibeData*) n_request_get_data ((NRequest *)userdata, IMMVIBE_KEY);
-    VibeUInt8 *effects = pattern_data ? (VibeUInt8*) pattern_data : g_pVibeIVTBuiltInEffects;
-    gint       id      = 0;
-    VibeInt32  ret     = 0;
-    gboolean   retry   = FALSE;
+    ImmvibeData *data    = (ImmvibeData*) n_request_get_data ((NRequest *)userdata, IMMVIBE_KEY);
+    VibeUInt8   *effects = pattern_data ? (VibeUInt8*) pattern_data : g_pVibeIVTBuiltInEffects;
+    gint         id      = 0;
+    VibeInt32    ret     = 0;
+    gboolean     retry   = FALSE;
 
     do {
         ret = ImmVibePlayIVTEffect (device, effects, 0, &id);
@@ -248,9 +246,22 @@ static int
 immvibe_sink_can_handle (NSinkInterface *iface, NRequest *request)
 {
     (void) iface;
+
     const NProplist *props = n_request_get_properties (request);
 
-    if (n_proplist_has_key (props, "immvibe.filename") || n_proplist_has_key (props, "immvibe.lookup")) {
+    NCore    *core    = n_sink_interface_get_core     (iface);
+    NContext *context = n_core_get_context            (core);
+    NValue   *enabled = NULL;
+
+    enabled = (NValue*) n_context_get_value (context,
+        "profile.current.vibrating.alert.enabled");
+
+    if (!enabled || !n_value_get_bool (enabled)) {
+        N_DEBUG (LOG_CAT "vibration is not enabled, no action from immvibe.");
+        return FALSE;
+    }
+
+    if (n_proplist_has_key (props, "immvibe.filename")) {
         N_DEBUG (LOG_CAT "can handle request");
         return TRUE;
     }

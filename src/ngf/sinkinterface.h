@@ -25,6 +25,7 @@
 typedef struct _NSinkInterface NSinkInterface;
 
 #include <ngf/request.h>
+#include <ngf/core.h>
 
 typedef struct _NSinkInterfaceDecl
 {
@@ -39,6 +40,7 @@ typedef struct _NSinkInterfaceDecl
     void (*stop)       (NSinkInterface *iface, NRequest *request);
 } NSinkInterfaceDecl;
 
+NCore*      n_sink_interface_get_core (NSinkInterface *iface);
 const char* n_sink_interface_get_name (NSinkInterface *iface);
 
 void n_sink_interface_synchronize (NSinkInterface *iface, NRequest *request);

@@ -289,6 +289,9 @@ update_context_value (NContext *context, const char *profile, const char *key,
         level = CLAMP_VALUE (level, 0, (gint) num_system_sound_levels-1);
         n_value_set_int (context_val, system_sound_levels[level]);
     }
+    else if (g_str_equal (key, KEY_VIBRATION_ENABLED)) {
+        n_value_set_bool (context_val, profile_parse_bool (value));
+    }
     else {
         n_value_set_string (context_val, value);
     }
