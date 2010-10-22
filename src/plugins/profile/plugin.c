@@ -391,6 +391,17 @@ query_current_values (NCore *core)
         }
     }
 
+    /* fallbacks */
+
+    for (k = keys; *k; ++k) {
+        value = profile_get_value ("fallback", *k);
+        if (!value)
+            continue;
+
+        update_context_value (context, "fallback", *k, value);
+        free (value);
+    }
+
     profile_free_keys (keys);
     profile_free_profiles (profiles);
 }
