@@ -20,11 +20,13 @@
     */
 
 #include <string.h>
+#include <stdlib.h>
 #include <ngf/plugin.h>
 #include "volume-controller.h"
 
-#define LOG_CAT "stream-restore: "
+#define LOG_CAT         "stream-restore: "
 #define ROLE_KEY_PREFIX "role."
+#define SET_KEY_PREFIX  "set."
 
 N_PLUGIN_NAME        ("stream-restore")
 N_PLUGIN_VERSION     ("0.1")
@@ -78,18 +80,25 @@ volume_add_role_key_cb (const char *key, const NValue *value, gpointer userdata)
     (void) value;
     (void) userdata;
 
-    const char *role_key = NULL;
+    const char *new_key = NULL;
+    int         volume  = 0;
 
-    /* if the key has a prefix "role.", then strip that and continue. */
+    if (g_str_has_prefix (key, ROLE_KEY_PREFIX)) {
+        new_key = (const char*) key + strlen (ROLE_KEY_PREFIX);
 
-    role_key = g_str_has_prefix (key, ROLE_KEY_PREFIX) ?
-        (const char*) key + strlen (ROLE_KEY_PREFIX) : NULL;
+        if (new_key) {
+            g_hash_table_replace (stream_restore_role_map,
+                n_value_dup_string ((NValue*) value), g_strdup (new_key));
+        }
+    }
+    else if (g_str_has_prefix (key, SET_KEY_PREFIX)) {
+        new_key = (const char*) key + strlen (SET_KEY_PREFIX);
 
-    if (!role_key)
-        return;
-
-    g_hash_table_replace (stream_restore_role_map,
-        n_value_dup_string ((NValue*) value), g_strdup (role_key));
+        if (new_key) {
+            volume = atoi (n_value_get_string ((NValue*) value));
+            (void) volume_controller_update (new_key, volume);
+        }
+    }
 }
 
 void context_value_changed_cb (NContext *context, const char *key,
