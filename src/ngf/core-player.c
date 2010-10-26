@@ -21,6 +21,7 @@ static int      n_core_sink_priority_cmp        (gconstpointer in_a, gconstpoint
 static gboolean n_core_sink_synchronize_done_cb (gpointer userdata);
 static gboolean n_core_request_done_cb          (gpointer userdata);
 static void     n_core_stop_sinks               (GList *sinks, NRequest *request);
+static int      n_core_prepare_sinks            (NCore *core, GList *sinks, NRequest *request);
 
 
 
@@ -78,6 +79,35 @@ n_core_stop_sinks (GList *sinks, NRequest *request)
     }
 }
 
+static int
+n_core_prepare_sinks (NCore *core, GList *sinks, NRequest *request)
+{
+    g_assert (core != NULL);
+
+    GList          *iter = NULL;
+    NSinkInterface *sink = NULL;
+
+    for (iter = g_list_first (sinks); iter; iter = g_list_next (iter)) {
+        sink = (NSinkInterface*) iter->data;
+
+        if (!sink->funcs.prepare) {
+            N_DEBUG (LOG_CAT "sink has no prepare, synchronizing immediately");
+            n_core_synchronize_sink (core, sink, request);
+            continue;
+        }
+
+        if (!sink->funcs.prepare (sink, request)) {
+            N_WARNING (LOG_CAT "sink '%s' failed to prepare request '%s'",
+                sink->name, request->name);
+
+            n_core_fail_sink (core, sink, request);
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
 static gboolean
 n_core_request_done_cb (gpointer userdata)
 {
@@ -130,9 +160,7 @@ n_core_play_request (NCore *core, NRequest *request)
     NPlayData       *play_data = NULL;
     NProplist       *props     = NULL;
     NSinkInterface **sink_iter = NULL;
-    NSinkInterface  *sink      = NULL;
     GList           *all_sinks = NULL;
-    GList           *iter      = NULL;
 
     NCoreHookTransformPropertiesData transform_data;
     NCoreHookFilterSinksData         filter_sinks_data;
@@ -212,26 +240,7 @@ n_core_play_request (NCore *core, NRequest *request)
        function defined within the sink, then it is synchronized immediately. */
 
     core->requests = g_list_append (core->requests, request);
-
-    for (iter = g_list_first (all_sinks); iter; iter = g_list_next (iter)) {
-        sink = (NSinkInterface*) iter->data;
-
-        if (!sink->funcs.prepare) {
-            N_DEBUG (LOG_CAT "sink has no prepare, synchronizing immediately");
-            n_core_synchronize_sink (core, sink, request);
-            continue;
-        }
-
-        if (!sink->funcs.prepare (sink, request)) {
-            N_WARNING (LOG_CAT "sink '%s' failed to prepare request '%s'",
-                sink->name, request->name);
-
-            n_core_fail_sink (core, sink, request);
-            return FALSE;
-        }
-    }
-
-    return TRUE;
+    return n_core_prepare_sinks (core, all_sinks, request);
 
 fail_request:
     play_data->failed         = TRUE;
