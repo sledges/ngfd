@@ -26,12 +26,14 @@
 #include "core-internal.h"
 #include "sinkinterface-internal.h"
 
-int  n_core_play_request     (NCore *core, NRequest *request);
-int  n_core_pause_request    (NCore *core, NRequest *request);
-void n_core_stop_request     (NCore *core, NRequest *request);
+int  n_core_play_request         (NCore *core, NRequest *request);
+int  n_core_pause_request        (NCore *core, NRequest *request);
+void n_core_stop_request         (NCore *core, NRequest *request);
 
-void n_core_synchronize_sink (NCore *core, NSinkInterface *sink, NRequest *request);
-void n_core_complete_sink    (NCore *core, NSinkInterface *sink, NRequest *request);
-void n_core_fail_sink        (NCore *core, NSinkInterface *sink, NRequest *request);
+void n_core_set_resync_on_master (NCore *core, NSinkInterface *sink, NRequest *request);
+void n_core_resynchronize_sinks  (NCore *core, NSinkInterface *sink, NRequest *request);
+void n_core_synchronize_sink     (NCore *core, NSinkInterface *sink, NRequest *request);
+void n_core_complete_sink        (NCore *core, NSinkInterface *sink, NRequest *request);
+void n_core_fail_sink            (NCore *core, NSinkInterface *sink, NRequest *request);
 
 #endif /* N_CORE_PLAYER_ H */

@@ -43,8 +43,10 @@ typedef struct _NSinkInterfaceDecl
 NCore*      n_sink_interface_get_core (NSinkInterface *iface);
 const char* n_sink_interface_get_name (NSinkInterface *iface);
 
-void n_sink_interface_synchronize (NSinkInterface *iface, NRequest *request);
-void n_sink_interface_complete    (NSinkInterface *iface, NRequest *request);
-void n_sink_interface_fail        (NSinkInterface *iface, NRequest *request);
+void n_sink_interface_set_resync_on_master (NSinkInterface *iface, NRequest *request);
+void n_sink_interface_resynchronize        (NSinkInterface *iface, NRequest *request);
+void n_sink_interface_synchronize          (NSinkInterface *iface, NRequest *request);
+void n_sink_interface_complete             (NSinkInterface *iface, NRequest *request);
+void n_sink_interface_fail                 (NSinkInterface *iface, NRequest *request);
 
 #endif /* N_SINK_INTERFACE_H */

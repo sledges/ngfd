@@ -7,16 +7,20 @@ typedef struct _NPlayData NPlayData;
 
 struct _NPlayData
 {
-    NCore    *core;
-    NRequest *request;
-    guint     play_source_id;   /* source id for play */
-    guint     stop_source_id;   /* source id for stop */
-    GList    *all_sinks;        /* all sinks available for the request */
-    GList    *sinks_preparing;  /* sinks not yet synchronized and still preparing */
-    GList    *sinks_playing;    /* sinks currently playing */
-    gboolean  failed;
+    NCore         *core;
+    NRequest      *request;
+    guint          play_source_id;      /* source id for play */
+    guint          stop_source_id;      /* source id for stop */
+    GList         *all_sinks;           /* all sinks available for the request */
+    GList          *sinks_preparing;    /* sinks not yet synchronized and still preparing */
+    GList          *sinks_prepared;
+    GList          *sinks_playing;      /* sinks currently playing */
+    GList          *sinks_resync;
+    NSinkInterface *master_sink;
+    gboolean        failed;
 };
 
+static int      n_core_sink_in_list             (GList *sinks, NSinkInterface *sink);
 static int      n_core_sink_priority_cmp        (gconstpointer in_a, gconstpointer in_b);
 static gboolean n_core_sink_synchronize_done_cb (gpointer userdata);
 static gboolean n_core_request_done_cb          (gpointer userdata);
@@ -24,6 +28,15 @@ static void     n_core_stop_sinks               (GList *sinks, NRequest *request
 static int      n_core_prepare_sinks            (NCore *core, GList *sinks, NRequest *request);
 
 
+
+static int
+n_core_sink_in_list (GList *sinks, NSinkInterface *sink)
+{
+    if (!sinks || !sink)
+        return FALSE;
+
+    return g_list_find (sinks, sink) != NULL ? TRUE : FALSE;
+}
 
 static int
 n_core_sink_priority_cmp (gconstpointer in_a, gconstpointer in_b)
@@ -49,10 +62,10 @@ n_core_sink_synchronize_done_cb (gpointer userdata)
     NSinkInterface *sink      = NULL;
 
     /* all sinks have been synchronized for the request. call play for every
-       sink. */
+       prepared sink. */
 
     play_data->play_source_id = 0;
-    for (iter = g_list_first (play_data->all_sinks); iter; iter = g_list_next (iter)) {
+    for (iter = g_list_first (play_data->sinks_prepared); iter; iter = g_list_next (iter)) {
         sink = (NSinkInterface*) iter->data;
 
         if (!sink->funcs.play (sink, request)) {
@@ -60,9 +73,15 @@ n_core_sink_synchronize_done_cb (gpointer userdata)
                 sink->name, request->name);
 
             n_core_fail_sink (core, sink, request);
-            break;
+            return FALSE;
         }
+
+        play_data->sinks_playing = g_list_append (play_data->sinks_playing,
+            sink);
     }
+
+    g_list_free (play_data->sinks_prepared);
+    play_data->sinks_prepared = NULL;
 
     return FALSE;
 }
@@ -125,6 +144,7 @@ n_core_request_done_cb (gpointer userdata)
     n_core_stop_sinks (play_data->all_sinks, request);
 
     g_list_free (play_data->sinks_playing);
+    g_list_free (play_data->sinks_prepared);
     g_list_free (play_data->sinks_preparing);
     g_list_free (play_data->all_sinks);
     g_slice_free (NPlayData, play_data);
@@ -234,7 +254,7 @@ n_core_play_request (NCore *core, NRequest *request)
 
     play_data->all_sinks       = all_sinks;
     play_data->sinks_preparing = g_list_copy (all_sinks);
-    play_data->sinks_playing   = g_list_copy (all_sinks);
+    play_data->master_sink     = (NSinkInterface*) ((g_list_first (all_sinks))->data);
 
     /* prepare all sinks that can handle the event. if there is no preparation
        function defined within the sink, then it is synchronized immediately. */
@@ -299,6 +319,101 @@ n_core_stop_request (NCore *core, NRequest *request)
 }
 
 void
+n_core_set_resync_on_master (NCore *core, NSinkInterface *sink,
+                             NRequest *request)
+{
+    g_assert (core != NULL);
+    g_assert (sink != NULL);
+    g_assert (request != NULL);
+
+    NPlayData *play_data   = NULL;
+
+    play_data = (NPlayData*) n_request_get_data (request, N_KEY_PLAY_DATA);
+    g_assert (play_data != NULL);
+
+    if (play_data->master_sink == sink) {
+        N_WARNING (LOG_CAT "no need to add master sink '%s' to resync list.",
+            sink->name);
+        return;
+    }
+
+    if (n_core_sink_in_list (play_data->sinks_resync, sink))
+        return;
+
+    play_data->sinks_resync = g_list_append (play_data->sinks_resync,
+        sink);
+
+    N_DEBUG (LOG_CAT "sink '%s' set to resynchronize on master sink '%s'",
+        sink->name, play_data->master_sink->name);
+}
+
+void
+n_core_resynchronize_sinks (NCore *core, NSinkInterface *sink,
+                            NRequest *request)
+{
+    g_assert (core != NULL);
+    g_assert (sink != NULL);
+    g_assert (request != NULL);
+
+    NPlayData *play_data   = NULL;
+    GList     *resync_list = NULL;
+
+    play_data = (NPlayData*) n_request_get_data (request, N_KEY_PLAY_DATA);
+    g_assert (play_data != NULL);
+
+    if (play_data->master_sink != sink) {
+        N_WARNING (LOG_CAT "sink '%s' not master sink, not resyncing.",
+            sink->name);
+        return;
+    }
+
+    if (play_data->play_source_id > 0) {
+        N_WARNING (LOG_CAT "already resyncing.");
+        return;
+    }
+
+    /* add the master sink to prepared list, since it only needs play
+       to continue. */
+
+    play_data->sinks_playing  = g_list_remove (play_data->sinks_playing,
+        play_data->master_sink);
+    play_data->sinks_prepared = g_list_append (play_data->sinks_prepared,
+        play_data->master_sink);
+
+    /* if resync list is empty, we'll just trigger play on the master
+       sink again. */
+
+    if (!play_data->sinks_resync) {
+        N_DEBUG (LOG_CAT "no sinks in resync list, triggering play for sink '%s'",
+            sink->name);
+        play_data->play_source_id = g_idle_add (n_core_sink_synchronize_done_cb,
+            play_data);
+        return;
+    }
+
+    /* first, we need to copy and clear the resync list. otherwise when the
+       list is prepared, duplicates are added. */
+
+    resync_list = g_list_copy (play_data->sinks_resync);
+    g_list_free (play_data->sinks_resync);
+    play_data->sinks_resync = NULL;
+
+    /* stop all sinks in the resync list. */
+
+    n_core_stop_sinks (resync_list, request);
+
+    /* prepare all sinks in the resync list and re-trigger the playback
+       for them. */
+
+    play_data->sinks_preparing = g_list_copy (resync_list);
+    (void) n_core_prepare_sinks (core, resync_list, request);
+
+    /* clear the list copy. */
+
+    g_list_free (resync_list);
+}
+
+void
 n_core_synchronize_sink (NCore *core, NSinkInterface *sink, NRequest *request)
 {
     g_assert (core != NULL);
@@ -307,13 +422,27 @@ n_core_synchronize_sink (NCore *core, NSinkInterface *sink, NRequest *request)
 
     NPlayData *play_data = NULL;
 
-    N_DEBUG (LOG_CAT "sink '%s' ready to play request '%s'",
-        sink->name, request->name);
-
     play_data = (NPlayData*) n_request_get_data (request, N_KEY_PLAY_DATA);
     g_assert (play_data != NULL);
 
+    if (!play_data->sinks_preparing) {
+        N_WARNING (LOG_CAT "sink '%s' synchronized, but no sinks in the list.",
+            sink->name);
+        return;
+    }
+
+    if (!n_core_sink_in_list (play_data->sinks_preparing, sink)) {
+        N_WARNING (LOG_CAT "sink '%s' not in preparing list.",
+            sink->name);
+        return;
+    }
+
+    N_DEBUG (LOG_CAT "sink '%s' synchronized for request '%s'",
+        sink->name, request->name);
+
     play_data->sinks_preparing = g_list_remove (play_data->sinks_preparing, sink);
+    play_data->sinks_prepared  = g_list_append (play_data->sinks_prepared, sink);
+
     if (!play_data->sinks_preparing) {
         N_DEBUG (LOG_CAT "all sinks have been synchronized");
         play_data->play_source_id = g_idle_add (n_core_sink_synchronize_done_cb,

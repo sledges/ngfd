@@ -286,6 +286,9 @@ immvibe_sink_prepare (NSinkInterface *iface, NRequest *request)
             filename = build_vibration_filename (search_path, n_proplist_get_string (props, "sound.filename"));
             data->pattern = vibrator_load (filename);
             g_free (filename);
+
+            if (data->pattern)
+                n_sink_interface_set_resync_on_master (iface, request);
         }
     }
 

@@ -35,6 +35,24 @@ n_sink_interface_get_name (NSinkInterface *iface)
 }
 
 void
+n_sink_interface_set_resync_on_master (NSinkInterface *iface, NRequest *request)
+{
+    if (!iface || !request)
+        return;
+
+    n_core_set_resync_on_master (iface->core, iface, request);
+}
+
+void
+n_sink_interface_resynchronize (NSinkInterface *iface, NRequest *request)
+{
+    if (!iface || !request)
+        return;
+
+    n_core_resynchronize_sinks (iface->core, iface, request);
+}
+
+void
 n_sink_interface_synchronize (NSinkInterface *iface, NRequest *request)
 {
     if (!iface || !request)

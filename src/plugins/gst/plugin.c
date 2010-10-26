@@ -226,11 +226,7 @@ bus_cb (GstBus *bus, GstMessage *msg, gpointer userdata)
                 pipeline_rewind (stream->pipeline, FALSE);
                 gst_element_set_state (stream->pipeline, GST_STATE_PAUSED);
 
-                /*
-                if (stream->callback)
-                    stream->callback (stream, AUDIO_STREAM_STATE_REWIND,
-                        stream->userdata);
-                */
+                n_sink_interface_resynchronize (stream->iface, stream->request);
             }
             else {
                 n_sink_interface_complete (stream->iface, stream->request);
