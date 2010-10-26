@@ -50,6 +50,9 @@ tone_generator_toggle (DBusConnection *bus, guint pattern, gint volume,
         return FALSE;
 
     if (activate) {
+        N_DEBUG (LOG_CAT "activating LED pattern %u with volume %d",
+            pattern, volume);
+
         ret = dbus_message_append_args (msg,
             DBUS_TYPE_UINT32, &pattern,
             DBUS_TYPE_INT32, &volume,
@@ -60,6 +63,9 @@ tone_generator_toggle (DBusConnection *bus, guint pattern, gint volume,
             dbus_message_unref (msg);
             return FALSE;
         }
+    }
+    else {
+        N_DEBUG (LOG_CAT "deactivating LED pattern");
     }
 
     ret = call_dbus_method (bus, msg);
@@ -127,7 +133,7 @@ tonegen_sink_play (NSinkInterface *iface, NRequest *request)
     guint      pattern = 0;
     gint       volume  = 0;
 
-    pattern = n_proplist_get_uint (props, "tonegen.pattern");
+    pattern = (guint) n_proplist_get_int (props, "tonegen.pattern");
     volume  = n_proplist_get_int  (props, "tonegen.volume");
 
     tone_generator_toggle (system_bus, pattern, volume, TRUE);
