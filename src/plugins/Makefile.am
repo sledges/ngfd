@@ -1,4 +1,4 @@
-SUBDIRS = fake resource
+SUBDIRS = fake resource transform
 
 if BUILD_DBUS
 SUBDIRS += dbus

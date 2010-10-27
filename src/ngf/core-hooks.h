@@ -8,16 +8,16 @@
 typedef enum _NCoreHook
 {
     N_CORE_HOOK_INIT_DONE = 1,
+    N_CORE_HOOK_NEW_REQUEST,
     N_CORE_HOOK_TRANSFORM_PROPERTIES,
     N_CORE_HOOK_FILTER_SINKS,
     N_CORE_HOOK_LAST
 } NCoreHook;
 
-typedef struct _NCoreHookTranslateRequestData
+typedef struct _NCoreHookNewRequestData
 {
     NRequest *request;
-    gchar    *translate_to;
-} NCoreHookTranslateRequestData;
+} NCoreHookNewRequestData;
 
 typedef struct _NCoreHookTransformPropertiesData
 {
