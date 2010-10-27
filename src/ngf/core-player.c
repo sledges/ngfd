@@ -185,6 +185,12 @@ n_core_play_request (NCore *core, NRequest *request)
     NCoreHookTransformPropertiesData transform_data;
     NCoreHookFilterSinksData         filter_sinks_data;
 
+    /* execute the new request hook. this may translate the request to other or
+       change properties. */
+
+    new_request.request = request;
+    n_core_fire_hook (core, N_CORE_HOOK_NEW_REQUEST, &new_request);
+
     /* create and store play data for request. */
 
     play_data = g_slice_new0 (NPlayData);
