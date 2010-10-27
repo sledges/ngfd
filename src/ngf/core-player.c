@@ -200,9 +200,6 @@ n_core_play_request (NCore *core, NRequest *request)
 
     n_request_store_data (request, N_KEY_PLAY_DATA, play_data);
 
-    new_request.request = request;
-    n_core_fire_hook (core, N_CORE_HOOK_NEW_REQUEST, &new_request);
-
     /* evaluate the request and context to resolve the correct event for
        this specific request. if no event, then there is no default event
        defined and we are done here. */
