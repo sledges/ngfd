@@ -185,6 +185,7 @@ n_core_request_done_cb (gpointer userdata)
 
             if (n_proplist_match_exact (new_props, old_props)) {
                 N_DEBUG (LOG_CAT "No fallbacks in the request");
+                n_proplist_free (new_props);
                 if (request->input_iface->funcs.send_error) {
                     request->input_iface->funcs.send_error (request->input_iface, request, "request failed");
                 }
