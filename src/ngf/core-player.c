@@ -1,5 +1,7 @@
 #include "core-player.h"
 
+#include <string.h>
+
 #define N_KEY_PLAY_DATA "core.sync_data"
 #define LOG_CAT         "core: "
 
@@ -18,6 +20,7 @@ struct _NPlayData
     GList          *sinks_resync;
     NSinkInterface *master_sink;
     gboolean        failed;
+    gboolean  fallback;         /* Set to true when fallbacks are in use */
 };
 
 static int      n_core_sink_in_list             (GList *sinks, NSinkInterface *sink);
@@ -127,12 +130,28 @@ n_core_prepare_sinks (NCore *core, GList *sinks, NRequest *request)
     return TRUE;
 }
 
+static void
+n_translate_fallback (const char *key, const NValue *value, gpointer userdata)
+{
+    NProplist *props = (NProplist*) userdata;
+    gchar *new_key = NULL;
+
+    if (g_str_has_suffix (key, ".fallback")) {
+        new_key = g_strdup (key);
+        new_key[strlen (key) - strlen (".fallback")] = 0;
+        n_proplist_set (props, new_key, value);
+        g_free (new_key);
+    }
+}
+
 static gboolean
 n_core_request_done_cb (gpointer userdata)
 {
     NPlayData *play_data = (NPlayData*) userdata;
     NCore     *core      = play_data->core;
     NRequest  *request   = play_data->request;
+    const NProplist *old_props = NULL;
+    NProplist *new_props = NULL;
 
     /* all sinks have been either completed or the request failed. we will run
        a stop on each sink and then clear out the request. */
@@ -147,22 +166,45 @@ n_core_request_done_cb (gpointer userdata)
     g_list_free (play_data->sinks_prepared);
     g_list_free (play_data->sinks_preparing);
     g_list_free (play_data->all_sinks);
-    g_slice_free (NPlayData, play_data);
 
     /* send the reply to the input interface, if any. */
 
     if (play_data->failed) {
-        if (request->input_iface->funcs.send_error) {
-            request->input_iface->funcs.send_error (request->input_iface,
-                request, "request failed");
+        if (play_data->fallback) {
+            if (request->input_iface->funcs.send_error) {
+                request->input_iface->funcs.send_error (request->input_iface,
+                    request, "request failed");
+            }
+        } else {
+            N_DEBUG (LOG_CAT "Request failed, restarting with fallbacks");
+
+            old_props = n_request_get_properties (request);
+            new_props = n_proplist_copy (old_props);
+
+            n_proplist_foreach (n_request_get_properties (request), n_translate_fallback, new_props);
+
+            if (n_proplist_match_exact (new_props, old_props)) {
+                N_DEBUG (LOG_CAT "No fallbacks in the request");
+                if (request->input_iface->funcs.send_error) {
+                    request->input_iface->funcs.send_error (request->input_iface, request, "request failed");
+                }
+            } else {
+                n_request_set_properties (request, new_props);
+                old_props = NULL;
+                n_core_play_request (core, request, TRUE);
+                g_slice_free (NPlayData, play_data);
+
+                return FALSE;
+            }
         }
-    }
-    else {
+    } else {
         if (request->input_iface->funcs.send_reply) {
             request->input_iface->funcs.send_reply (request->input_iface,
                 request, 0);
         }
     }
+
+    g_slice_free (NPlayData, play_data);
 
     /* free the actual request */
     N_DEBUG (LOG_CAT "request '%s' done", request->name);
@@ -172,7 +214,7 @@ n_core_request_done_cb (gpointer userdata)
 }
 
 int
-n_core_play_request (NCore *core, NRequest *request)
+n_core_play_request (NCore *core, NRequest *request, gboolean fallback)
 {
     g_assert (core != NULL);
     g_assert (request != NULL);
@@ -197,6 +239,7 @@ n_core_play_request (NCore *core, NRequest *request)
     play_data = g_slice_new0 (NPlayData);
     play_data->core            = core;
     play_data->request         = request;
+    play_data->fallback     = fallback;
 
     n_request_store_data (request, N_KEY_PLAY_DATA, play_data);
 

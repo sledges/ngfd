@@ -16,7 +16,7 @@ n_input_interface_play_request (NInputInterface *iface, NRequest *request)
         return FALSE;
 
     request->input_iface = iface;
-    return n_core_play_request (iface->core, request);
+    return n_core_play_request (iface->core, request, FALSE);
 }
 
 int
