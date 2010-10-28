@@ -29,7 +29,7 @@ typedef struct _NProplist NProplist;
 typedef void (*NProplistFunc) (const char *key, const NValue *value, gpointer userdata);
 
 NProplist*  n_proplist_new         ();
-NProplist*  n_proplist_copy        (NProplist *source);
+NProplist*  n_proplist_copy        (const NProplist *source);
 NProplist*  n_proplist_copy_keys   (const NProplist *source, GList *keys);
 void        n_proplist_merge       (NProplist *target, const NProplist *source);
 void        n_proplist_merge_keys  (NProplist *target, const NProplist *source, GList *keys);
@@ -41,7 +41,7 @@ gboolean    n_proplist_is_empty    (const NProplist *proplist);
 gboolean    n_proplist_has_key     (const NProplist *proplist, const char *key);
 gboolean    n_proplist_match_exact (const NProplist *a, const NProplist *b);
 
-void        n_proplist_set         (NProplist *proplist, const char *key, NValue *value);
+void        n_proplist_set         (NProplist *proplist, const char *key, const NValue *value);
 NValue*     n_proplist_get         (const NProplist *proplist, const char *key);
 
 /* helpers */

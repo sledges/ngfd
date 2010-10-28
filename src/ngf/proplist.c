@@ -40,7 +40,7 @@ n_proplist_new ()
 }
 
 NProplist*
-n_proplist_copy (NProplist *source)
+n_proplist_copy (const NProplist *source)
 {
     NProplist *proplist = NULL;
 
@@ -183,12 +183,12 @@ n_proplist_unset (NProplist *proplist, const char *key)
 }
 
 void
-n_proplist_set (NProplist *proplist, const char *key, NValue *value)
+n_proplist_set (NProplist *proplist, const char *key, const NValue *value)
 {
     if (!proplist || !key || !value)
         return;
 
-    g_hash_table_replace (proplist->values, g_strdup (key), value);
+    g_hash_table_replace (proplist->values, g_strdup (key), (gpointer) value);
 }
 
 NValue*
