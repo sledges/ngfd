@@ -26,19 +26,19 @@ n_context_broadcast_change (NContext *context, const char *key,
     gchar              *old_str    = NULL;
     gchar              *new_str    = NULL;
 
+    old_str = n_value_to_string ((NValue*) old_value);
+    new_str = n_value_to_string ((NValue*) new_value);
+
+    N_DEBUG (LOG_CAT "broadcasting value change for '%s': %s -> %s", key,
+        old_str, new_str);
+
+    g_free (new_str);
+    g_free (old_str);
+
     for (iter = g_list_first (context->subscribers); iter; iter = g_list_next (iter)) {
         subscriber = (NContextSubscriber*) iter->data;
 
-        old_str = n_value_to_string ((NValue*) old_value);
-        new_str = n_value_to_string ((NValue*) new_value);
-
-        N_DEBUG (LOG_CAT "broadcasting value change for '%s': %s -> %s", key,
-            old_str, new_str);
-
-        g_free (new_str);
-        g_free (old_str);
-
-        if ((subscriber->key && g_str_equal (subscriber->key, key)) || !subscriber->key) {
+        if (!subscriber->key || (subscriber->key && g_str_equal (subscriber->key, key))) {
             subscriber->callback (context, key, old_value, new_value, subscriber->userdata);
         }
     }
