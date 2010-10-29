@@ -33,9 +33,7 @@
 #define PROFILE_KEY_SUFFIX      ".profile"
 
 #define KEY_VIBRATION_ENABLED   "vibrating.alert.enabled"
-#define SILENT_PROFILE          "silent"
-#define MEETING_PROFILE         "meeting"
-
+#define CURRENT_PROFILE_KEY     "profile.current_profile"
 #define TONE_SUFFIX             ".tone"
 #define VOLUME_SUFFIX           ".volume"
 #define SYSTEM_SUFFIX           ".sound.level"
@@ -66,6 +64,8 @@ static void          transform_properties_cb      (NHook *hook,
                                                    void *userdata);
 static ProfileEntry* parse_profile_entry          (const char *value);
 static void          free_entry                   (ProfileEntry *entry);
+static GList*        append_unique_key            (GList *keys,
+                                                   const char *key);
 static void          find_entries_within_event_cb (const char *key,
                                                    const NValue *value,
                                                    gpointer userdata);
@@ -197,6 +197,24 @@ free_entry (ProfileEntry *entry)
     g_free (entry);
 }
 
+static GList*
+append_unique_key (GList *keys, const char *key)
+{
+    g_assert (key != NULL);
+
+    GList *result = NULL;
+    GList *iter   = NULL;
+
+    for (iter = g_list_first (keys); iter; iter = g_list_next (iter)) {
+        if (g_str_equal ((gchar*) iter->data, key))
+            return keys;
+    }
+
+    N_DEBUG (LOG_CAT "new unique transform key '%s'", key);
+    result = g_list_append (keys, g_strdup (key));
+    return result;
+}
+
 static void
 find_entries_within_event_cb (const char *key, const NValue *value,
                               gpointer userdata)
@@ -226,7 +244,7 @@ find_entries_within_event_cb (const char *key, const NValue *value,
         N_DEBUG (LOG_CAT "new profile entry with key '%s', profile '%s' and target '%s'",
             entry->key, entry->profile, entry->target);
 
-        request_keys = g_list_append (request_keys, g_strdup (key));
+        request_keys = append_unique_key (request_keys, key);
     }
     else {
         free_entry (entry);
@@ -313,15 +331,12 @@ value_changed_cb (const char *profile,
     NContext   *context   = n_core_get_context (core);
     const char *current   = NULL;
 
-    N_DEBUG (LOG_CAT "value changed for key '%s' ('%s') to '%s'",
-        key, profile, value);
-
     update_context_value (context, profile, key, value);
 
     /* update current profile value if necessary */
 
     current = n_value_get_string ((NValue*) n_context_get_value (context,
-        "profile.current_profile"));
+        CURRENT_PROFILE_KEY));
     if (current && g_str_equal (current, profile))
         update_context_value (context, NULL, key, value);
 }
@@ -341,7 +356,7 @@ profile_changed_cb (const char *profile,
 
     value = n_value_new ();
     n_value_set_string (value, profile);
-    n_context_set_value (context, "profile.current_profile", value);
+    n_context_set_value (context, CURRENT_PROFILE_KEY, value);
     N_DEBUG (LOG_CAT "current profile changed to '%s'", profile);
 }
 
