@@ -9,18 +9,18 @@ typedef struct _NPlayData NPlayData;
 
 struct _NPlayData
 {
-    NCore         *core;
-    NRequest      *request;
-    guint          play_source_id;      /* source id for play */
-    guint          stop_source_id;      /* source id for stop */
-    GList         *all_sinks;           /* all sinks available for the request */
+    NCore          *core;
+    NRequest       *request;
+    guint           play_source_id;     /* source id for play */
+    guint           stop_source_id;     /* source id for stop */
+    GList          *all_sinks;          /* all sinks available for the request */
     GList          *sinks_preparing;    /* sinks not yet synchronized and still preparing */
     GList          *sinks_prepared;
     GList          *sinks_playing;      /* sinks currently playing */
     GList          *sinks_resync;
     NSinkInterface *master_sink;
     gboolean        failed;
-    gboolean  fallback;         /* Set to true when fallbacks are in use */
+    gboolean        fallback;           /* Set to true when fallbacks are in use */
 };
 
 static int      n_core_sink_in_list             (GList *sinks, NSinkInterface *sink);
@@ -162,6 +162,7 @@ n_core_request_done_cb (gpointer userdata)
     N_DEBUG (LOG_CAT "stopping all sinks for request '%s'", request->name);
     n_core_stop_sinks (play_data->all_sinks, request);
 
+    g_list_free (play_data->sinks_resync);
     g_list_free (play_data->sinks_playing);
     g_list_free (play_data->sinks_prepared);
     g_list_free (play_data->sinks_preparing);
