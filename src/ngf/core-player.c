@@ -18,6 +18,7 @@ struct _NPlayData
     GList          *sinks_prepared;
     GList          *sinks_playing;      /* sinks currently playing */
     GList          *sinks_resync;
+    GList          *stop_list;
     NSinkInterface *master_sink;
     gboolean        failed;
     gboolean        fallback;           /* Set to true when fallbacks are in use */
@@ -28,7 +29,7 @@ static int      n_core_sink_priority_cmp        (gconstpointer in_a, gconstpoint
 static gboolean n_core_sink_synchronize_done_cb (gpointer userdata);
 static gboolean n_core_request_done_cb          (gpointer userdata);
 static void     n_core_stop_sinks               (GList *sinks, NRequest *request);
-static int      n_core_prepare_sinks            (NCore *core, GList *sinks, NRequest *request);
+static int      n_core_prepare_sinks            (GList *sinks, NRequest *request);
 
 
 
@@ -79,6 +80,11 @@ n_core_sink_synchronize_done_cb (gpointer userdata)
             return FALSE;
         }
 
+        if (!sink->funcs.prepare) {
+            if (n_core_sink_in_list (play_data->stop_list, sink))
+                play_data->stop_list = g_list_append (play_data->stop_list, sink);
+        }
+
         play_data->sinks_playing = g_list_append (play_data->sinks_playing,
             sink);
     }
@@ -102,19 +108,21 @@ n_core_stop_sinks (GList *sinks, NRequest *request)
 }
 
 static int
-n_core_prepare_sinks (NCore *core, GList *sinks, NRequest *request)
+n_core_prepare_sinks (GList *sinks, NRequest *request)
 {
-    g_assert (core != NULL);
+    GList          *iter      = NULL;
+    NSinkInterface *sink      = NULL;
+    NPlayData      *play_data = NULL;
 
-    GList          *iter = NULL;
-    NSinkInterface *sink = NULL;
+    play_data = (NPlayData*) n_request_get_data (request, N_KEY_PLAY_DATA);
+    g_assert (play_data != NULL);
 
     for (iter = g_list_first (sinks); iter; iter = g_list_next (iter)) {
         sink = (NSinkInterface*) iter->data;
 
         if (!sink->funcs.prepare) {
             N_DEBUG (LOG_CAT "sink has no prepare, synchronizing immediately");
-            n_core_synchronize_sink (core, sink, request);
+            n_core_synchronize_sink (play_data->core, sink, request);
             continue;
         }
 
@@ -122,9 +130,12 @@ n_core_prepare_sinks (NCore *core, GList *sinks, NRequest *request)
             N_WARNING (LOG_CAT "sink '%s' failed to prepare request '%s'",
                 sink->name, request->name);
 
-            n_core_fail_sink (core, sink, request);
+            n_core_fail_sink (play_data->core, sink, request);
             return FALSE;
         }
+
+        if (!n_core_sink_in_list (play_data->stop_list, sink))
+            play_data->stop_list = g_list_append (play_data->stop_list, sink);
     }
 
     return TRUE;
@@ -160,8 +171,9 @@ n_core_request_done_cb (gpointer userdata)
     core->requests = g_list_remove (core->requests, request);
 
     N_DEBUG (LOG_CAT "stopping all sinks for request '%s'", request->name);
-    n_core_stop_sinks (play_data->all_sinks, request);
+    n_core_stop_sinks (play_data->stop_list, request);
 
+    g_list_free (play_data->stop_list);
     g_list_free (play_data->sinks_resync);
     g_list_free (play_data->sinks_playing);
     g_list_free (play_data->sinks_prepared);
@@ -312,7 +324,7 @@ n_core_play_request (NCore *core, NRequest *request, gboolean fallback)
        function defined within the sink, then it is synchronized immediately. */
 
     core->requests = g_list_append (core->requests, request);
-    return n_core_prepare_sinks (core, all_sinks, request);
+    return n_core_prepare_sinks (all_sinks, request);
 
 fail_request:
     play_data->failed         = TRUE;
@@ -458,7 +470,7 @@ n_core_resynchronize_sinks (NCore *core, NSinkInterface *sink,
        for them. */
 
     play_data->sinks_preparing = g_list_copy (resync_list);
-    (void) n_core_prepare_sinks (core, resync_list, request);
+    (void) n_core_prepare_sinks (resync_list, request);
 
     /* clear the list copy. */
 
