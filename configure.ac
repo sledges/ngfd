@@ -197,6 +197,7 @@ src/plugins/gst/Makefile
 data/Makefile
 data/events.d/Makefile
 data/plugins.d/Makefile
+data/ngf-plugin.pc
 ])
 
 AC_OUTPUT

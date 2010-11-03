@@ -6,3 +6,5 @@ dbusdir       = $(datadir)/dbus-1/services
 dbus_DATA     = com.nokia.NonGraphicFeedback1.Backend.service
 dbusconfdir   = $(sysconfdir)/dbus-1/system.d
 dbusconf_DATA = ngfd.conf
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = ngf-plugin.pc
