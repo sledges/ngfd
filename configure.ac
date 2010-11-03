@@ -181,6 +181,8 @@ AC_CONFIG_FILES([
 Makefile
 src/Makefile
 src/ngf/Makefile
+src/include/Makefile
+src/include/ngf/Makefile
 src/plugins/Makefile
 src/plugins/fake/Makefile
 src/plugins/dbus/Makefile

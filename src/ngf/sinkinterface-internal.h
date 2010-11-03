@@ -22,7 +22,8 @@
 #ifndef N_SINK_INTERFACE_INTERNAL_H
 #define N_SINK_INTERFACE_INTERNAL_H
 
-#include "sinkinterface.h"
+#include <ngf/sinkinterface.h>
+
 #include "core-internal.h"
 
 /* typedef struct _NSinkInterface NSinkInterface; */

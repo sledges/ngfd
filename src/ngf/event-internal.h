@@ -24,9 +24,9 @@
 
 /* typedef struct _NEvent NEvent; */
 
-#include "event.h"
+#include <ngf/event.h>
 
-#include "proplist.h"
+#include <ngf/proplist.h>
 #include "core-internal.h"
 
 struct _NEvent

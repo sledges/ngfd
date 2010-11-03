@@ -22,7 +22,7 @@
 #ifndef N_CONTEXT_INTERNAL_H
 #define N_CONTEXT_INTERNAL_H
 
-#include "context.h"
+#include <ngf/context.h>
 
 NContext* n_context_new  ();
 void      n_context_free (NContext *context);

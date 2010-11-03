@@ -22,7 +22,7 @@
 #ifndef N_INPUT_INTERFACE_INTERNAL_H
 #define N_INPUT_INTERFACE_INTERNAL_H
 
-#include "inputinterface.h"
+#include <ngf/inputinterface.h>
 
 #include "request-internal.h"
 #include "core-internal.h"

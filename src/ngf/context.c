@@ -1,6 +1,7 @@
-#include "log.h"
+#include <ngf/log.h>
+#include <ngf/proplist.h>
+
 #include "context-internal.h"
-#include "proplist.h"
 
 #define LOG_CAT "context: "
 

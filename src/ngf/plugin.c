@@ -19,8 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#include "log.h"
-#include "proplist.h"
+#include <ngf/log.h>
+#include <ngf/proplist.h>
 #include "plugin-internal.h"
 
 #define LOG_CAT "plugin: "

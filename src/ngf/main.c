@@ -22,7 +22,7 @@
 #include <glib.h>
 #include <getopt.h>
 
-#include "log.h"
+#include <ngf/log.h>
 #include "core-internal.h"
 
 typedef struct _AppData

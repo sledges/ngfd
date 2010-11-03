@@ -25,7 +25,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "log.h"
+#include <ngf/log.h>
 
 #define LOG_CAT "log: "
 

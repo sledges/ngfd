@@ -1,5 +1,5 @@
-#include "log.h"
-#include "proplist.h"
+#include <ngf/log.h>
+#include <ngf/proplist.h>
 
 #define LOG_CAT "proplist: "
 

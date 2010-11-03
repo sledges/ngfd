@@ -1,4 +1,4 @@
-#include "hook.h"
+#include <ngf/hook.h>
 #include <glib.h>
 #include <string.h>
 

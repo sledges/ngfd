@@ -20,7 +20,7 @@
  */
 
 #include <glib.h>
-#include "log.h"
+#include <ngf/log.h>
 #include "event-internal.h"
 
 #define LOG_CAT "event: "

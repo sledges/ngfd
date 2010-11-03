@@ -24,8 +24,8 @@
 
 #include <glib.h>
 
-#include "log.h"
-#include "core.h"
+#include <ngf/log.h>
+#include <ngf/core.h>
 #include "core-player.h"
 #include "plugin-internal.h"
 #include "sinkinterface-internal.h"

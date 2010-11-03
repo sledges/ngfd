@@ -22,9 +22,9 @@
 #ifndef N_REQUEST_INTERNAL_H
 #define N_REQUEST_INTERNAL_H
 
-#include "request.h"
+#include <ngf/request.h>
 
-#include "proplist.h"
+#include <ngf/proplist.h>
 #include "core-internal.h"
 #include "event-internal.h"
 #include "inputinterface-internal.h"

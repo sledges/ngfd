@@ -1,6 +1,6 @@
 bin_PROGRAMS = ngfd
 
-ngfd_CFLAGS = $(NGFD_CFLAGS) -I$(top_srcdir)/src
+ngfd_CFLAGS = $(NGFD_CFLAGS) -I$(top_srcdir)/src/include
 ngfd_LDFLAGS = $(NGFD_LIBS) -lrt
 
 ngfd_SOURCES =                \

@@ -1,6 +1,6 @@
 #include <string.h>
-#include "log.h"
-#include "value.h"
+#include <ngf/log.h>
+#include <ngf/value.h>
 
 struct _NValue
 {

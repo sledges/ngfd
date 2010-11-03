@@ -25,7 +25,7 @@
 #include <sys/types.h>
 #include <dirent.h>
 
-#include "log.h"
+#include <ngf/log.h>
 #include "core-internal.h"
 #include "event-internal.h"
 #include "request-internal.h"

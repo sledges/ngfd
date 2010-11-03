@@ -25,8 +25,8 @@
 #include <glib.h>
 #include <gmodule.h>
 
-#include "plugin.h"
-#include "proplist.h"
+#include <ngf/plugin.h>
+#include <ngf/proplist.h>
 #include "core-internal.h"
 
 /* typedef struct _NPlugin NPlugin; */

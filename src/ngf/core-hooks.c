@@ -1,5 +1,4 @@
-#include "log.h"
-#include "core-hooks.h"
+#include <ngf/core-hooks.h>
 
 const char*
 n_core_hook_to_string (NCoreHook hook)
