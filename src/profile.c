@@ -22,6 +22,9 @@
 #include <stdlib.h>
 #include <profiled/libprofile.h>
 
+#include <sys/types.h>
+#include <dirent.h>
+
 #include "log.h"
 #include "volume-controller.h"
 #include "vibrator.h"
@@ -37,6 +40,62 @@
 #define VOLUME_SUFFIX           ".volume"
 #define SYSTEM_SUFFIX           ".sound.level"
 #define PATTERN_SUFFIX          ".pattern"
+#define MAX_DEPTH               3
+
+static gchar*
+find_file_from_path (const char *start_path,
+                     const char *filename,
+                     int current_depth)
+{
+    gchar *result_path = NULL;
+    gchar *tmp         = NULL;
+
+    DIR *parent_dir;
+    struct dirent *walk;
+
+    if (current_depth > MAX_DEPTH)
+        return NULL;
+
+    if (!start_path || !filename)
+        return NULL;
+
+    tmp = g_build_filename (start_path, filename, NULL);
+    if (g_file_test (tmp, G_FILE_TEST_EXISTS))
+        return tmp;
+    g_free (tmp);
+
+    parent_dir = opendir (start_path);
+    while ((walk = readdir (parent_dir)) != NULL) {
+        if (walk->d_type & DT_DIR) {
+            if (g_str_equal (walk->d_name, ".") || g_str_equal (walk->d_name, ".."))
+                continue;
+
+            tmp = g_build_filename (start_path, walk->d_name, NULL);
+            result_path = find_file_from_path (tmp, filename, current_depth + 1);
+            g_free (tmp);
+
+            if (result_path)
+                break;
+        }
+    }
+
+    closedir (parent_dir);
+
+    return result_path;
+}
+
+static gchar*
+get_absolute_file_path (const char *search_path,
+                        const char *value)
+{
+    if (search_path == NULL || value == NULL)
+        return g_strdup (value);
+
+    if (g_file_test (value, G_FILE_TEST_EXISTS))
+        return g_strdup (value);
+
+    return find_file_from_path (search_path, value, 0);
+}
 
 static void
 resolve_sound_path (Context    *context,
@@ -67,7 +126,7 @@ resolve_sound_path (Context    *context,
 
         if ((!s->profile && g_str_equal (context->active_profile, profile)) || (s->profile && g_str_equal (s->profile, profile))) {
             g_free (s->filename);
-            s->filename = g_strdup (value);
+            s->filename = get_absolute_file_path (context->search_path, value);
             break;
         }
     }
@@ -142,7 +201,7 @@ resolve_vibration (Context    *context,
             g_free (p->filename);
             g_free (p->data);
 
-            p->filename = g_strdup (value);
+            p->filename = get_absolute_file_path (context->search_path, value);
             if ((p->data = vibrator_load (p->filename)) == NULL)
                 NGF_LOG_WARNING ("%s >> failed to load vibrator pattern data: %s", __FUNCTION__, p->filename);
 
@@ -245,7 +304,8 @@ profile_resolve (Context *context)
                 continue;
 
             g_free (s->filename);
-            s->filename = profile_get_value (s->profile, s->key);
+            s->filename = get_absolute_file_path (context->search_path,
+                profile_get_value (s->profile, s->key));
         }
     }
 
@@ -273,7 +333,8 @@ profile_resolve (Context *context)
             g_free (pattern->filename);
             g_free (pattern->data);
 
-            pattern->filename = profile_get_value (pattern->profile, pattern->key);
+            pattern->filename = get_absolute_file_path (context->search_path,
+                profile_get_value (pattern->profile, pattern->key));
             pattern->pattern  = 0;
 
             if ((pattern->data = vibrator_load (pattern->filename)) == NULL)

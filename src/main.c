@@ -220,6 +220,7 @@ context_destroy (Context *context)
     sound_path_array_free        (context->sounds);
     vibration_pattern_array_free (context->patterns);
     volume_array_free            (context->volumes);
+    g_free                       (context->search_path);
     g_free                       (context->patterns_path);
 
     g_free (context);
