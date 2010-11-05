@@ -34,7 +34,7 @@
 #define ADD_ENTRY_METHOD    "AddEntry"
 #define DISCONNECTED_SIG    "Disconnected"
 #define RETRY_TIMEOUT        2
-#define VOLUME_SCALE_VALUE   50000 /* 65536 */
+#define VOLUME_SCALE_VALUE   65536
 
 static gboolean          retry_timeout_cb           (gpointer userdata);
 static DBusHandlerResult filter_cb                  (DBusConnection *connection, DBusMessage *msg, void *data);
