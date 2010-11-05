@@ -343,6 +343,12 @@ n_core_pause_request (NCore *core, NRequest *request)
     GList          *iter      = NULL;
     NSinkInterface *sink      = NULL;
 
+    if (request->paused) {
+        N_DEBUG (LOG_CAT "request '%s' is already paused, no action.",
+            request->name);
+        return TRUE;
+    }
+
     play_data = (NPlayData*) n_request_get_data (request, N_KEY_PLAY_DATA);
     g_assert (play_data != NULL);
 
@@ -355,6 +361,39 @@ n_core_pause_request (NCore *core, NRequest *request)
         }
     }
 
+    request->paused = TRUE;
+    return TRUE;
+}
+
+int
+n_core_resume_request (NCore *core, NRequest *request)
+{
+    g_assert (core != NULL);
+    g_assert (request != NULL);
+
+    NPlayData      *play_data = NULL;
+    GList          *iter      = NULL;
+    NSinkInterface *sink      = NULL;
+
+    if (!request->paused) {
+        N_DEBUG (LOG_CAT "request '%s' is not paused, no action.",
+            request->name);
+        return TRUE;
+    }
+
+    play_data = (NPlayData*) n_request_get_data (request, N_KEY_PLAY_DATA);
+    g_assert (play_data != NULL);
+
+    for (iter = g_list_first (play_data->all_sinks); iter; iter = g_list_next (iter)) {
+        sink = (NSinkInterface*) iter->data;
+
+        if (sink->funcs.play && !sink->funcs.play (sink, request)) {
+            N_WARNING (LOG_CAT "sink '%s' failed to resume (play) request '%s'",
+                sink->name, request->name);
+        }
+    }
+
+    request->paused = FALSE;
     return TRUE;
 }
 

@@ -28,6 +28,7 @@
 
 int  n_core_play_request     (NCore *core, NRequest *request, gboolean fallback);
 int  n_core_pause_request    (NCore *core, NRequest *request);
+int  n_core_resume_request   (NCore *core, NRequest *request);
 void n_core_stop_request     (NCore *core, NRequest *request);
 
 void n_core_set_resync_on_master (NCore *core, NSinkInterface *sink, NRequest *request);

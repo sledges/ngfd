@@ -113,3 +113,13 @@ n_request_get_data (NRequest *request, const char *key)
 
     return n_proplist_get_pointer (request->properties, key);
 }
+
+int
+n_request_is_paused (NRequest *request)
+{
+    if (!request)
+        return FALSE;
+
+    return request->paused;
+}
+

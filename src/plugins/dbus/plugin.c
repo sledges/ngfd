@@ -270,11 +270,16 @@ dbusif_pause_handler (DBusConnection *connection, DBusMessage *msg,
         return DBUS_HANDLER_RESULT_HANDLED;
     }
 
-    N_INFO (LOG_CAT ">> pause received for id '%d'", policy_id);
+    N_INFO (LOG_CAT ">> %s received for id '%d'", pause ? "pause" : "resume",
+        policy_id);
 
     request = dbusif_lookup_request (iface, policy_id);
-    if (request)
-        (void) n_input_interface_pause_request (iface, request);
+    if (request) {
+        if (pause)
+            (void) n_input_interface_pause_request (iface, request);
+        else
+            (void) n_input_interface_play_request (iface, request);
+    }
 
     reply = dbus_message_new_method_return (msg);
     if (reply) {

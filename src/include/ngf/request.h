@@ -35,6 +35,7 @@ void             n_request_set_properties (NRequest *request, NProplist *propert
 const NProplist* n_request_get_properties (NRequest *request);
 void             n_request_store_data     (NRequest *request, const char *key, void *data);
 void*            n_request_get_data       (NRequest *request, const char *key);
+int              n_request_is_paused      (NRequest *request);
 
 NRequest*        n_request_new_with_event_and_properties (const char *event, const NProplist *properties);
 

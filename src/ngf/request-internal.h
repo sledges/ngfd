@@ -23,8 +23,8 @@
 #define N_REQUEST_INTERNAL_H
 
 #include <ngf/request.h>
-
 #include <ngf/proplist.h>
+
 #include "core-internal.h"
 #include "event-internal.h"
 #include "inputinterface-internal.h"
@@ -40,6 +40,7 @@ struct _NRequest
     NEvent          *event;
     NCore           *core;
     NInputInterface *input_iface;
+    gboolean         paused;
 };
 
 NRequest* n_request_new  ();
