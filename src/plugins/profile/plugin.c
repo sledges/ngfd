@@ -25,6 +25,9 @@
 #include <profiled/libprofile.h>
 #include <stdlib.h>
 
+#include <sys/types.h>
+#include <dirent.h>
+
 #include <ngf/plugin.h>
 #include <ngf/event.h>
 #include <ngf/context.h>
@@ -38,6 +41,7 @@
 #define VOLUME_SUFFIX           ".volume"
 #define SYSTEM_SUFFIX           ".sound.level"
 #define PATTERN_SUFFIX          ".pattern"
+#define MAX_DEPTH               3
 
 #define CLAMP_VALUE(in_v,in_min,in_max) \
     ((in_v) <= (in_min) ? (in_min) : ((in_v) >= (in_max) ? (in_max) : (in_v)))
@@ -58,6 +62,7 @@ static guint       num_system_sound_levels = 0;
 static int        *system_sound_levels     = NULL;
 static GList      *request_keys            = NULL;
 static GHashTable *profile_entries         = NULL;
+static gchar      *file_search_path        = NULL;
 
 static void          transform_properties_cb      (NHook *hook,
                                                    void *data,
@@ -79,6 +84,10 @@ static void          profile_changed_cb           (const char *profile,
                                                    void *userdata);
 static void          query_current_profile        (NCore *core);
 static void          query_current_values         (NCore *core);
+static gchar*        find_file_from_path          (const char *start_path,
+                                                   const char *filename,
+                                                   int current_depth);
+static gchar*        get_absolute_tone_path       (const char *value);
 static gchar*        construct_context_key        (const char *profile,
                                                    const char *key);
 static void          update_context_value         (NContext *context,
@@ -281,6 +290,59 @@ profile_plugin_reconnect (NCore *core, DBusConnection *session_bus)
 }
 
 static gchar*
+find_file_from_path (const char *start_path, const char *filename,
+                     int current_depth)
+{
+    gchar *result_path = NULL;
+    gchar *tmp         = NULL;
+
+    DIR *parent_dir;
+    struct dirent *walk;
+
+    if (current_depth > MAX_DEPTH)
+        return NULL;
+
+    if (!start_path || !filename)
+        return NULL;
+
+    tmp = g_build_filename (start_path, filename, NULL);
+    if (g_file_test (tmp, G_FILE_TEST_EXISTS))
+        return tmp;
+    g_free (tmp);
+
+    parent_dir = opendir (start_path);
+    while ((walk = readdir (parent_dir)) != NULL) {
+        if (walk->d_type & DT_DIR) {
+            if (g_str_equal (walk->d_name, ".") || g_str_equal (walk->d_name, ".."))
+                continue;
+
+            tmp = g_build_filename (start_path, walk->d_name, NULL);
+            result_path = find_file_from_path (tmp, filename, current_depth + 1);
+            g_free (tmp);
+
+            if (result_path)
+                break;
+        }
+    }
+
+    closedir (parent_dir);
+
+    return result_path;
+}
+
+static gchar*
+get_absolute_tone_path (const char *value)
+{
+    if (!file_search_path || !value)
+        return g_strdup (value);
+
+    if (g_file_test (value, G_FILE_TEST_EXISTS))
+        return g_strdup (value);
+
+    return find_file_from_path (file_search_path, value, 0);
+}
+
+static gchar*
 construct_context_key (const char *profile, const char *key)
 {
     const char *profile_str = NULL;
@@ -295,11 +357,18 @@ update_context_value (NContext *context, const char *profile, const char *key,
     gchar  *context_key = NULL;
     NValue *context_val = NULL;
     gint    level       = 0;
+    gchar  *new_val     = NULL;
 
     context_key = construct_context_key (profile, key);
     context_val = n_value_new ();
 
-    if (g_str_has_suffix (key, VOLUME_SUFFIX)) {
+    if (g_str_has_suffix (key, TONE_SUFFIX) ||
+        g_str_has_suffix (key, PATTERN_SUFFIX)) {
+        new_val = get_absolute_tone_path (value);
+        n_value_set_string (context_val, new_val);
+        g_free (new_val);
+    }
+    else if (g_str_has_suffix (key, VOLUME_SUFFIX)) {
         n_value_set_int (context_val, profile_parse_int (value));
     }
     else if (g_str_has_suffix (key, SYSTEM_SUFFIX)) {
@@ -473,11 +542,15 @@ N_PLUGIN_LOAD (plugin)
     (void) n_core_connect (core, N_CORE_HOOK_TRANSFORM_PROPERTIES,
         0, transform_properties_cb, core);
 
-    /* query the system sound volume levels */
+    /* query the system sound volume levels and file search
+       path. */
 
     params = (NProplist*) n_plugin_get_params (plugin);
+
     setup_system_sound_levels (n_proplist_get (params,
         "system-sound-levels"));
+
+    file_search_path = g_strdup (n_proplist_get_string (params, "search-path"));
 
     /* setup the profile client */
 
@@ -502,6 +575,7 @@ N_PLUGIN_UNLOAD (plugin)
     session_shutdown     ();
     profile_tracker_quit ();
 
+    g_free               (file_search_path);
     g_free               (system_sound_levels);
     g_hash_table_destroy (profile_entries);
     g_list_foreach       (request_keys, (GFunc) g_free, NULL);
