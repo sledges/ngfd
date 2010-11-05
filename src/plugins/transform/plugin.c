@@ -78,6 +78,7 @@ new_request_cb (NHook *hook, void *data, void *userdata)
     }
 
     n_request_set_properties (transform->request, new_props);
+    n_proplist_free (new_props);
 }
 
 static int

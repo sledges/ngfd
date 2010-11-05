@@ -658,6 +658,8 @@ n_core_parse_keytypes (NCore *core, GKeyFile *keyfile)
         g_hash_table_replace (core->key_types, g_strdup (*key), (gpointer) key_type);
         g_free (value);
     }
+
+    g_strfreev (conf_keys);
 }
 
 static void
