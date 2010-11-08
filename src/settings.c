@@ -187,7 +187,7 @@ _parse_general (SettingsData *data, GKeyFile *k)
 
     item = split;
 
-    for (i=0;i<3;i++) {
+    for (i=0;i<4;i++) {
         if (*item == NULL) {
             g_strfreev (split);
             g_free (value);

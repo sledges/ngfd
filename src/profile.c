@@ -161,8 +161,11 @@ resolve_volume (Context    *context,
 
         if ((!s->profile && g_str_equal (context->active_profile, profile)) || (s->profile && g_str_equal (s->profile, profile))) {
             s->level = profile_parse_int (value);
-            if (g_str_has_suffix (key, SYSTEM_SUFFIX) && s->level < 3)
+            if (g_str_has_suffix (key, SYSTEM_SUFFIX)) {
+                s->level = s->level >= 4 ? 3 : s->level;
+                s->level = s->level < 0 ? 0 : s->level;
                 s->level = context->system_volume[s->level];
+            }
 
             volume_controller_update (context, s);
             break;

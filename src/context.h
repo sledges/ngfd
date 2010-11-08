@@ -63,7 +63,7 @@ struct _Context
 
     Volume           **volumes;             /* all volumes defined in the configuration, NULL terminated */
     guint              num_volumes;
-    guint              system_volume[3];
+    guint              system_volume[4];
 
     VibrationPattern **patterns;            /* NULL terminated array of all vibration patterns defined in the configuration */
     guint              num_patterns;
