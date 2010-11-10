@@ -204,7 +204,8 @@ n_core_request_done_cb (gpointer userdata)
                 }
             } else {
                 n_request_set_properties (request, new_props);
-                old_props = NULL;
+                n_proplist_free (new_props);
+
                 n_core_play_request (core, request, TRUE);
                 g_slice_free (NPlayData, play_data);
 
