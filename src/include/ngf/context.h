@@ -22,22 +22,58 @@
 #ifndef N_CONTEXT_H
 #define N_CONTEXT_H
 
+/** Internal context structure. */
 typedef struct _NContext NContext;
 
 #include <ngf/value.h>
 
+/** Context value change callback function */
 typedef void (*NContextValueChangeFunc) (NContext *context,
                                          const char *key,
                                          const NValue *old_value,
                                          const NValue *new_value,
                                          void *userdata);
 
+/**
+ * Change or add key/value pair to context.
+ *
+ * @param context NContext structure.
+ * @param key Key.
+ * @param value Values as NValue type.
+ */
 void          n_context_set_value                (NContext *context, const char *key,
                                                   NValue *value);
+
+/**
+ * Get value by key from context.
+ *
+ * @param context NContext structure.
+ * @param key Key.
+ * @return Value as NValue or NULL if no value associated with key is found.
+ */
 const NValue* n_context_get_value                (NContext *context, const char *key);
+
+/**
+ * Subscribe callback function to key in context structure
+ *
+ * @param context NContext structure.
+ * @param key Key.
+ * @param callback Callback function.
+ * @param userdata Userdata.
+ * @return TRUE is successful.
+ * @see NContextValueChangeFunc
+ */
 int           n_context_subscribe_value_change   (NContext *context, const char *key,
                                                   NContextValueChangeFunc callback,
                                                   void *userdata);
+
+/**
+ * Unsubscribe value change callback
+ *
+ * @param context NContext structure.
+ * @param key Key.
+ * @param callback Callback function, @see NContextValueChangeFunc
+ */
 void          n_context_unsubscribe_value_change (NContext *context, const char *key,
                                                   NContextValueChangeFunc callback);
 

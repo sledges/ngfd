@@ -25,12 +25,6 @@ n_hook_init (NHook *hook)
     memset (hook, 0, sizeof (NHook));
 }
 
-void
-n_hook_clear (NHook *hook)
-{
-    (void) hook;
-}
-
 static int
 n_hook_sort_slot_cb (gconstpointer in_a, gconstpointer in_b)
 {

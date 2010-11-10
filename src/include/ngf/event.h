@@ -22,11 +22,25 @@
 #ifndef N_EVENT_H
 #define N_EVENT_H
 
+/** Internal event structure. */
 typedef struct _NEvent NEvent;
 
 #include <ngf/proplist.h>
 
+/**
+ * Get event name
+ *
+ * @param event Event structure.
+ * @return Name of the event.
+ */
 const char*      n_event_get_name       (NEvent *event);
+
+/**
+ * Get properties associated to event
+ *
+ * @param event Event structure.
+ * @return Property list.
+ */
 const NProplist* n_event_get_properties (NEvent *event);
 
 #endif /* N_EVENT_H */

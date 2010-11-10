@@ -26,34 +26,74 @@
 
 typedef enum _NLogTarget
 {
+    /** Suppress logging */
     N_LOG_TARGET_NONE = 0,
+    
+    /** Direct logging to stdout */
     N_LOG_TARGET_STDOUT,
+    
+    /** Direct logging to syslog */
     N_LOG_TARGET_SYSLOG
 } NLogTarget;
 
+/** Logging levels. Selected level also includes all messages from higher levels */
 typedef enum _NLogLevel
 {
+    /** Function enter messages */
     N_LOG_LEVEL_ENTER   = 0,
+    /** Debug messages */
     N_LOG_LEVEL_DEBUG   = 1,
+    /** Info messages */
     N_LOG_LEVEL_INFO    = 2,
+    /** Warning messages */
     N_LOG_LEVEL_WARNING = 3,
+    /** Error messages */
     N_LOG_LEVEL_ERROR   = 4,
+    /** Suppress logging */
     N_LOG_LEVEL_NONE    = 5
 } NLogLevel;
 
+/** Initialize logging with selected level
+ * @param level Logging level
+ */
 void n_log_initialize (NLogLevel level);
+
+/** Change logging level
+ * @param level Logging level
+ */
 void n_log_set_level  (NLogLevel level);
+
+/** Select log target
+ * @param target Log target
+ */
 void n_log_set_target (NLogTarget target);
+
+/** Log message. Use convenience functions to send actual messages.
+ * @param level Logging level
+ * @param function Function to which the message is related to
+ * @param line Code line where log message was sent
+ * @param fmt printf style formatting string
+ * @param ... Variables
+ */
 void n_log_message    (NLogLevel level, const char *function, int line, const char *fmt, ...);
 
+/** Log function enter message */
 #define N_ENTER(...) \
     { n_log_message (N_LOG_LEVEL_ENTER, (const char*) __FUNCTION__, __LINE__, __VA_ARGS__); }
+    
+/** Log debug message */
 #define N_DEBUG(...) \
     { n_log_message (N_LOG_LEVEL_DEBUG, (const char*) __FUNCTION__, __LINE__, __VA_ARGS__); }
+
+/** Log info message */
 #define N_INFO(...) \
     { n_log_message (N_LOG_LEVEL_INFO, (const char*) __FUNCTION__, __LINE__, __VA_ARGS__); }
+
+/** Log warning message */
 #define N_WARNING(...) \
     { n_log_message (N_LOG_LEVEL_WARNING, (const char*) __FUNCTION__, __LINE__, __VA_ARGS__); }
+
+/** Log error message */
 #define N_ERROR(...) \
     { n_log_message (N_LOG_LEVEL_ERROR, (const char*) __FUNCTION__, __LINE__, __VA_ARGS__); }
 
