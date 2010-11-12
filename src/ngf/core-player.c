@@ -45,6 +45,8 @@ struct _NPlayData
     gboolean        fallback;           /* Set to true when fallbacks are in use */
 };
 
+static void     n_core_send_reply               (NRequest *request, int code);
+static void     n_core_send_error               (NRequest *request, const char *err_msg);
 static int      n_core_sink_in_list             (GList *sinks, NSinkInterface *sink);
 static int      n_core_sink_priority_cmp        (gconstpointer in_a, gconstpointer in_b);
 static gboolean n_core_sink_synchronize_done_cb (gpointer userdata);
@@ -53,6 +55,30 @@ static void     n_core_stop_sinks               (GList *sinks, NRequest *request
 static int      n_core_prepare_sinks            (GList *sinks, NRequest *request);
 
 
+
+static void
+n_core_send_reply (NRequest *request, int code)
+{
+    g_assert (request != NULL);
+    g_assert (request->input_iface != NULL);
+
+    if (request->input_iface->funcs.send_reply) {
+        request->input_iface->funcs.send_reply (request->input_iface,
+            request, code);
+    }
+}
+
+static void
+n_core_send_error (NRequest *request, const char *err_msg)
+{
+    g_assert (request != NULL);
+    g_assert (request->input_iface != NULL);
+
+    if (request->input_iface->funcs.send_error) {
+        request->input_iface->funcs.send_error (request->input_iface,
+            request, err_msg);
+    }
+}
 
 static int
 n_core_sink_in_list (GList *sinks, NSinkInterface *sink)
@@ -205,10 +231,7 @@ n_core_request_done_cb (gpointer userdata)
 
     if (play_data->failed) {
         if (play_data->fallback) {
-            if (request->input_iface->funcs.send_error) {
-                request->input_iface->funcs.send_error (request->input_iface,
-                    request, "request failed");
-            }
+            n_core_send_error (request, "fallback failed.");
         } else {
             N_DEBUG (LOG_CAT "Request failed, restarting with fallbacks");
 
@@ -220,9 +243,7 @@ n_core_request_done_cb (gpointer userdata)
             if (n_proplist_match_exact (new_props, old_props)) {
                 N_DEBUG (LOG_CAT "No fallbacks in the request");
                 n_proplist_free (new_props);
-                if (request->input_iface->funcs.send_error) {
-                    request->input_iface->funcs.send_error (request->input_iface, request, "request failed");
-                }
+                n_core_send_error (request, "no fallbacks, request failed.");
             } else {
                 n_request_set_properties (request, new_props);
                 n_proplist_free (new_props);
@@ -234,10 +255,7 @@ n_core_request_done_cb (gpointer userdata)
             }
         }
     } else {
-        if (request->input_iface->funcs.send_reply) {
-            request->input_iface->funcs.send_reply (request->input_iface,
-                request, 0);
-        }
+        n_core_send_reply (request, 0);
     }
 
     g_slice_free (NPlayData, play_data);
