@@ -62,6 +62,11 @@ n_request_free (NRequest *request)
         request->properties = NULL;
     }
 
+    if (request->original_properties) {
+        n_proplist_free (request->original_properties);
+        request->original_properties = NULL;
+    }
+
     g_free (request->name);
     request->name = NULL;
 
@@ -120,6 +125,15 @@ n_request_is_paused (NRequest *request)
     if (!request)
         return FALSE;
 
-    return request->paused;
+    return request->is_paused;
+}
+
+int
+n_request_is_fallback (NRequest *request)
+{
+    if (!request)
+        return FALSE;
+
+    return request->is_fallback;
 }
 

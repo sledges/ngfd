@@ -35,12 +35,14 @@ struct _NRequest
 {
     gchar           *name;          /* request name */
     NProplist       *properties;    /* request custom properties */
+    NProplist       *original_properties;
 
     guint            id;            /* unique request identifier */
     NEvent          *event;
     NCore           *core;
     NInputInterface *input_iface;
-    gboolean         paused;
+    gboolean         is_paused;
+    gboolean         is_fallback;
 };
 
 NRequest* n_request_new  ();

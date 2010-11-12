@@ -33,7 +33,7 @@
 #include <ngf/context.h>
 
 #define LOG_CAT                 "profile: "
-#define PROFILE_KEY_SUFFIX      ".profile"
+#define PROFILE_KEY_PATTERN     ".profile"
 
 #define KEY_VIBRATION_ENABLED   "vibrating.alert.enabled"
 #define CURRENT_PROFILE_KEY     "profile.current_profile"
@@ -130,10 +130,11 @@ transform_properties_cb (NHook *hook, void *data, void *userdata)
         if (!entry)
             continue;
 
-        /* if there already is a target key within the request, then nothing to
-           do here. */
+        /* if this a fallback request, we don't care if there is existing
+           target. otherwise check if the target exists. */
 
-        if (n_proplist_has_key (props, entry->target))
+        if (!n_request_is_fallback (transform->request) &&
+             n_proplist_has_key (props, entry->target))
             continue;
 
         context_key = construct_context_key (entry->profile, entry->key);
@@ -236,10 +237,10 @@ find_entries_within_event_cb (const char *key, const NValue *value,
     ProfileEntry *match     = NULL;
     const char   *value_str = NULL;
 
-    if (!g_str_has_suffix (key, PROFILE_KEY_SUFFIX))
+    if (g_strstr_len (key, 32, PROFILE_KEY_PATTERN) == NULL)
         return;
 
-    N_DEBUG (LOG_CAT "possible entry for profile key '%s'", key);
+    N_DEBUG (LOG_CAT "possible profile key entry '%s'", key);
 
     value_str = n_value_get_string ((NValue*) value);
     entry = parse_profile_entry (value_str);
@@ -253,7 +254,8 @@ find_entries_within_event_cb (const char *key, const NValue *value,
         N_DEBUG (LOG_CAT "new profile entry with key '%s', profile '%s' and target '%s'",
             entry->key, entry->profile, entry->target);
 
-        request_keys = append_unique_key (request_keys, key);
+        if (g_str_has_suffix (key, PROFILE_KEY_PATTERN))
+            request_keys = append_unique_key (request_keys, key);
     }
     else {
         free_entry (entry);

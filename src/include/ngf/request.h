@@ -94,4 +94,10 @@ int              n_request_is_paused      (NRequest *request);
  */
 NRequest*        n_request_new_with_event_and_properties (const char *event, const NProplist *properties);
 
+/** Request is a fallback request
+ * @param request Request
+ * @return TRUE if fallback, FALSE if normal.
+ */
+int              n_request_is_fallback    (NRequest *request);
+
 #endif /* N_REQUEST_H */

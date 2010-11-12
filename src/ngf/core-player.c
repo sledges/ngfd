@@ -42,7 +42,6 @@ struct _NPlayData
     GList          *stop_list;
     NSinkInterface *master_sink;
     gboolean        failed;
-    gboolean        fallback;           /* Set to true when fallbacks are in use */
 };
 
 static void     n_core_send_reply               (NRequest *request, int code);
@@ -208,7 +207,6 @@ n_core_request_done_cb (gpointer userdata)
     NPlayData *play_data = (NPlayData*) userdata;
     NCore     *core      = play_data->core;
     NRequest  *request   = play_data->request;
-    const NProplist *old_props = NULL;
     NProplist *new_props = NULL;
 
     /* all sinks have been either completed or the request failed. we will run
@@ -230,21 +228,22 @@ n_core_request_done_cb (gpointer userdata)
     /* send the reply to the input interface, if any. */
 
     if (play_data->failed) {
-        if (play_data->fallback) {
+        if (request->is_fallback) {
             n_core_send_error (request, "fallback failed.");
         } else {
             N_DEBUG (LOG_CAT "Request failed, restarting with fallbacks");
 
-            old_props = n_request_get_properties (request);
-            new_props = n_proplist_copy (old_props);
+            new_props = n_proplist_copy (request->original_properties);
 
-            n_proplist_foreach (n_request_get_properties (request), n_translate_fallback, new_props);
+            n_proplist_foreach (request->original_properties,
+                n_translate_fallback, new_props);
 
-            if (n_proplist_match_exact (new_props, old_props)) {
+            if (n_proplist_match_exact (new_props, request->original_properties)) {
                 N_DEBUG (LOG_CAT "No fallbacks in the request");
                 n_proplist_free (new_props);
                 n_core_send_error (request, "no fallbacks, request failed.");
             } else {
+                n_proplist_dump (new_props);
                 n_request_set_properties (request, new_props);
                 n_proplist_free (new_props);
 
@@ -282,20 +281,14 @@ n_core_play_request (NCore *core, NRequest *request, gboolean fallback)
     NCoreHookTransformPropertiesData transform_data;
     NCoreHookFilterSinksData         filter_sinks_data;
 
+    if (fallback)
+        goto skip_resolve;
+
     /* execute the new request hook. this may translate the request to other or
        change properties. */
 
     new_request.request = request;
     n_core_fire_hook (core, N_CORE_HOOK_NEW_REQUEST, &new_request);
-
-    /* create and store play data for request. */
-
-    play_data = g_slice_new0 (NPlayData);
-    play_data->core            = core;
-    play_data->request         = request;
-    play_data->fallback     = fallback;
-
-    n_request_store_data (request, N_KEY_PLAY_DATA, play_data);
 
     /* evaluate the request and context to resolve the correct event for
        this specific request. if no event, then there is no default event
@@ -317,6 +310,22 @@ n_core_play_request (NCore *core, NRequest *request, gboolean fallback)
     n_proplist_merge (props, request->properties);
     n_proplist_free (request->properties);
     request->properties = props;
+
+skip_resolve:
+
+    /* create and store play data for request. */
+
+    play_data = g_slice_new0 (NPlayData);
+    play_data->core    = core;
+    play_data->request = request;
+
+    request->is_fallback = fallback;
+
+    n_request_store_data (request, N_KEY_PLAY_DATA, play_data);
+
+    /* store a copy of the resolved properties */
+
+    request->original_properties = n_proplist_copy (request->properties);
 
     /* execute transform properties hook to allow plugins to modify
        properties for the request. */
@@ -383,7 +392,7 @@ n_core_pause_request (NCore *core, NRequest *request)
     GList          *iter      = NULL;
     NSinkInterface *sink      = NULL;
 
-    if (request->paused) {
+    if (request->is_paused) {
         N_DEBUG (LOG_CAT "request '%s' is already paused, no action.",
             request->name);
         return TRUE;
@@ -401,7 +410,7 @@ n_core_pause_request (NCore *core, NRequest *request)
         }
     }
 
-    request->paused = TRUE;
+    request->is_paused = TRUE;
     return TRUE;
 }
 
@@ -415,7 +424,7 @@ n_core_resume_request (NCore *core, NRequest *request)
     GList          *iter      = NULL;
     NSinkInterface *sink      = NULL;
 
-    if (!request->paused) {
+    if (!request->is_paused) {
         N_DEBUG (LOG_CAT "request '%s' is not paused, no action.",
             request->name);
         return TRUE;
@@ -433,7 +442,7 @@ n_core_resume_request (NCore *core, NRequest *request)
         }
     }
 
-    request->paused = FALSE;
+    request->is_paused = FALSE;
     return TRUE;
 }
 
