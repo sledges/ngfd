@@ -367,6 +367,7 @@ update_context_value (NContext *context, const char *profile, const char *key,
     if (g_str_has_suffix (key, TONE_SUFFIX) ||
         g_str_has_suffix (key, PATTERN_SUFFIX)) {
         new_val = get_absolute_tone_path (value);
+        new_val = new_val != NULL ? new_val : g_strdup (value);
         n_value_set_string (context_val, new_val);
         g_free (new_val);
     }
