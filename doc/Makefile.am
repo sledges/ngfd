@@ -1,9 +1,9 @@
-all: doxygen.cfg
-	doxygen $<
+EXTRA_DIST = $(dox_DATA)
+doxdir = $(datadir)/doc/ngfd-plugin/html
+dox_DATA = html/*
 
-install-data-local:
-	$(INSTALL_DATA) -d html $(datadir)/doc/ngfd-plugin/html
-	$(INSTALL_DATA) html/* $(datadir)/doc/ngfd-plugin/html/
+html/*: doxygen.cfg
+	doxygen $<
 
 clean-local:
 	-rm -rf html
