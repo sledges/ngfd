@@ -1,206 +1,204 @@
-AC_INIT([ngfd], [0.12])
-AC_CANONICAL_SYSTEM
+AC_PREREQ(2.61)
+AC_INIT(ngfd, 0.28)
+
 AC_CONFIG_MACRO_DIR([m4])
+AM_CONFIG_HEADER([config.h])
+AC_CONFIG_SRCDIR([src/ngf/main.c])
+AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
 
-AM_CONFIG_HEADER(config.h)
-AC_CONFIG_SRCDIR([src/main.c])
+# Disable static libraries.
+AC_DISABLE_STATIC
 
-AM_INIT_AUTOMAKE
+# Initialize programs.
 
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_INSTALL
 AM_PROG_LIBTOOL
 
+# Enable extra GCC flags.
+if test "$GCC" = "yes"; then
+    CFLAGS="$CFLAGS -Wall -Wextra -Werror"
+fi
+
+# Checks for header files.
 AC_HEADER_STDC
+AC_CHECK_HEADERS([arpa/inet.h netinet/in.h stdlib.h string.h sys/socket.h sys/time.h unistd.h])
 
-AC_PATH_X
-AC_PATH_XTRA
-AC_SUBST(X_CFLAGS)
+# Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_TYPE_SIZE_T
+AC_HEADER_TIME
+AC_STRUCT_TM
 
-ngfconfdir=${sysconfdir}/ngf
-AC_SUBST(ngfconfdir)
+# Checks for library functions.
+AC_FUNC_MALLOC
+AC_FUNC_REALLOC
+AC_CHECK_FUNCS([dup2 localtime_r memmove memset socket strchr strdup strerror strrchr strtoul])
 
-CFLAGS="${CFLAGS} -Werror"
+# Checks for glib and gobject.
+PKG_CHECK_MODULES(GLIB, glib-2.0 gobject-2.0)
+AC_SUBST(GLIB_CFLAGS)
+AC_SUBST(GLIB_LIBS)
 
-AC_ARG_ENABLE([debug],
-	AS_HELP_STRING([--enable-debug],[Enable debug @<:@default=false@:>@]),
-	[case "${enableval}" in
-		yes) debug=true ; CFLAGS="${CFLAGS} -DENABLE_DEBUG" ;;
-		no)  debug=false ;;
-		*) AC_MSG_ERROR([bad value ${enableval} for --enable-debug]) ;;
-	esac],
-	[debug=false])
-AM_CONDITIONAL([DEBUG], [test x$debug = xtrue])
+# Checks for gmodule.
+PKG_CHECK_MODULES(GMODULE, gmodule-2.0)
+AC_SUBST(GMODULE_CFLAGS)
+AC_SUBST(GMODULE_LIBS)
 
-AC_ARG_ENABLE([tonemapper],
-	AS_HELP_STRING([--disable-tonemapper],[Disable tonemapper @<:@default=false@:>@]),
-	[case "${enableval}" in
-		yes) tonemapper=true ;;
-		no)  tonemapper=false ;;
-		*) AC_MSG_ERROR([bad value ${enableval} for --disable-tonemapper]) ;;
-	esac],
-	[tonemapper=true])
-AM_CONDITIONAL([TONEMAPPER], [test x$tonemapper = xtrue])
-
-AC_ARG_ENABLE([vibrator],
-	AS_HELP_STRING([--disable-vibrator],[Disable vibrator @<:@default=false@:>@]),
-	[case "${enableval}" in
-		yes) vibrator=true ;;
-		no)  vibrator=false ;;
-		*) AC_MSG_ERROR([bad value ${enableval} for --disable-vibrator]) ;;
-	esac],
-	[vibrator=true])
-AM_CONDITIONAL([VIBRATOR], [test x$vibrator = xtrue])
-
-AC_ARG_ENABLE([backlight],
-	AS_HELP_STRING([--disable-backlight],[Disable backlight @<:@default=false@:>@]),
-	[case "${enableval}" in
-		yes) backlight=true ;;
-		no)  backlight=false ;;
-		*) AC_MSG_ERROR([bad value ${enableval} for --disable-backlight]) ;;
-	esac],
-	[backlight=true])
-AM_CONDITIONAL([BACKLIGHT], [test x$backlight = xtrue])
-
-AC_ARG_ENABLE([led],
-	AS_HELP_STRING([--disable-led],[Disable led @<:@default=false@:>@]),
-	[case "${enableval}" in
-		yes) led=true ;;
-		no)  led=false ;;
-		*) AC_MSG_ERROR([bad value ${enableval} for --disable-led]) ;;
-	esac],
-	[led=true])
-AM_CONDITIONAL([LED], [test x$led = xtrue])
-
+# Checks for check unit test framework.
 PKG_CHECK_MODULES(CHECK, check)
 AC_SUBST(CHECK_LIBS)
 AC_SUBST(CHECK_CFLAGS)
 
-PKG_CHECK_MODULES(NGFD,
-		  [glib-2.0
-		   gobject-2.0
-		   gthread-2.0
-		   gio-2.0
-		   dbus-1
-		   dbus-glib-1
-           mce
-		   libpulse])
+# NGFD build compatibility variables.
+AC_SUBST(NGFD_CFLAGS, "$GLIB_CFLAGS $GMODULE_CFLAGS")
+AC_SUBST(NGFD_LIBS, "$GLIB_LIBS $GMODULE_LIBS")
+AC_SUBST(NGFD_PLUGIN_CFLAGS, "$NGFD_CFLAGS")
+AC_SUBST(NGFD_PLUGIN_LIBS, "$NGFD_LIBS")
 
-PKG_CHECK_MODULES(GST,
-		  [gstreamer-0.10
-		   gio-2.0
-		   gstreamer-controller-0.10])
+AC_SUBST(NGFD_CONF_DIR, "\$(sysconfdir)/ngf")
+AC_SUBST(NGFD_PLUGIN_CONF_DIR, "\$(NGFD_CONF_DIR)/plugins.d")
+AC_SUBST(NGFD_PLUGIN_DIR, "\$(libdir)/ngf")
 
+# Debug flag.
+
+AC_ARG_ENABLE([debug],
+    AS_HELP_STRING([--enable-debug],[Enable debug @<:@default=false@:>@]),
+    [case "${enableval}" in
+        yes) debug=true ; CFLAGS="${CFLAGS} -DENABLE_DEBUG" ;;
+        no)  debug=false ;;
+        *) AC_MSG_ERROR([bad value ${enableval} for --enable-debug]) ;;
+    esac],
+    [debug=false])
+AM_CONDITIONAL([DEBUG], [test x$debug = xtrue])
+
+# DBus plugin
+
+PKG_CHECK_MODULES(DBUS, dbus-glib-1 >= 0.70 dbus-1 >= 0.70, [has_dbus=yes], [has_dbus=no])
+AC_SUBST(DBUS_CFLAGS)
+AC_SUBST(DBUS_LIBS)
+
+if test x$has_dbus = xyes; then
+    enable_dbus=yes
+else
+    enable_dbus=no
+fi
+
+AM_CONDITIONAL(BUILD_DBUS, test x$enable_dbus = xyes)
+
+# GStreamer plugin
+
+PKG_CHECK_MODULES(GST, gstreamer-0.10 gstreamer-controller-0.10, [has_gst=yes], [has_gst=no])
 AC_SUBST(GST_CFLAGS)
 AC_SUBST(GST_LIBS)
 
-#### Profile support (optional) ####
-
-AC_ARG_ENABLE([profile],
-    AS_HELP_STRING([--disable-profile],[Disable optional profile support]),
-        [
-            case "${enableval}" in
-                yes) profile=true ;;
-                no) profile=false ;;
-                *) AC_MSG_ERROR(bad value ${enableval} for --disable-profile) ;;
-            esac
-        ],
-        [profile=true])
-
-if test "x${profile}" != xfalse ; then
-    PKG_CHECK_MODULES(PROFILE, [profile],
-        [
-            HAVE_PROFILE=1
-            AC_DEFINE([HAVE_PROFILE], 1, [Have profile?])
-        ],
-        [
-            HAVE_PROFILE=0
-            if test "x$profile" = xtrue ; then
-                AC_MSG_ERROR([*** Needed Profile support not found])
-            fi
-        ])
+if test x$has_gst = xyes; then
+    enable_gst=yes
 else
-    HAVE_PROFILE=0
+    enable_gst=no
 fi
 
-#### Stream restore support (optional) ####
+AM_CONDITIONAL(BUILD_GST, test x$enable_gst = xyes)
 
-AC_ARG_ENABLE([streamrestore],
-    AS_HELP_STRING([--disable-streamrestore],[Disable optional stream-restore support]),
-        [
-            case "${enableval}" in
-                yes) streamrestore=true ;;
-                no) streamrestore=false ;;
-                *) AC_MSG_ERROR(bad value ${enableval} for --disable-streamrestore) ;;
-            esac
-        ],
-        [streamrestore=true])
+# Immvibe plugin
 
-if test "x${streamrestore}" != xfalse ; then
-    HAVE_STREAMRESTORE=1
-    AC_DEFINE([HAVE_STREAMRESTORE], 1, [Have stream-restore?])
+AC_CHECK_HEADERS([ImmVibe.h ImmVibeCore.h ImmVibeOS.h], [has_immvibe=yes], [has_immvibe=no])
+AC_SUBST(IMMVIBE_CFLAGS, "")
+AC_SUBST(IMMVIBE_LIBS, "-limmvibe")
+
+if test x$has_immvibe = xyes; then
+    enable_immvibe=yes
 else
-    HAVE_STREAMRESTORE=0
+    enable_immvibe=no
 fi
 
+AM_CONDITIONAL(BUILD_IMMVIBE, test x$enable_immvibe = xyes)
+
+# Profile plugin
+
+PKG_CHECK_MODULES(PROFILE, profile, [has_profile=yes], [has_profile=no])
 AC_SUBST(PROFILE_CFLAGS)
 AC_SUBST(PROFILE_LIBS)
-AC_SUBST(HAVE_PROFILE)
-AM_CONDITIONAL([HAVE_PROFILE], [test "x$HAVE_PROFILE" = x1])
 
-#### Timestamp support (optional) ####
-
-AC_ARG_ENABLE([timestamp],
-    AS_HELP_STRING([--enable-timestamp],[Enable optional timestamping support]),
-        [
-            case "${enableval}" in
-                yes) timestamp=true ;;
-                no) timestamp=false ;;
-                *) AC_MSG_ERROR(bad value ${enableval} for --enable-timestamp) ;;
-            esac
-        ],
-        [timestamp=false])
-
-if test "x${timestamp}" != xfalse ; then
-    PKG_CHECK_MODULES(TIMESTAMP, [sp_timestamp],
-        [
-            HAVE_TIMESTAMP=1
-            AC_DEFINE([HAVE_TIMESTAMP], 1, [Have sp-timestamp?])
-        ],
-        [
-            HAVE_TIMESTAMP=0
-            if test "x$timestamp" = xtrue ; then
-                AC_MSG_ERROR([*** Needed sp-timestamp support not found])
-            fi
-        ])
+if test x$has_profile = xyes; then
+    enable_profile=yes
 else
-    HAVE_TIMESTAMP=0
+    enable_profile=no
 fi
 
-AC_SUBST(TIMESTAMP_CFLAGS)
-AC_SUBST(TIMESTAMP_LIBS)
-AC_SUBST(HAVE_TIMESTAMP)
-AM_CONDITIONAL([HAVE_TIMESTAMP], [test "x$HAVE_TIMESTAMP" = x1])
+AM_CONDITIONAL(BUILD_PROFILE, test x$enable_profile = xyes)
 
-AC_SUBST(NGFD_LIBS)
-AC_SUBST(NGFD_CFLAGS)
+# MCE plugin
+
+PKG_CHECK_MODULES(MCE, mce, [has_mce=yes], [has_mce=no])
+
+if test x$has_mce = xyes; then
+    enable_mce=yes
+else
+    enable_mce=no
+fi
+
+AM_CONDITIONAL(BUILD_MCE, test x$enable_mce = xyes)
+
+# Stream restore plugin needs DBus
+
+if test x$enable_dbus = xyes ; then
+    enable_streamrestore=yes
+else
+    enable_streamrestore=no
+fi
+
+AM_CONDITIONAL(BUILD_STREAMRESTORE, test x$enable_streamrestore = xyes)
+
+# Tonegen plugin needs DBus
+
+if test x$enable_dbus = xyes ; then
+    enable_tonegen=yes
+else
+    enable_tonegen=no
+fi
+
+AM_CONDITIONAL(BUILD_TONEGEN, test x$enable_tonegen = xyes)
 
 echo "
  == $PACKAGE_NAME $VERSION ==
 
     Compiler:               ${CC}
     CFLAGS:                 ${CFLAGS}
-
     Debug enabled:          ${debug}
-    Timestamping enabled:   ${timestamp}
-    Vibrator enabled:       ${vibrator}
-    Backlight enabled:      ${backlight}
-    Led enabled:            ${led}
-    Tone mapper enabled:    ${tonemapper}
-    Stream restore enabled: ${streamrestore}
-    Gstreamer enabled:      ${gstreamer}
-    Profile enabled:        ${profile}
+
+    DBus plugin:            ${enable_dbus}
+    GStreamer plugin:       ${enable_gst}
+    Immvibe plugin:         ${enable_immvibe}
+    Profile plugin:         ${enable_profile}
+    MCE plugin:             ${enable_mce}
+    Stream restore plugin:  ${enable_streamrestore}
+    Tone generator plugin:  ${enable_tonegen}
 "
 
-AC_OUTPUT(Makefile src/Makefile tests/Makefile data/Makefile)
+AC_CONFIG_FILES([
+Makefile
+src/Makefile
+src/ngf/Makefile
+src/include/Makefile
+src/include/ngf/Makefile
+src/plugins/Makefile
+src/plugins/fake/Makefile
+src/plugins/dbus/Makefile
+src/plugins/transform/Makefile
+src/plugins/mce/Makefile
+src/plugins/immvibe/Makefile
+src/plugins/resource/Makefile
+src/plugins/profile/Makefile
+src/plugins/streamrestore/Makefile
+src/plugins/tonegen/Makefile
+src/plugins/gst/Makefile
+doc/Makefile
+data/Makefile
+data/events.d/Makefile
+data/plugins.d/Makefile
+data/ngf-plugin.pc
+])
+
+AC_OUTPUT
