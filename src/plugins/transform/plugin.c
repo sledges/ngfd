@@ -28,7 +28,6 @@
 
 N_PLUGIN_NAME        ("transform")
 N_PLUGIN_VERSION     ("0.1")
-N_PLUGIN_AUTHOR      ("Harri Mahonen <ext-harri.mahonen@nokia.com>")
 N_PLUGIN_DESCRIPTION ("Transform request properties")
 
 static gboolean    transform_allow_all = FALSE;

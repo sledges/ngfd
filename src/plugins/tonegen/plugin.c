@@ -32,7 +32,6 @@
 
 N_PLUGIN_NAME        ("tonegen")
 N_PLUGIN_VERSION     ("0.1")
-N_PLUGIN_AUTHOR      ("Harri Mahonen <ext-harri.mahonen@nokia.com>")
 N_PLUGIN_DESCRIPTION ("Tone generator plugin for knocking sound")
 
 static DBusConnection *system_bus = NULL;

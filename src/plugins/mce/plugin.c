@@ -30,7 +30,6 @@
 
 N_PLUGIN_NAME        ("mce")
 N_PLUGIN_VERSION     ("0.1")
-N_PLUGIN_AUTHOR      ("Harri Mahonen <ext-harri.mahonen@nokia.com>")
 N_PLUGIN_DESCRIPTION ("MCE plugin for handling backlight and led actions")
 
 typedef struct _MceData

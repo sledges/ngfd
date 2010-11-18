@@ -30,7 +30,6 @@
 
 N_PLUGIN_NAME        ("stream-restore")
 N_PLUGIN_VERSION     ("0.1")
-N_PLUGIN_AUTHOR      ("Harri Mahonen <ext-harri.mahonen@nokia.com>")
 N_PLUGIN_DESCRIPTION ("Volumes using Pulseaudio DBus stream restore")
 
 static GHashTable *stream_restore_role_map = NULL;

@@ -61,12 +61,6 @@ void             n_plugin_register_input (NPlugin *plugin, const NInputInterface
         return p_name;                          \
     }
 
-/** Macro to define plugin author */
-#define N_PLUGIN_AUTHOR(p_author)               \
-    const char* n_plugin__get_author () {       \
-        return p_author;                        \
-    }
-
 /** Macro to define plugin description */
 #define N_PLUGIN_DESCRIPTION(p_desc)            \
     const char* n_plugin__get_desc () {         \

@@ -48,7 +48,6 @@ n_plugin_load (const char *filename)
 }
 
     LOAD_SYMBOL (plugin->module, "n_plugin__get_name"   , plugin->get_name);
-    LOAD_SYMBOL (plugin->module, "n_plugin__get_author" , plugin->get_author);
     LOAD_SYMBOL (plugin->module, "n_plugin__get_desc"   , plugin->get_desc);
     LOAD_SYMBOL (plugin->module, "n_plugin__get_version", plugin->get_version);
     LOAD_SYMBOL (plugin->module, "n_plugin__load"       , plugin->load);

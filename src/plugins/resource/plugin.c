@@ -26,7 +26,6 @@
 
 N_PLUGIN_NAME        ("resource")
 N_PLUGIN_VERSION     ("0.1")
-N_PLUGIN_AUTHOR      ("Harri Mahonen <ext-harri.mahonen@nokia.com>")
 N_PLUGIN_DESCRIPTION ("Resource rules")
 
 #define RES_AUDIO  0

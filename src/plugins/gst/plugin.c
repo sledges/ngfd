@@ -59,7 +59,6 @@ typedef struct _GstData
 
 N_PLUGIN_NAME        ("gst")
 N_PLUGIN_VERSION     ("0.1")
-N_PLUGIN_AUTHOR      ("Harri Mahonen <ext-harri.mahonen@nokia.com>")
 N_PLUGIN_DESCRIPTION ("GStreamer plugin")
 
 static void          reset_linear_volume        (GstData *data, gboolean query_position);

@@ -32,7 +32,6 @@
 
 N_PLUGIN_NAME        ("dbus")
 N_PLUGIN_VERSION     ("0.1")
-N_PLUGIN_AUTHOR      ("Harri Mahonen <ext-harri.mahonen@nokia.com>")
 N_PLUGIN_DESCRIPTION ("D-Bus interface")
 
 #define LOG_CAT "dbus: "

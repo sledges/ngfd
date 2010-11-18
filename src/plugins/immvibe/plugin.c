@@ -43,7 +43,6 @@ static const gchar *search_path = NULL;
 
 N_PLUGIN_NAME        ("immvibe")
 N_PLUGIN_VERSION     ("0.1")
-N_PLUGIN_AUTHOR      ("Harri Mahonen <ext-harri.mahonen@nokia.com>")
 N_PLUGIN_DESCRIPTION ("Immersion vibra plugin")
 
 static gboolean

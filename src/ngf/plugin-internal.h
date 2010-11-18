@@ -39,7 +39,6 @@ struct _NPlugin
     NProplist   *params;            /* plugin parameters */
 
     const char* (*get_name)    ();
-    const char* (*get_author)  ();
     const char* (*get_desc)    ();
     const char* (*get_version) ();
     int         (*load)        (NPlugin *plugin);
