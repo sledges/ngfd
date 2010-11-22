@@ -42,6 +42,7 @@ struct _NPlayData
     GList          *stop_list;
     NSinkInterface *master_sink;
     gboolean        failed;
+    gboolean        no_event;
 };
 
 static void     n_core_send_reply               (NRequest *request, int code);
@@ -228,8 +229,8 @@ n_core_request_done_cb (gpointer userdata)
     /* send the reply to the input interface, if any. */
 
     if (play_data->failed) {
-        if (request->is_fallback) {
-            n_core_send_error (request, "fallback failed.");
+        if (request->is_fallback || play_data->no_event) {
+            n_core_send_error (request, "fallback failed or no fallback.");
         } else {
             N_DEBUG (LOG_CAT "Request failed, restarting with fallbacks");
 
@@ -281,6 +282,15 @@ n_core_play_request (NCore *core, NRequest *request, gboolean fallback)
     NCoreHookTransformPropertiesData transform_data;
     NCoreHookFilterSinksData         filter_sinks_data;
 
+    /* create and store play data for request. */
+
+    play_data = g_slice_new0 (NPlayData);
+    play_data->core    = core;
+    play_data->request = request;
+
+    /* if this is a fallback sound, then do not resolve the event
+       again. */
+
     if (fallback)
         goto skip_resolve;
 
@@ -298,6 +308,7 @@ n_core_play_request (NCore *core, NRequest *request, gboolean fallback)
     if (!request->event) {
         N_WARNING (LOG_CAT "unable to resolve event for request '%s'",
             request->name);
+        play_data->no_event = TRUE;
         goto fail_request;
     }
 
@@ -313,14 +324,9 @@ n_core_play_request (NCore *core, NRequest *request, gboolean fallback)
 
 skip_resolve:
 
-    /* create and store play data for request. */
-
-    play_data = g_slice_new0 (NPlayData);
-    play_data->core    = core;
-    play_data->request = request;
+    /* store the fallback value and play data */
 
     request->is_fallback = fallback;
-
     n_request_store_data (request, N_KEY_PLAY_DATA, play_data);
 
     /* store a copy of the resolved properties */
