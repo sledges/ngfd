@@ -10,7 +10,7 @@ eventconf_DATA =               \
 	chat_fg.ini                \
 	clock.ini                  \
 	email.ini                  \
-	information_sound.ini      \
+	information_snd.ini        \
 	information_strong.ini     \
 	information_tacticon.ini   \
 	missedcall.ini             \
@@ -22,7 +22,7 @@ eventconf_DATA =               \
 	sms.ini                    \
 	sms_fg.ini                 \
 	voip_ringtone.ini          \
-	warning_sound.ini          \
+	warning_snd.ini            \
 	warning_strong.ini         \
 	warning_tacticon.ini       \
 	wrong_charger.ini
