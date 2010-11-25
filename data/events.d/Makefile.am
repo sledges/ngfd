@@ -7,6 +7,7 @@ eventconf_DATA =               \
 	calendar.ini               \
 	charging_started.ini       \
 	chat.ini                   \
+	chat_fg.ini                \
 	clock.ini                  \
 	email.ini                  \
 	information_snd.ini        \
@@ -16,6 +17,7 @@ eventconf_DATA =               \
 	recharge_battery.ini       \
 	ringtone.ini               \
 	sms.ini                    \
+	sms_fg.ini				   \
 	voip_ringtone.ini          \
 	warning_snd.ini            \
 	warning_strong.ini         \
