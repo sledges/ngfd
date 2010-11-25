@@ -37,15 +37,30 @@ struct _NRequest
     NProplist       *properties;    /* request custom properties */
     NProplist       *original_properties;
 
-    guint            id;            /* unique request identifier */
+    guint            id;                    /* unique request identifier */
     NEvent          *event;
     NCore           *core;
     NInputInterface *input_iface;
+
     gboolean         is_paused;
     gboolean         is_fallback;
+    gboolean         has_failed;
+    gboolean         no_event;
+
+    guint            play_source_id;        /* source id for play */
+    guint            stop_source_id;        /* source id for stop */
+
+    GList           *all_sinks;             /* all sinks available for the request */
+    GList           *sinks_preparing;       /* sinks not yet synchronized and still preparing */
+    GList           *sinks_prepared;
+    GList           *sinks_playing;         /* sinks currently playing */
+    GList           *sinks_resync;
+    GList           *stop_list;
+    NSinkInterface  *master_sink;
 };
 
-NRequest* n_request_new  ();
-void      n_request_free (NRequest *request);
+NRequest* n_request_new          ();
+void      n_request_free         (NRequest *request);
+int       n_request_has_fallback (NRequest *request);
 
 #endif /* N_REQUEST_INTERNAL_H */
