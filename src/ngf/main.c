@@ -21,9 +21,16 @@
 
 #include <glib.h>
 #include <getopt.h>
+#include <unistd.h>
+#include <signal.h>
+#include <string.h>
 
 #include <ngf/log.h>
 #include "core-internal.h"
+
+#define LOG_CAT "core: "
+
+static gint _default_loglevel = N_LOG_LEVEL_NONE;
 
 typedef struct _AppData
 {
@@ -35,7 +42,7 @@ static gboolean
 parse_cmdline (int argc, char **argv)
 {
     int opt, opt_index;
-    int level = N_LOG_LEVEL_NONE;
+    int level = _default_loglevel;
 
     static struct option long_opts[] = {
         { "verbose", 0, 0, 'v' },
@@ -54,9 +61,44 @@ parse_cmdline (int argc, char **argv)
         }
     }
 
+    _default_loglevel = level;
     n_log_set_level (level);
 
     return TRUE;
+}
+
+static void
+handle_signal (int signum, siginfo_t *info, void *ptr)
+{
+    (void) signum;
+    (void) info;
+    (void) ptr;
+
+    if (signum != SIGUSR1)
+        return;
+
+    if (n_log_get_target () == N_LOG_TARGET_SYSLOG) {
+        n_log_set_target (N_LOG_TARGET_STDOUT);
+        n_log_set_level  (_default_loglevel);
+    }
+    else {
+        n_log_set_target (N_LOG_TARGET_SYSLOG);
+        n_log_set_level  (N_LOG_LEVEL_ENTER);
+    }
+
+    N_DEBUG (LOG_CAT "SIGUSR1");
+}
+
+static void
+install_signal_handler ()
+{
+    struct sigaction act;
+
+    memset(&act, 0, sizeof (act));
+    act.sa_sigaction = handle_signal;
+    act.sa_flags     = SA_SIGINFO;
+
+    sigaction (SIGUSR1, &act, NULL);
 }
 
 int
@@ -64,7 +106,8 @@ main (int argc, char *argv[])
 {
     AppData *app = NULL;
 
-    n_log_initialize (N_LOG_LEVEL_NONE);
+    install_signal_handler ();
+    n_log_initialize (_default_loglevel);
 
     if (!parse_cmdline (argc, argv))
         return 1;

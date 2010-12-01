@@ -68,6 +68,11 @@ void n_log_set_level  (NLogLevel level);
  */
 void n_log_set_target (NLogTarget target);
 
+/** Get current log target
+ * @param target Log target
+ */
+NLogTarget n_log_get_target ();
+
 /** Log message. Use convenience functions to send actual messages.
  * @param level Logging level
  * @param function Function to which the message is related to

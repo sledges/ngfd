@@ -36,7 +36,7 @@
 
 #define DEFAULT_CONF_PATH     "/etc/ngf"
 #define DEFAULT_PLUGIN_PATH   "/usr/lib/ngf"
-#define DEFAULT_CONF_FILENAME "ngf.ini"
+#define DEFAULT_CONF_FILENAME "ngfd.ini"
 #define PLUGIN_CONF_PATH      "plugins.d"
 #define EVENT_CONF_PATH       "events.d"
 

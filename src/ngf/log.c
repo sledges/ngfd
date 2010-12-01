@@ -82,6 +82,12 @@ n_log_set_target (NLogTarget target)
     }
 }
 
+NLogTarget
+n_log_get_target ()
+{
+    return _log_target;
+}
+
 static const char*
 n_log_level_to_string (NLogLevel category)
 {
