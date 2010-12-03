@@ -24,7 +24,11 @@
 
 #define LOG_CAT         "core: "
 #define FALLBACK_SUFFIX ".fallback"
+#define MAX_TIMEOUT_KEY "core.max_timeout"
 
+static gboolean n_core_max_timeout_reached_cb         (gpointer userdata);
+static void     n_core_setup_max_timeout              (NRequest *request);
+static void     n_core_clear_max_timeout              (NRequest *request);
 static void     n_core_fire_new_request_hook          (NRequest *request);
 static void     n_core_fire_transform_properties_hook (NRequest *request);
 static GList*   n_core_fire_filter_sinks_hook         (NRequest *request, GList *sinks);
@@ -41,6 +45,47 @@ static void     n_core_stop_sinks               (GList *sinks, NRequest *request
 static int      n_core_prepare_sinks            (GList *sinks, NRequest *request);
 
 
+
+static gboolean
+n_core_max_timeout_reached_cb (gpointer userdata)
+{
+    NRequest *request = (NRequest*) userdata;
+
+    N_DEBUG (LOG_CAT "maximum timeout reached, stopping request.");
+    request->max_timeout_id = 0;
+    n_core_stop_request (request->core, request);
+
+    return FALSE;
+}
+
+static void
+n_core_setup_max_timeout (NRequest *request)
+{
+    g_assert (request != NULL);
+    g_assert (request->max_timeout_id == 0);
+
+    NProplist *props    = request->properties;
+    gint timeout_period = 0;
+
+    timeout_period = n_proplist_get_int (props, MAX_TIMEOUT_KEY);
+    if (timeout_period > 0) {
+        N_DEBUG (LOG_CAT "maximum timeout set to %d", timeout_period);
+        request->max_timeout_id = g_timeout_add (timeout_period,
+            n_core_max_timeout_reached_cb, request);
+    }
+}
+
+static void
+n_core_clear_max_timeout (NRequest *request)
+{
+    g_assert (request != NULL);
+
+    if (request->max_timeout_id > 0) {
+        N_DEBUG (LOG_CAT "maximum timeout callback removed.");
+        g_source_remove (request->max_timeout_id);
+        request->max_timeout_id = 0;
+    }
+}
 
 static void
 n_core_fire_new_request_hook (NRequest *request)
@@ -171,6 +216,9 @@ n_core_sink_synchronize_done_cb (gpointer userdata)
     GList          *iter      = NULL;
     NSinkInterface *sink      = NULL;
 
+    /* setup the maximum timeout callback. */
+    n_core_setup_max_timeout (request);
+
     /* all sinks have been synchronized for the request. call play for every
        prepared sink. */
 
@@ -277,6 +325,9 @@ n_core_request_done_cb (gpointer userdata)
     NCore     *core          = request->core;
     NProplist *new_props     = NULL;
     gboolean   has_fallbacks = FALSE;
+
+    /* ensure that maximum timeout is removed. */
+    n_core_clear_max_timeout (request);
 
     /* all sinks have been either completed or the request failed. we will run
        a stop on each sink and then clear out the request. */
@@ -483,6 +534,7 @@ n_core_stop_request (NCore *core, NRequest *request)
     }
 
     request->stop_source_id = g_idle_add (n_core_request_done_cb, request);
+    n_core_clear_max_timeout (request);
 }
 
 void

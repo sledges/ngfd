@@ -57,6 +57,8 @@ struct _NRequest
     GList           *sinks_resync;
     GList           *stop_list;
     NSinkInterface  *master_sink;
+
+    guint            max_timeout_id;
 };
 
 NRequest* n_request_new          ();
