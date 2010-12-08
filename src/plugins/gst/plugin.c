@@ -33,7 +33,8 @@
 #define STREAM_PREFIX_KEY "sound.stream."
 #define LOG_CAT           "gst: "
 
-const gchar *search_path = NULL;
+static gint _gst_plugin_buffer_time = -1;
+static gint _gst_plugin_latency_time = -1;
 
 typedef struct _GstData
 {
@@ -413,7 +414,6 @@ gst_sink_prepare (NSinkInterface *iface, NRequest *request)
     GstElement   *decodebin = NULL;
     GstElement   *sink      = NULL;
     GstBus       *bus       = NULL;
-    gchar *filename = NULL;
 
     const NProplist *props = n_request_get_properties (request);
 
@@ -467,30 +467,21 @@ gst_sink_prepare (NSinkInterface *iface, NRequest *request)
     if (!gst_element_link (source, decodebin))
         goto failed_link;
 
-    if (g_file_test (data->source, G_FILE_TEST_EXISTS)) {
-        N_DEBUG (LOG_CAT "Source is %s",data->source);
-        g_object_set (G_OBJECT (source), "location", data->source, NULL);
-    } else {
-        filename = g_strdup_printf ("%s/%s", search_path, data->source);
-        if (g_file_test (filename, G_FILE_TEST_EXISTS)) {
-            N_DEBUG (LOG_CAT "Source is %s", filename);
-            g_object_set (G_OBJECT (source), "location", filename, NULL);
-            g_free (filename);
-        } else {
-            N_WARNING (LOG_CAT "Sound file does not exist: %s", data->source);
-            g_free (filename);
-            goto failed_link;
-        }
-    }
+    N_DEBUG (LOG_CAT "using source '%s'",data->source);
+    g_object_set (G_OBJECT (source), "location", data->source, NULL);
 
     data->properties = create_stream_properties ((NProplist*) props);
     set_stream_properties (sink, data->properties);
 
-    if (data->buffer_time > 0)
-        g_object_set (G_OBJECT (sink), "buffer-time", data->buffer_time, NULL);
+    if (_gst_plugin_buffer_time > 0) {
+        N_DEBUG (LOG_CAT "buffer-time set to %d", _gst_plugin_buffer_time);
+        g_object_set (G_OBJECT (sink), "buffer-time", _gst_plugin_buffer_time, NULL);
+    }
 
-    if (data->latency_time > 0)
-        g_object_set (G_OBJECT (sink), "latency-time", data->latency_time, NULL);
+    if (_gst_plugin_latency_time > 0) {
+        N_DEBUG (LOG_CAT "latency-time set to %d", _gst_plugin_latency_time);
+        g_object_set (G_OBJECT (sink), "latency-time", _gst_plugin_latency_time, NULL);
+    }
 
     bus = gst_element_get_bus (data->pipeline);
     gst_bus_add_watch (bus, bus_cb, data);
@@ -580,6 +571,8 @@ N_PLUGIN_LOAD (plugin)
 {
     N_DEBUG (LOG_CAT "plugin load");
 
+    NProplist *params = NULL;
+
     static const NSinkInterfaceDecl decl = {
         .name       = "gst",
         .initialize = gst_sink_initialize,
@@ -592,12 +585,16 @@ N_PLUGIN_LOAD (plugin)
     };
 
     n_plugin_register_sink (plugin, &decl);
-    search_path = n_proplist_get_string (n_plugin_get_params (plugin), "ringtone_search_path");
-    if (search_path == NULL) {
-        N_WARNING (LOG_CAT "Ringtone search path is missing from the configuration file");
 
-        return FALSE;
-    }
+    /* parse the buffer and latency times, if available */
+
+    params = (NProplist*) n_plugin_get_params (plugin);
+
+    if ((value = n_proplist_get_string (params, "buffer-time")))
+        _gst_plugin_buffer_time = atoi (value);
+
+    if ((value = n_proplist_get_string (params, "latency-time")))
+        _gst_plugin_latency_time = atoi (value);
 
     return TRUE;
 }
