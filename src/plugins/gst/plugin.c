@@ -384,6 +384,10 @@ create_stream_properties (NProplist *props)
 
     set_structure_string (s, "media.filename", source);
 
+    /* set a media.role to "media" */
+
+    set_structure_string (s, "media.role", "media");
+
     /* convert all properties within the request that begin with
        "sound.stream." prefix. */
 
