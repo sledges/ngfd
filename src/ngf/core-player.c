@@ -397,21 +397,18 @@ n_core_play_request (NCore *core, NRequest *request)
     g_assert (request != NULL);
 
     GList  *all_sinks = NULL;
-    NEvent *event     = NULL;
 
     /* store the original request properties */
 
     request->original_properties = n_proplist_copy (request->properties);
     request->core                = core;
 
-    n_core_fire_new_request_hook (request);
-
     /* evaluate the request and context to resolve the correct event for
        this specific request. if no event, then there is no default event
        defined and we are done here. */
 
-    event = n_core_evaluate_request (core, request);
-    if (!event) {
+    request->event = n_core_evaluate_request (core, request);
+    if (!request->event) {
         N_WARNING (LOG_CAT "unable to resolve event for request '%s'",
             request->name);
         request->no_event = TRUE;
@@ -419,12 +416,18 @@ n_core_play_request (NCore *core, NRequest *request)
     }
 
     N_DEBUG (LOG_CAT "request '%s' resolved to event '%s'", request->name,
-        event->name);
+        request->event->name);
 
-    n_core_merge_request_properties (request, event);
-    request->event = event;
+    /* fire the hook before merge */
 
+    n_core_fire_new_request_hook (request);
+
+    /* merge and trasnform */
+
+    n_core_merge_request_properties (request, request->event);
     n_core_fire_transform_properties_hook (request);
+
+    /* query and filter capable sinks */
 
     all_sinks = n_core_query_capable_sinks (request);
     all_sinks = n_core_fire_filter_sinks_hook (request, all_sinks);

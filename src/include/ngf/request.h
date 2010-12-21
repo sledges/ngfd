@@ -26,6 +26,7 @@
 typedef struct _NRequest NRequest;
 
 #include <ngf/proplist.h>
+#include <ngf/event.h>
 
 /** Create empty request
  * @return Allocated request structure
@@ -66,6 +67,12 @@ void             n_request_set_properties (NRequest *request, NProplist *propert
  * @return Properties as NProplist
  */
 const NProplist* n_request_get_properties (NRequest *request);
+
+/** Get associated event from request
+ * @param request Request
+ * @return Event as NEvent
+ */
+const NEvent*    n_request_get_event      (NRequest *request);
 
 /** Store key/value pair to request
  * @param request Request

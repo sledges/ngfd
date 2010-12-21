@@ -137,3 +137,9 @@ n_request_is_fallback (NRequest *request)
     return request->is_fallback;
 }
 
+const NEvent*
+n_request_get_event (NRequest *request)
+{
+    return (request != NULL) ? (const NEvent*) request->event : NULL;
+}
+

@@ -25,6 +25,8 @@
 
 #define LOG_CAT              "transform: "
 #define TRANSFORM_KEY_PREFIX "transform."
+#define ALLOW_FILENAMES      "transform.allow_custom"
+#define FILENAME_SUFFIX      ".filename"
 
 N_PLUGIN_NAME        ("transform")
 N_PLUGIN_VERSION     ("0.1")
@@ -34,6 +36,15 @@ static gboolean    transform_allow_all = FALSE;
 static GList      *transform_allowed_keys = NULL;
 static GHashTable *transform_key_map = NULL;
 
+static gboolean
+query_allow_custom_filenames (NRequest *request)
+{
+    NEvent *event = (NEvent*) n_request_get_event (request);
+    NProplist *props = (NProplist*) n_event_get_properties (event);
+
+    return n_proplist_get_bool (props, ALLOW_FILENAMES);
+}
+
 static void
 new_request_cb (NHook *hook, void *data, void *userdata)
 {
@@ -41,12 +52,11 @@ new_request_cb (NHook *hook, void *data, void *userdata)
     (void) data;
     (void) userdata;
 
-    NProplist  *props     = NULL;
-    NProplist  *new_props = NULL;
-    GList      *iter      = NULL;
-    const char *key       = NULL;
-    const char *map_key   = NULL;
-    NValue     *value     = NULL;
+    NProplist *props = NULL, *new_props = NULL;
+    const char *key = NULL, *map_key = NULL, *target = NULL;
+    GList *iter = NULL;
+    NValue *value = NULL;
+    gboolean allow_custom = FALSE;
 
     NCoreHookTransformPropertiesData *transform = (NCoreHookTransformPropertiesData*) data;
 
@@ -59,12 +69,19 @@ new_request_cb (NHook *hook, void *data, void *userdata)
     }
 
     new_props = n_proplist_new ();
-    props     = (NProplist*) n_request_get_properties (transform->request);
+    props = (NProplist*) n_request_get_properties (transform->request);
+    allow_custom = query_allow_custom_filenames (transform->request);
 
     for (iter = g_list_first (transform_allowed_keys); iter; iter = g_list_next (iter)) {
         key     = (const char*) iter->data;
         value   = n_proplist_get (props, key);
         map_key = g_hash_table_lookup (transform_key_map, key);
+        target  = map_key ? map_key : key;
+
+        if (g_str_has_suffix (target, FILENAME_SUFFIX) && !allow_custom) {
+            N_DEBUG (LOG_CAT "+ rejecting key '%s', no custom allowed.", target);
+            continue;
+        }
 
         if (map_key) {
             N_DEBUG (LOG_CAT "+ transforming key '%s' to '%s'", key, map_key);
