@@ -51,3 +51,10 @@ test_plugin_LDADD = @CHECK_LIBS@ @NGFD_LIBS@
 test_sinkinterface_SOURCES = test-sinkinterface.c $(top_srcdir)/src/ngf/sinkinterface.c $(top_srcdir)/src/ngf/core.c $(top_srcdir)/src/ngf/hook.c $(top_srcdir)/src/ngf/context.c $(top_srcdir)/src/ngf/value.c $(top_srcdir)/src/ngf/log.c $(top_srcdir)/src/ngf/proplist.c $(top_srcdir)/src/ngf/plugin.c $(top_srcdir)/src/ngf/event.c $(top_srcdir)/src/ngf/request.c $(top_srcdir)/src/ngf/core-hooks.c
 test_sinkinterface_CFLAGS = @CHECK_CFLAGS@ @NGFD_CFLAGS@
 test_sinkinterface_LDADD = @CHECK_LIBS@ @NGFD_LIBS@
+
+plugindir = @NGFD_PLUGIN_DIR@
+plugin_LTLIBRARIES = libngfd_test_fake.la
+libngfd_test_fake_la_SOURCES = test-fake-plugin.c
+libngfd_test_fake_la_LIBADD = @NGFD_PLUGIN_LIBS@
+libngfd_test_fake_la_LDFLAGS = -module -avoid-version
+libngfd_test_fake_la_CFLAGS = @NGFD_PLUGIN_CFLAGS@ -I$(top_srcdir)/src/include

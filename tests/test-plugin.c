@@ -148,6 +148,54 @@ START_TEST (test_register_input)
 }
 END_TEST
 
+START_TEST (test_load_plugin)
+{
+    const char *plugin_path = "./libngfd_test_fake.la";
+    NCore *core = n_core_new (NULL, NULL);
+    fail_unless (core != NULL);
+
+    NPlugin *loaded_plugin = NULL;
+    /* try to load not existing plugin file */
+    loaded_plugin = n_plugin_load ("./not_existing_plugin.la");
+    fail_unless (loaded_plugin == NULL);
+    /* load dummyu plugin file - valid one*/
+    loaded_plugin = n_plugin_load (plugin_path);
+    fail_unless (loaded_plugin != NULL);
+    fail_unless (loaded_plugin->module != NULL);
+    loaded_plugin->core = core;
+    loaded_plugin->params = n_proplist_new ();
+
+    /* load actual plugin */
+    int result = loaded_plugin->load (loaded_plugin);
+    fail_unless (result == TRUE);
+
+    const char *name = "test-fake";
+    fail_unless (g_strcmp0 (name, loaded_plugin->get_name ()) == 0);
+    const char *desc = "Fake plugin for unit test purposes";
+    fail_unless (g_strcmp0 (desc, loaded_plugin->get_desc ()) == 0);
+    const char *version = "0.1";
+    fail_unless (g_strcmp0 (version, loaded_plugin->get_version ()) == 0);
+
+    int size = -1;
+    size = core->num_sinks;
+    fail_unless (size == 1);
+
+    /* tests for core -> get sink */
+    NSinkInterface **ifacev = NULL;
+    ifacev = n_core_get_sinks (core);
+    fail_unless (ifacev != NULL);
+    NSinkInterface *iface = ifacev[0];
+    fail_unless (g_strcmp0 (iface->name, "fake") == 0);
+
+    /* call unload for specific plugin */
+    loaded_plugin->unload (loaded_plugin);
+
+    /* it will also unload plugin and free plugin structre*/
+    n_core_free (core);
+    core = NULL;
+}
+END_TEST
+
 int
 main (int argc, char *argv[])
 {
@@ -176,6 +224,10 @@ main (int argc, char *argv[])
 
     tc = tcase_create ("register input");
     tcase_add_test (tc, test_register_input);
+    suite_add_tcase (s, tc);
+
+    tc = tcase_create ("load plug-in");
+    tcase_add_test (tc, test_load_plugin);
     suite_add_tcase (s, tc);
 
     sr = srunner_create (s);
