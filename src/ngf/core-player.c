@@ -633,6 +633,12 @@ n_core_synchronize_sink (NCore *core, NSinkInterface *sink, NRequest *request)
     g_assert (sink != NULL);
     g_assert (request != NULL);
 
+    if (request->stop_source_id > 0) {
+        N_DEBUG (LOG_CAT "sink '%s' was synchronized, but request is in the process"
+                         "of stopping.", sink->name);
+        return;
+    }
+
     if (!request->sinks_preparing) {
         N_WARNING (LOG_CAT "sink '%s' synchronized, but no sinks in the list.",
             sink->name);
