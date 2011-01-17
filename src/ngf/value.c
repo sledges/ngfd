@@ -73,7 +73,7 @@ n_value_clean (NValue *value)
 }
 
 NValue*
-n_value_copy (NValue *value)
+n_value_copy (const NValue *value)
 {
     NValue *new_value = NULL;
 
@@ -111,7 +111,7 @@ n_value_copy (NValue *value)
 }
 
 int
-n_value_type (NValue *value)
+n_value_type (const NValue *value)
 {
     if (!value)
         return 0;
@@ -172,19 +172,19 @@ n_value_set_string (NValue *value, const char *in_value)
 }
 
 const gchar*
-n_value_get_string (NValue *value)
+n_value_get_string (const NValue *value)
 {
     return (value && value->type == N_VALUE_TYPE_STRING) ? (const char*) value->value.s : NULL;
 }
 
 gchar*
-n_value_dup_string (NValue *value)
+n_value_dup_string (const NValue *value)
 {
     return (value && value->type == N_VALUE_TYPE_STRING) ? g_strdup (value->value.s) : NULL;
 }
 
 void
-n_value_set_int (NValue *value, gint in_value)
+n_value_set_int (NValue *value, const gint in_value)
 {
     if (!value)
         return;
@@ -194,13 +194,13 @@ n_value_set_int (NValue *value, gint in_value)
 }
 
 gint
-n_value_get_int (NValue *value)
+n_value_get_int (const NValue *value)
 {
     return (value && value->type == N_VALUE_TYPE_INT) ? value->value.i : 0;
 }
 
 void
-n_value_set_uint (NValue *value, guint in_value)
+n_value_set_uint (NValue *value, const guint in_value)
 {
     if (!value || !in_value)
         return;
@@ -210,13 +210,13 @@ n_value_set_uint (NValue *value, guint in_value)
 }
 
 guint
-n_value_get_uint (NValue *value)
+n_value_get_uint (const NValue *value)
 {
     return (value && value->type == N_VALUE_TYPE_UINT) ? value->value.u : 0;
 }
 
 void
-n_value_set_bool (NValue *value, gboolean in_value)
+n_value_set_bool (NValue *value, const gboolean in_value)
 {
     if (!value)
         return;
@@ -226,13 +226,13 @@ n_value_set_bool (NValue *value, gboolean in_value)
 }
 
 gboolean
-n_value_get_bool (NValue *value)
+n_value_get_bool (const NValue *value)
 {
     return (value && value->type == N_VALUE_TYPE_BOOL) ? value->value.b : FALSE;
 }
 
 void
-n_value_set_pointer (NValue *value, gpointer in_value)
+n_value_set_pointer (NValue *value, const gpointer in_value)
 {
     if (!value)
         return;
@@ -242,13 +242,13 @@ n_value_set_pointer (NValue *value, gpointer in_value)
 }
 
 gpointer
-n_value_get_pointer (NValue *value)
+n_value_get_pointer (const NValue *value)
 {
     return (value && value->type == N_VALUE_TYPE_POINTER) ? value->value.p : NULL;
 }
 
 gchar*
-n_value_to_string (NValue *value)
+n_value_to_string (const NValue *value)
 {
     gchar *result = NULL;
 

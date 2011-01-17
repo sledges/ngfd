@@ -61,14 +61,14 @@ void         n_value_clean       (NValue *value);
  * @param value NValue
  * @return New NValue
  */
-NValue*      n_value_copy        (NValue *value);
+NValue*      n_value_copy        (const NValue *value);
 
 /** Return type of contents of NValue
  * @param value NValue
  * @return Type as NValueType
  * @see NValueType
  */
-int          n_value_type        (NValue *value);
+int          n_value_type        (const NValue *value);
 
 /** Compare two NValues
  * @param a NValue A
@@ -87,66 +87,66 @@ void         n_value_set_string  (NValue *value, const char *in_value);
  * @param value NValue
  * @return Value
  */
-const gchar* n_value_get_string  (NValue *value);
+const gchar* n_value_get_string  (const NValue *value);
 
 /** Return copy of string from NValue
  * @param value NValue
  * @return Newly allocated string. Must be freed after use.
  */
-gchar*       n_value_dup_string  (NValue *value);
+gchar*       n_value_dup_string  (const NValue *value);
 
 /** Set int value to NValue
  * @param value NValue
  * @param in_value value
  */
-void         n_value_set_int     (NValue *value, gint in_value);
+void         n_value_set_int     (NValue *value, const gint in_value);
 
 /** Get int value from NValue
  * @param value NValue
  * @return Value
  */
-gint         n_value_get_int     (NValue *value);
+gint         n_value_get_int     (const NValue *value);
 
 /** Set uint value to NValue
  * @param value NValue
  * @param in_value value
  */
-void         n_value_set_uint    (NValue *value, guint in_value);
+void         n_value_set_uint    (NValue *value, const guint in_value);
 
 /** Get uint value from NValue
  * @param value NValue
  * @return Value
  */
-guint        n_value_get_uint    (NValue *value);
+guint        n_value_get_uint    (const NValue *value);
 
 /** Set boolean value to NValue
  * @param value NValue
  * @param in_value value
  */
-void         n_value_set_bool    (NValue *value, gboolean in_value);
+void         n_value_set_bool    (NValue *value, const gboolean in_value);
 
 /** Get boolean value from NValue
  * @param value NValue
  * @return Value
  */
-gboolean     n_value_get_bool    (NValue *value);
+gboolean     n_value_get_bool    (const NValue *value);
 
 /** Set pointer to NValue
  * @param value NValue
  * @param in_value value
  */
-void         n_value_set_pointer (NValue *value, gpointer in_value);
+void         n_value_set_pointer (NValue *value, const gpointer in_value);
 
 /** Get pointer from NValue
  * @param value NValue
  * @return Value
  */
-gpointer     n_value_get_pointer (NValue *value);
+gpointer     n_value_get_pointer (const NValue *value);
 
 /** Return string representation of contents
  * @param value NValue
  * @return Contents as string
  */
-gchar*       n_value_to_string   (NValue *value);
+gchar*       n_value_to_string   (const NValue *value);
 
 #endif /* N_VALUE_H */
