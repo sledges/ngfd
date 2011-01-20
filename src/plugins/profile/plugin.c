@@ -453,45 +453,36 @@ query_current_profile (NCore *core)
 static void
 query_current_values (NCore *core)
 {
-    NContext   *context     = n_core_get_context (core);
-    char      **keys        = NULL;
-    char      **profiles    = NULL;
-    char      **k           = NULL;
-    char      **p           = NULL;
-    char       *value       = NULL;
-    const char *current     = NULL;
+    NContext      *context     = n_core_get_context (core);
+    char         **profiles    = NULL;
+    char         **p           = NULL;
+    const char    *current     = NULL;
+    profileval_t  *values      = NULL;
+    profileval_t  *v           = NULL;
+    gboolean       is_current  = FALSE;
 
     profiles = profile_get_profiles ();
-    keys     = profile_get_keys ();
     current  = n_value_get_string ((NValue*) n_context_get_value (context,
         "profile.current_profile"));
 
     for (p = profiles; *p; ++p) {
-        for (k = keys; *k; ++k) {
-            value = profile_get_value (*p, *k);
-            if (!value)
-                continue;
-
-            update_context_value (context, *p, *k, value);
-            if (current && g_str_equal (current, *p))
-                update_context_value (context, NULL, *k, value);
-
-            free (value);
+        is_current = current && g_str_equal (current, *p);
+        values = profile_get_values (*p);
+        for (v = values; v->pv_key; ++v) {
+            update_context_value (context, *p, v->pv_key, v->pv_val);
+            if (is_current)
+                update_context_value (context, NULL, v->pv_key, v->pv_val);
         }
+        profile_free_values (values);
     }
 
     /* fallbacks */
 
-    for (k = keys; *k; ++k) {
-        value = profile_get_value ("fallback", *k);
-        if (!value)
-            continue;
+    values = profile_get_values ("fallback");
+    for (v = values; v->pv_key; ++v)
+        update_context_value (context, "fallback", v->pv_key, v->pv_val);
+    profile_free_values (values);
 
-        update_context_value (context, "fallback", *k, value);
-        free (value);
-    }
-
-    profile_free_keys (keys);
     profile_free_profiles (profiles);
 }
 
