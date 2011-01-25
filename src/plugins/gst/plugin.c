@@ -483,16 +483,27 @@ gst_sink_prepare (NSinkInterface *iface, NRequest *request)
     return TRUE;
 
 failed:
-    if (data->pipeline)   gst_object_unref (data->pipeline);
-    if (source)    gst_object_unref (source);
-    if (decodebin) gst_object_unref (decodebin);
-    if (data->volume_element)     gst_object_unref (data->volume_element);
-    if (sink)      gst_object_unref (sink);
-    if (data->controller) gst_object_unref (data->controller);
+    if (data->volume)
+        volume_free (data->volume);
+    if (data->pipeline)
+        gst_object_unref (data->pipeline);
+    if (source)
+        gst_object_unref (source);
+    if (decodebin)
+        gst_object_unref (decodebin);
+    if (data->volume_element)
+        gst_object_unref (data->volume_element);
+    if (sink)
+        gst_object_unref (sink);
+    if (data->controller)
+        gst_object_unref (data->controller);
     return FALSE;
 
 failed_link:
-    if (data->pipeline)   gst_object_unref (data->pipeline);
+    if (data->volume)
+        volume_free (data->volume);
+    if (data->pipeline)
+        gst_object_unref (data->pipeline);
     return FALSE;
 }
 
@@ -553,6 +564,11 @@ gst_sink_stop (NSinkInterface *iface, NRequest *request)
     if (data->properties) {
         gst_structure_free (data->properties);
         data->properties = NULL;
+    }
+
+    if (data->volume) {
+        volume_free (data->volume);
+        data->volume = NULL;
     }
 
     g_slice_free (GstData, data);
