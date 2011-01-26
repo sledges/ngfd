@@ -303,7 +303,7 @@ n_translate_fallback (const char *key, const NValue *value, gpointer userdata)
     if (g_str_has_suffix (key, FALLBACK_SUFFIX)) {
         new_key = g_strdup (key);
         new_key[strlen (key) - strlen (FALLBACK_SUFFIX)] = 0;
-        n_proplist_set (props, new_key, value);
+        n_proplist_set (props, new_key, n_value_copy (value));
         g_free (new_key);
     }
 }
@@ -367,8 +367,6 @@ n_core_request_done_cb (gpointer userdata)
     N_DEBUG (LOG_CAT "request has failed, restarting with fallback.");
 
     new_props = n_proplist_copy (request->original_properties);
-    n_proplist_foreach (request->original_properties,
-        n_translate_fallback, new_props);
 
     NRequest *new_request = n_request_new ();
     new_request->name        = g_strdup (request->name);
@@ -393,6 +391,8 @@ done:
 int
 n_core_play_request (NCore *core, NRequest *request)
 {
+    NProplist *new_props     = NULL;
+
     g_assert (core != NULL);
     g_assert (request != NULL);
 
@@ -422,9 +422,19 @@ n_core_play_request (NCore *core, NRequest *request)
 
     n_core_fire_new_request_hook (request);
 
-    /* merge and trasnform */
+    /* merge and transform */
 
     n_core_merge_request_properties (request, request->event);
+
+    /* check if fallbacks need to be used */
+    if (request->is_fallback) {
+        new_props = n_proplist_copy (request->properties);
+        n_proplist_foreach (request->properties,
+            n_translate_fallback, new_props);
+        n_proplist_free (request->properties);
+        request->properties  = new_props;
+    }
+
     n_core_fire_transform_properties_hook (request);
 
     /* query and filter capable sinks */
