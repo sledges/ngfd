@@ -36,6 +36,7 @@ typedef struct _ImmvibeData
     gpointer        pattern;
     gboolean        paused;
     guint           poll_id;
+    guint           idle_complete_id;
 } ImmvibeData;
 
 static VibeInt32    device      = VIBE_INVALID_DEVICE_HANDLE_VALUE;
@@ -193,6 +194,8 @@ vibrator_start (gpointer pattern_data, gpointer userdata)
         ret = ImmVibePlayIVTEffect (device, effects, 0, &id);
 
         if (VIBE_SUCCEEDED (ret)) {
+            n_sink_interface_set_resync_on_master (data->iface, data->request);
+
             N_DEBUG ("%s >> started pattern with id %d", __FUNCTION__, id);
             data->poll_id = g_timeout_add (POLL_TIMEOUT, pattern_poll_cb, userdata);
             return id;
@@ -285,9 +288,6 @@ immvibe_sink_prepare (NSinkInterface *iface, NRequest *request)
             filename = build_vibration_filename (search_path, n_proplist_get_string (props, "sound.filename"));
             data->pattern = vibrator_load (filename);
             g_free (filename);
-
-            if (data->pattern)
-                n_sink_interface_set_resync_on_master (iface, request);
         }
     }
 
@@ -300,14 +300,26 @@ immvibe_sink_prepare (NSinkInterface *iface, NRequest *request)
         }
     }
 
-    n_request_store_data (request, IMMVIBE_KEY, data);
-    
-    if (data->pattern == NULL) {
-        return FALSE;
-    }
+    /* succeed even if no data. */
 
+    n_request_store_data (request, IMMVIBE_KEY, data);
     n_sink_interface_synchronize (iface, request);
+
     return TRUE;
+}
+
+static gboolean
+immvibe_idle_complete_cb (gpointer userdata)
+{
+    ImmvibeData *data = (ImmvibeData*) userdata;
+
+    data->idle_complete_id = 0;
+
+    /* nothing played, we just complete this event. */
+    N_DEBUG (LOG_CAT "idle complete");
+    n_sink_interface_complete (data->iface, data->request);
+
+    return FALSE;
 }
 
 static int
@@ -321,16 +333,20 @@ immvibe_sink_play (NSinkInterface *iface, NRequest *request)
     g_assert (data != NULL);
 
     if (data->paused) {
-        (void) ImmVibeResumePausedEffect (device, data->id);
-        data->paused = FALSE;
+        if (data->id > 0) {
+            (void) ImmVibeResumePausedEffect (device, data->id);
+        }
 
+        data->paused = FALSE;
         return TRUE;
     }
 
-    data->id = vibrator_start (data->pattern, request);
-    if (data->id == 0) {
-        n_sink_interface_fail (data->iface, data->request);
-        return FALSE;
+    if (data->pattern) {
+        data->id = vibrator_start (data->pattern, request);
+    }
+
+    if (!data->pattern || data->id == 0) {
+        data->idle_complete_id = g_idle_add (immvibe_idle_complete_cb, data);
     }
 
     return TRUE;
@@ -346,7 +362,14 @@ immvibe_sink_pause (NSinkInterface *iface, NRequest *request)
     ImmvibeData *data = (ImmvibeData*) n_request_get_data (request, IMMVIBE_KEY);
     g_assert (data != NULL);
 
-    (void) ImmVibePausePlayingEffect (device, data->id);
+    if (!data->pattern) {
+        return TRUE;
+    }
+
+    if (data->id > 0) {
+        (void) ImmVibePausePlayingEffect (device, data->id);
+    }
+
     data->paused = TRUE;
 
     return TRUE;
@@ -362,15 +385,21 @@ immvibe_sink_stop (NSinkInterface *iface, NRequest *request)
     ImmvibeData *data = (ImmvibeData*) n_request_get_data (request, IMMVIBE_KEY);
     g_assert (data != NULL);
 
-    ImmVibeStopPlayingEffect (device, data->id);
+    if (data->id > 0) {
+        ImmVibeStopPlayingEffect (device, data->id);
+    }
 
-    if (data->poll_id) {
+    if (data->poll_id > 0) {
         g_source_remove (data->poll_id);
         data->poll_id = 0;
     }
 
-    g_free (data->pattern);
+    if (data->idle_complete_id > 0) {
+        g_source_remove (data->idle_complete_id);
+        data->idle_complete_id = 0;
+    }
 
+    g_free       (data->pattern);
     g_slice_free (ImmvibeData, data);
 }
 
