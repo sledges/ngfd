@@ -241,6 +241,25 @@ dbusif_lookup_request (NInputInterface *iface, guint policy_id)
     return NULL;
 }
 
+static void
+dbusif_stop_all (NInputInterface *iface)
+{
+    g_assert (iface != NULL);
+
+    NCore     *core            = NULL;
+    NRequest  *request         = NULL;
+    GList     *active_requests = NULL;
+    GList     *iter            = NULL;
+
+    core = n_input_interface_get_core (iface);
+    active_requests = n_core_get_requests (core);
+
+    for (iter = g_list_first (active_requests); iter; iter = g_list_next (iter)) {
+        request = (NRequest*) iter->data;
+        n_input_interface_stop_request (iface, request);
+    }
+}
+
 static DBusHandlerResult
 dbusif_stop_handler (DBusConnection *connection, DBusMessage *msg,
                      NInputInterface *iface)
@@ -316,6 +335,30 @@ dbusif_message_function (DBusConnection *connection, DBusMessage *msg,
 {
     NInputInterface *iface  = (NInputInterface*) userdata;
     const char      *member = dbus_message_get_member (msg);
+    DBusError error = DBUS_ERROR_INIT;
+    gchar *component = NULL;
+    gchar *s1 = NULL;
+    gchar *s2 = NULL;
+
+    if (dbus_message_is_signal (msg, "org.freedesktop.DBus", "NameOwnerChanged")) {
+        if (!dbus_message_get_args
+            (msg, &error,
+            DBUS_TYPE_STRING, &component,
+            DBUS_TYPE_STRING, &s1,
+            DBUS_TYPE_STRING, &s2,
+            DBUS_TYPE_INVALID)) {
+            if (error.message)
+                N_WARNING (LOG_CAT "D-Bus error: %s",error.message);
+        } else {
+            if (component && g_str_equal (component, "org.freedesktop.ohm")) {
+                N_INFO (LOG_CAT "Ohmd restarted, stopping all requests");
+                dbusif_stop_all (iface);
+            }
+        }
+        dbus_error_free (&error);
+
+        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+    }
 
     if (member == NULL)
         return DBUS_HANDLER_RESULT_HANDLED;
@@ -373,6 +416,12 @@ dbusif_initialize (NInputInterface *iface)
     if (!dbus_connection_register_object_path (g_data->connection,
         NGF_DBUS_PATH, &method, iface))
         return FALSE;
+
+    /* Monitor for ohmd restarts */
+    dbus_bus_add_match (g_data->connection,
+    "type='signal',sender='org.freedesktop.DBus',member='NameOwnerChanged',arg0='org.freedesktop.ohm'",
+       NULL);
+    dbus_connection_add_filter (g_data->connection, dbusif_message_function, iface, NULL);
 
     return TRUE;
 }
