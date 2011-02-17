@@ -25,6 +25,7 @@
 #define LOG_CAT         "core: "
 #define FALLBACK_SUFFIX ".fallback"
 #define MAX_TIMEOUT_KEY "core.max_timeout"
+#define POLICY_TIMEOUT_KEY "play.timeout"
 
 static gboolean n_core_max_timeout_reached_cb         (gpointer userdata);
 static void     n_core_setup_max_timeout              (NRequest *request);
@@ -65,9 +66,11 @@ n_core_setup_max_timeout (NRequest *request)
     g_assert (request->max_timeout_id == 0);
 
     NProplist *props    = request->properties;
-    gint timeout_period = 0;
+    guint timeout_period = 0;
 
-    timeout_period = n_proplist_get_int (props, MAX_TIMEOUT_KEY);
+    timeout_period = n_proplist_get_uint (props, POLICY_TIMEOUT_KEY);
+    if (timeout_period == 0)
+        timeout_period = n_proplist_get_uint (props, MAX_TIMEOUT_KEY);
     if (timeout_period > 0) {
         N_DEBUG (LOG_CAT "maximum timeout set to %d", timeout_period);
         request->max_timeout_id = g_timeout_add (timeout_period,
