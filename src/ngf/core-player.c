@@ -63,10 +63,12 @@ static void
 n_core_setup_max_timeout (NRequest *request)
 {
     g_assert (request != NULL);
-    g_assert (request->max_timeout_id == 0);
 
     NProplist *props    = request->properties;
     guint timeout_period = 0;
+
+    if (request->max_timeout_id > 0)
+        return;
 
     timeout_period = n_proplist_get_uint (props, POLICY_TIMEOUT_KEY);
     if (timeout_period == 0)
