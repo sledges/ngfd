@@ -169,7 +169,6 @@ START_TEST (test_merge)
     int merged2 = n_proplist_get_int (target, merge_key2);
     fail_unless (merged2 == ARRAY_SIZE (keys));
     
-    g_free ((char *)merged1);   
     n_proplist_free (sourceCopy);
     sourceCopy = NULL;
     n_proplist_free (targetCopy);
