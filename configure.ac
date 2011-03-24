@@ -51,6 +51,21 @@ PKG_CHECK_MODULES(CHECK, check)
 AC_SUBST(CHECK_LIBS)
 AC_SUBST(CHECK_CFLAGS)
 
+
+AC_ARG_ENABLE([coverage],
+     	AS_HELP_STRING([--enable-coverage],[Enable coverage @<:@default=false@:>@]),
+	[case "${enableval}" in
+		yes) coverage=true ; CHECK_CFLAGS="${CHECK_CFLAGS} -fprofile-arcs -ftest-coverage" ; CHECK_LIBS="${CHECK_LIBS} -lgcov" ;;
+		no)  coverage=false ;;
+		*) AC_MSG_ERROR([bad value ${enableval} for --enable-coverage]) ;;
+	esac],
+	[coverage=false])
+AM_CONDITIONAL([COVERAGE], [test x$coverage = xtrue])
+
+#AC_SUBST(CHECK_LIBS)
+#AC_SUBST(CHECK_CFLAGS)
+
+
 # NGFD build compatibility variables.
 AC_SUBST(NGFD_CFLAGS, "$GLIB_CFLAGS $GMODULE_CFLAGS")
 AC_SUBST(NGFD_LIBS, "$GLIB_LIBS $GMODULE_LIBS")
@@ -166,6 +181,7 @@ echo "
 
     Compiler:               ${CC}
     CFLAGS:                 ${CFLAGS}
+    Code coverage:          ${coverage}
     Debug enabled:          ${debug}
 
     DBus plugin:            ${enable_dbus}
