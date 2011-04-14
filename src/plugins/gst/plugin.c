@@ -71,61 +71,93 @@ static GstStructure* create_stream_properties   (NProplist *props);
 
 
 
+static gboolean
+get_current_volume (GstData *data, gdouble *out_volume)
+{
+    gdouble v;
+
+    if (!data->volume_element)
+        return FALSE;
+
+    g_object_get (G_OBJECT (data->volume_element),
+        "volume", &v, NULL);
+
+    *out_volume = v;
+    return TRUE;
+}
+
+static gboolean
+get_current_position (GstData *data, gdouble *out_position)
+{
+    GstFormat fmt = GST_FORMAT_TIME;
+    gint64 timestamp;
+
+    if (!gst_element_query_position (data->pipeline, &fmt, &timestamp)) {
+        N_WARNING (LOG_CAT "unable to query data position");
+        return FALSE;
+    }
+
+    if (!(GST_CLOCK_TIME_IS_VALID (timestamp) && fmt == GST_FORMAT_TIME)) {
+        N_WARNING (LOG_CAT "queried position or format is not valid");
+        return FALSE;
+    }
+
+    *out_position = (gdouble) timestamp / GST_SECOND;
+
+    return TRUE;
+}
+
+static void
+set_controller_values (GstData *data, gdouble start_volume, gdouble end_time, gdouble end_volume)
+{
+    GValue v = {0,{{0}}};
+
+    gst_controller_set_disabled (data->controller, TRUE);
+    gst_interpolation_control_source_unset_all (data->csource);
+
+    g_value_init (&v, G_TYPE_DOUBLE);
+    g_value_set_double (&v, start_volume);
+    gst_interpolation_control_source_set (data->csource,
+        0, &v); /* start_time */
+
+    g_value_reset (&v);
+    g_value_set_double (&v, (end_volume));
+    gst_interpolation_control_source_set (data->csource,
+        end_time * GST_SECOND, &v);
+
+    g_value_unset (&v);
+    gst_controller_set_disabled (data->controller, FALSE);
+}
+
 static void
 reset_linear_volume (GstData *data, gboolean query_position)
 {
-    Volume    *volume = data->volume;
-    GstFormat  fmt    = GST_FORMAT_TIME;
-    GValue     v = {0,{{0}}};
-
-    gint64     timestamp;
-    gdouble    timeleft, current_volume;
+    Volume *volume = data->volume;
+    gdouble timeleft, current_volume, position;
 
     if (!volume || volume->type != VOLUME_TYPE_LINEAR)
         return;
 
+    current_volume = data->volume->linear[0] / 100.0;
+    timeleft = data->volume->linear[2];
+    data->time_played = 0.0;
+
     if (query_position) {
-        if (!gst_element_query_position (data->pipeline, &fmt, &timestamp)) {
-            N_WARNING (LOG_CAT "unable to query data position");
+        if (!get_current_position (data, &position))
             goto finish_controller;
-        }
 
-        if (!(GST_CLOCK_TIME_IS_VALID (timestamp) && fmt == GST_FORMAT_TIME)) {
-            N_WARNING (LOG_CAT "queried position or format is not valid");
-            goto finish_controller;
-        }
-
-        data->time_played += (gdouble) timestamp / GST_SECOND;
+        data->time_played += position;
         timeleft = data->volume->linear[2] - data->time_played;
 
-        g_object_get (G_OBJECT (data->volume_element),
-            "volume", &current_volume, NULL);
-    }
-    else {
-        data->time_played = 0.0;
-        timeleft            = data->volume->linear[2];
-        current_volume      = data->volume->linear[0] / 100.0;
+        get_current_volume (data, &current_volume);
     }
 
     if (timeleft > 0.0) {
         N_DEBUG (LOG_CAT "query=%s, timeleft = %f, current_volume = %f",
             query_position ? "TRUE" : "FALSE", timeleft, current_volume);
 
-        gst_controller_set_disabled (data->controller, TRUE);
-        gst_interpolation_control_source_unset_all (data->csource);
-
-        g_value_init (&v, G_TYPE_DOUBLE);
-        g_value_set_double (&v, current_volume);
-        gst_interpolation_control_source_set (data->csource,
-            0 * GST_SECOND, &v);
-
-        g_value_reset (&v);
-        g_value_set_double (&v, (data->volume->linear[1] / 100.0));
-        gst_interpolation_control_source_set (data->csource,
-            timeleft * GST_SECOND, &v);
-
-        g_value_unset (&v);
-        gst_controller_set_disabled (data->controller, FALSE);
+        set_controller_values (data, current_volume,
+            timeleft * GST_SECOND, data->volume->linear[1] / 100.0);
 
         return;
     }
