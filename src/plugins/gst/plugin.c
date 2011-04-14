@@ -35,7 +35,6 @@
 
 static gint   _gst_plugin_buffer_time  = -1;
 static gint   _gst_plugin_latency_time = -1;
-static GList* _gst_plugin_preload_list = NULL;
 
 typedef struct _GstData
 {
@@ -64,7 +63,6 @@ N_PLUGIN_VERSION     ("0.1")
 N_PLUGIN_DESCRIPTION ("GStreamer plugin")
 
 static void          reset_linear_volume        (GstData *data, gboolean query_position);
-static void          gst_element_preload        (const gchar *name);
 static void          pipeline_rewind            (GstElement *pipeline, gboolean flush);
 static gboolean      bus_cb                     (GstBus *bus, GstMessage *msg, gpointer userdata);
 static void          new_decoded_pad_cb         (GstElement *element, GstPad *pad, gboolean is_last, gpointer userdata);
@@ -72,7 +70,6 @@ static void          set_stream_properties      (GstElement *sink, const GstStru
 static int           set_structure_string       (GstStructure *s, const char *key, const char *value);
 static void          convert_stream_property_cb (const char *key, const NValue *value, gpointer userdata);
 static GstStructure* create_stream_properties   (NProplist *props);
-static void          init_done_cb               (NHook *hook, void *data, void *userdata);
 
 
 
@@ -141,19 +138,6 @@ finish_controller:
         g_object_unref (data->controller);
         data->controller = NULL;
     }
-}
-
-static void
-gst_element_preload (const gchar *name)
-{
-    GstElement *element = NULL;
-
-    if ((element = gst_element_factory_make (name, NULL)) == NULL) {
-        N_WARNING (LOG_CAT "preloading element %s failed", name);
-        return;
-    }
-
-    g_object_unref (element);
 }
 
 static void
@@ -574,29 +558,10 @@ gst_sink_stop (NSinkInterface *iface, NRequest *request)
     g_slice_free (GstData, data);
 }
 
-static void
-init_done_cb (NHook *hook, void *data, void *userdata)
-{
-    (void) hook;
-    (void) data;
-    (void) userdata;
-
-    GList      *iter         = NULL;
-    const char *element_name = NULL;
-
-    for (iter = g_list_first (_gst_plugin_preload_list); iter; iter = g_list_next (iter)) {
-        element_name = (const char*) iter->data;
-        gst_element_preload (element_name);
-    }
-}
-
 N_PLUGIN_LOAD (plugin)
 {
-    NCore       *core   = NULL;
     NProplist   *params = NULL;
     const char  *value  = NULL;
-    gchar      **split  = NULL;
-    gchar      **item   = NULL;
 
     static const NSinkInterfaceDecl decl = {
         .name       = "gst",
@@ -621,30 +586,10 @@ N_PLUGIN_LOAD (plugin)
     if ((value = n_proplist_get_string (params, "latency-time")))
         _gst_plugin_latency_time = atoi (value);
 
-    /* query the list for the elements we wish to preload */
-
-    if ((value = n_proplist_get_string (params, "preload-elements"))) {
-        split = g_strsplit (value, " ", -1);
-        for (item = split; *item; ++item) {
-            _gst_plugin_preload_list = g_list_append (_gst_plugin_preload_list,
-                g_strdup (*item));
-        }
-    }
-
-    if (_gst_plugin_preload_list) {
-        core = n_plugin_get_core (plugin);
-        (void) n_core_connect (core, N_CORE_HOOK_INIT_DONE, 0,
-            init_done_cb, plugin);
-    }
-
     return TRUE;
 }
 
 N_PLUGIN_UNLOAD (plugin)
 {
     (void) plugin;
-
-    g_list_foreach (_gst_plugin_preload_list, (GFunc) g_free, NULL);
-    g_list_free (_gst_plugin_preload_list);
-    _gst_plugin_preload_list = NULL;
 }
