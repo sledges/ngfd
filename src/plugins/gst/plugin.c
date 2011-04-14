@@ -53,8 +53,6 @@ typedef struct _GstData
     gint                           buffer_time;
     gint                           latency_time;
     gboolean                       paused;
-    guint                          current_repeat;
-    guint                          num_repeats;
     gboolean                       repeating;
 } GstData;
 
@@ -188,13 +186,6 @@ bus_cb (GstBus *bus, GstMessage *msg, gpointer userdata)
 
                 n_sink_interface_synchronize (stream->iface, stream->request);
             }
-
-            else if (old_state == GST_STATE_PAUSED && new_state == GST_STATE_PLAYING) {
-                if (stream->paused)
-                    break;
-
-                stream->current_repeat++;
-            }
             break;
         }
 
@@ -207,19 +198,10 @@ bus_cb (GstBus *bus, GstMessage *msg, gpointer userdata)
                rewind state change or completion. */
 
             reset_linear_volume (stream, TRUE);
+            pipeline_rewind (stream->pipeline, FALSE);
+            gst_element_set_state (stream->pipeline, GST_STATE_PAUSED);
 
-            if (stream->num_repeats == 0 || (stream->current_repeat > stream->num_repeats)) {
-                pipeline_rewind (stream->pipeline, FALSE);
-                gst_element_set_state (stream->pipeline, GST_STATE_PAUSED);
-
-                n_sink_interface_resynchronize (stream->iface, stream->request);
-            }
-            else {
-                n_sink_interface_complete (stream->iface, stream->request);
-
-                return FALSE;
-            }
-
+            n_sink_interface_resynchronize (stream->iface, stream->request);
             break;
         }
 
