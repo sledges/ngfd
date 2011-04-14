@@ -27,8 +27,6 @@
 #include <gst/controller/gstinterpolationcontrolsource.h>
 #include <gio/gio.h>
 
-#include "volume.h"
-
 #define GST_KEY           "plugin.gst.data"
 #define STREAM_PREFIX_KEY "sound.stream."
 #define LOG_CAT           "gst: "
@@ -42,8 +40,9 @@ typedef struct _GstData
     NSinkInterface                *iface;
 
     GstElement                    *pipeline;
-    Volume                        *volume;
     GstElement                    *volume_element;
+    gboolean                       has_linear_volume;
+    gint                           linear_volume[3];
     GstController                 *controller;
     GstInterpolationControlSource *csource;
     const gchar                   *source;
@@ -70,6 +69,52 @@ static void          convert_stream_property_cb (const char *key, const NValue *
 static GstStructure* create_stream_properties   (NProplist *props);
 
 
+
+static gchar*
+strip_prefix (const gchar *str, const gchar *prefix)
+{
+    if (!g_str_has_prefix (str, prefix))
+        return NULL;
+
+    size_t prefix_length = strlen (prefix);
+    return g_strdup (str + prefix_length);
+}
+
+static void
+parse_linear_volume (GstData *data, const char *str)
+{
+    gchar *stripped = NULL;
+    gchar **split = NULL, **item = NULL;
+    gint i = 0;
+
+    if (!str || !g_str_has_prefix (str, "linear:"))
+        return;
+
+    stripped = strip_prefix (str, "linear:");
+    split = g_strsplit (stripped, ";", -1);
+    if (split[0] == NULL) {
+        g_strfreev (split);
+        g_free (stripped);
+        return;
+    }
+
+    item = split;
+    for (i = 0; i < 3; i++) {
+        if (*item == NULL) {
+            g_strfreev (split);
+            g_free (stripped);
+            return;
+        }
+
+        data->linear_volume[i] = atoi (*item);
+        item++;
+    }
+
+    data->has_linear_volume = TRUE;
+
+    g_strfreev (split);
+    g_free (stripped);
+}
 
 static gboolean
 get_current_volume (GstData *data, gdouble *out_volume)
@@ -132,14 +177,13 @@ set_controller_values (GstData *data, gdouble start_volume, gdouble end_time, gd
 static void
 reset_linear_volume (GstData *data, gboolean query_position)
 {
-    Volume *volume = data->volume;
     gdouble timeleft, current_volume, position;
 
-    if (!volume || volume->type != VOLUME_TYPE_LINEAR)
+    if (!data->has_linear_volume)
         return;
 
-    current_volume = data->volume->linear[0] / 100.0;
-    timeleft = data->volume->linear[2];
+    current_volume = data->linear_volume[0] / 100.0;
+    timeleft = data->linear_volume[2];
     data->time_played = 0.0;
 
     if (query_position) {
@@ -147,7 +191,7 @@ reset_linear_volume (GstData *data, gboolean query_position)
             goto finish_controller;
 
         data->time_played += position;
-        timeleft = data->volume->linear[2] - data->time_played;
+        timeleft = data->linear_volume[2] - data->time_played;
 
         get_current_volume (data, &current_volume);
     }
@@ -157,7 +201,7 @@ reset_linear_volume (GstData *data, gboolean query_position)
             query_position ? "TRUE" : "FALSE", timeleft, current_volume);
 
         set_controller_values (data, current_volume,
-            timeleft * GST_SECOND, data->volume->linear[1] / 100.0);
+            timeleft * GST_SECOND, data->linear_volume[1] / 100.0);
 
         return;
     }
@@ -419,7 +463,7 @@ gst_sink_prepare (NSinkInterface *iface, NRequest *request)
     n_request_store_data (request, GST_KEY, data);
 
     data->pipeline = gst_pipeline_new (NULL);
-    data->volume = create_volume (n_proplist_get_string (props, "sound.volume"));
+    parse_linear_volume (data, n_proplist_get_string (props, "sound.volume"));
 
     source    = gst_element_factory_make ("filesrc", NULL);
     decodebin = gst_element_factory_make ("decodebin2", NULL);
@@ -428,7 +472,7 @@ gst_sink_prepare (NSinkInterface *iface, NRequest *request)
     if (data->pipeline == NULL || source == NULL || decodebin == NULL || sink == NULL)
         goto failed;
 
-    if (data->volume && data->volume->type == VOLUME_TYPE_LINEAR) {
+    if (data->has_linear_volume) {
         if ((data->volume_element = gst_element_factory_make ("volume", NULL)) == NULL)
             goto failed;
 
@@ -481,8 +525,6 @@ gst_sink_prepare (NSinkInterface *iface, NRequest *request)
     return TRUE;
 
 failed:
-    if (data->volume)
-        volume_free (data->volume);
     if (data->pipeline)
         gst_object_unref (data->pipeline);
     if (source)
@@ -498,8 +540,6 @@ failed:
     return FALSE;
 
 failed_link:
-    if (data->volume)
-        volume_free (data->volume);
     if (data->pipeline)
         gst_object_unref (data->pipeline);
     return FALSE;
@@ -562,11 +602,6 @@ gst_sink_stop (NSinkInterface *iface, NRequest *request)
     if (data->properties) {
         gst_structure_free (data->properties);
         data->properties = NULL;
-    }
-
-    if (data->volume) {
-        volume_free (data->volume);
-        data->volume = NULL;
     }
 
     g_slice_free (GstData, data);
