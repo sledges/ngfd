@@ -6,6 +6,7 @@ endif
 
 if BUILD_MCE
 SUBDIRS += mce
+SUBDIRS += callstate
 endif
 
 if BUILD_IMMVIBE
