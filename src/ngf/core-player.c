@@ -351,19 +351,29 @@ n_core_request_done_cb (gpointer userdata)
     g_list_free (request->sinks_preparing);
     g_list_free (request->all_sinks);
 
-    if (!request->has_failed) {
+    if (request->has_failed && request->is_fallback) {
+        /* if the fallback failed, bail out. */
+        n_core_send_error (request, "request failed!");
+        goto done;
+    }
+    else if (!request->has_failed || request->is_fallback) {
+        /* we completed the original one or fallback, complete the event. */
         n_core_send_reply (request, 0);
         goto done;
     }
 
-    if (request->is_fallback || request->no_event) {
+    if (request->no_event) {
+        /* there was no event at all or we did not find one */
         n_core_send_error (request, "fallback failed or no fallback.");
         goto done;
     }
 
+    /* try fallbacks */
+
     n_proplist_foreach (request->properties, n_find_fallback_cb, &has_fallbacks);
     if (!has_fallbacks) {
-        N_DEBUG (LOG_CAT "no fallbacks defined for request.");
+        /* no fallbacks for the request, error out */
+        n_core_send_error (request, "no fallbacks!");
         goto done;
     }
 
@@ -477,7 +487,7 @@ fail_request:
     request->has_failed     = TRUE;
     request->stop_source_id = g_idle_add (n_core_request_done_cb, request);
 
-    return FALSE;
+    return TRUE;
 }
 
 int
