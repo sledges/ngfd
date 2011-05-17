@@ -53,6 +53,7 @@ typedef struct _StreamData
     gdouble last_volume;
     gdouble time_spent;
     gboolean paused;
+    guint bus_watch_id;
 } StreamData;
 
 N_PLUGIN_NAME        ("gst")
@@ -325,11 +326,6 @@ restart_stream_cb (gpointer userdata)
 
     /* stop the previous stream and free it */
 
-    N_DEBUG (LOG_CAT "stopping pipeline.");
-
-    if (stream->pipeline)
-        gst_element_set_state (stream->pipeline, GST_STATE_NULL);
-
     free_pipeline (stream);
  
     /* recreate the stream */
@@ -468,7 +464,7 @@ make_pipeline (StreamData *stream)
     g_object_set (G_OBJECT (source), "location", stream->filename, NULL);
 
     bus = gst_element_get_bus (pipeline);
-    gst_bus_add_watch (bus, bus_cb, stream);
+    stream->bus_watch_id = gst_bus_add_watch (bus, bus_cb, stream);
     gst_object_unref (bus);
 
     set_stream_properties (sink, stream->properties);
@@ -504,8 +500,14 @@ free_pipeline (StreamData *stream)
 {
     free_volume (stream);
 
+    if (stream->bus_watch_id > 0) {
+        g_source_remove (stream->bus_watch_id);
+        stream->bus_watch_id = 0;
+    }
+
     if (stream->pipeline) {
         N_DEBUG (LOG_CAT "freeing pipeline");
+        gst_element_set_state (stream->pipeline, GST_STATE_NULL);
         gst_object_unref (stream->pipeline);
         stream->pipeline = NULL;
     }
@@ -631,11 +633,6 @@ gst_sink_stop (NSinkInterface *iface, NRequest *request)
     if (stream->restart_source_id > 0) {
         g_source_remove (stream->restart_source_id);
         stream->restart_source_id = 0;
-    }
-
-    if (stream->pipeline) {
-        N_DEBUG (LOG_CAT "setting pipeline to null");
-        gst_element_set_state (stream->pipeline, GST_STATE_NULL);
     }
 
     free_pipeline (stream);
