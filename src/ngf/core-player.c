@@ -700,6 +700,11 @@ n_core_complete_sink (NCore *core, NSinkInterface *sink, NRequest *request)
     if (!request->sinks_playing)
         return;
 
+    if (request->stop_source_id > 0){
+        N_DEBUG (LOG_CAT "already completing request '%s'", request->name);
+        return;
+    }  
+
     N_DEBUG (LOG_CAT "sink '%s' completed request '%s'",
         sink->name, request->name);
 
