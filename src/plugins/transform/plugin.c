@@ -36,6 +36,8 @@ static gboolean    transform_allow_all = FALSE;
 static GList      *transform_allowed_keys = NULL;
 static GHashTable *transform_key_map = NULL;
 
+static const gchar *tone_search_path = NULL;
+
 static gboolean
 query_allow_custom_filenames (NRequest *request)
 {
@@ -79,9 +81,16 @@ new_request_cb (NHook *hook, void *data, void *userdata)
         target  = map_key ? map_key : key;
 
         if (g_str_has_suffix (target, FILENAME_SUFFIX) && !allow_custom) {
-            N_DEBUG (LOG_CAT "+ rejecting key '%s', no custom allowed.", target);
+            N_DEBUG (LOG_CAT "+ rejecting key '%s', no custom allowed.", target);            
+           
+            /* Store the original filename if it is not from user's own music library 
+				(because there is no vibra pattern available in that case) */    
+            if (strcmp ("audio", key) == 0)                        
+				if(g_strrstr(n_value_get_string ((NValue*) value), tone_search_path) != NULL )                        
+					n_proplist_set (new_props, "immvibe.filename_original", n_value_copy (value));
+            
             continue;
-        }
+        }        
 
         if (map_key) {
             N_DEBUG (LOG_CAT "+ transforming key '%s' to '%s'", key, map_key);
@@ -182,6 +191,14 @@ N_PLUGIN_LOAD (plugin)
 
     (void) n_core_connect (core, N_CORE_HOOK_NEW_REQUEST,
         0, new_request_cb, core);
+
+	tone_search_path = n_proplist_get_string (n_plugin_get_params (plugin), "general_tone_search_path");
+
+    if (tone_search_path == NULL) {
+        N_WARNING (LOG_CAT "General tone search path is missing from the configuration file");
+
+        return FALSE;
+    }
 
     return TRUE;
 }

@@ -263,7 +263,8 @@ immvibe_sink_can_handle (NSinkInterface *iface, NRequest *request)
         return FALSE;
     }
 
-    if (n_proplist_has_key (props, "immvibe.filename") || n_proplist_has_key (props, "immvibe.from_tone")) {
+    if (n_proplist_has_key (props, "immvibe.filename") || 
+		n_proplist_has_key (props, "immvibe.filename_original")) {
         N_DEBUG (LOG_CAT "can handle request");
         return TRUE;
     }
@@ -284,20 +285,19 @@ immvibe_sink_prepare (NSinkInterface *iface, NRequest *request)
     data->iface      = iface;
 
     if (n_proplist_get_bool (props, "immvibe.lookup")) {
-        if (n_proplist_has_key (props, "sound.filename")) {
+        if (n_proplist_has_key (props, "sound.filename")) { 
             filename = build_vibration_filename (search_path, n_proplist_get_string (props, "sound.filename"));
             data->pattern = vibrator_load (filename);
             g_free (filename);
-        }
+			}
     }
     
-    if (n_proplist_has_key (props, "immvibe.from_tone")) {
-        filename = build_vibration_filename (search_path, n_proplist_get_string (props, "immvibe.from_tone"));
-        N_DEBUG (LOG_CAT "Constructed %s",filename);
-        data->pattern = vibrator_load (filename);
-        g_free (filename);
-    }
-
+	if (n_proplist_has_key (props, "immvibe.filename_original")) {
+			filename = build_vibration_filename (search_path, n_proplist_get_string (props, "immvibe.filename_original"));
+			data->pattern = vibrator_load (filename);
+			g_free (filename);
+	}
+     
     if (data->pattern == NULL) {
         data->pattern = vibrator_load (n_proplist_get_string (props, "immvibe.filename"));
         if (data->pattern == NULL) {
