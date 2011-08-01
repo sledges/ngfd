@@ -432,12 +432,13 @@ static int
 make_pipeline (StreamData *stream)
 {
     GstElement *pipeline = NULL, *source = NULL, *decoder = NULL,
-        *volume = NULL, *sink = NULL;
+        *audioconv = NULL, *volume = NULL, *sink = NULL;
     GstBus *bus = NULL;
 
     pipeline = gst_pipeline_new (NULL);
     source = gst_element_factory_make ("filesrc", NULL);
     decoder = gst_element_factory_make ("decodebin2", NULL);
+    audioconv = gst_element_factory_make ("audioconvert", NULL);
     volume = gst_element_factory_make ("volume", NULL);
     sink = gst_element_factory_make ("pulsesink", NULL);
 
@@ -446,20 +447,20 @@ make_pipeline (StreamData *stream)
         goto failed;
     }
 
-    gst_bin_add_many (GST_BIN (pipeline), source, decoder, volume, sink, NULL);
+    gst_bin_add_many (GST_BIN (pipeline), source, decoder, audioconv, volume, sink, NULL);
     
     if (!gst_element_link (source, decoder)) {
         N_WARNING (LOG_CAT "failed to link source to decoder");
         goto failed_pipeline;
     }
 
-    if (!gst_element_link (volume, sink)) {
-        N_WARNING (LOG_CAT "failed to link volume to sink");
+    if (!gst_element_link_many (audioconv, volume, sink, NULL)) {
+        N_WARNING (LOG_CAT "failed to link converter, volume or sink");
         goto failed_pipeline;
     }
 
     g_signal_connect (G_OBJECT (decoder), "new-decoded-pad",
-        G_CALLBACK (new_decoded_pad_cb), volume);
+        G_CALLBACK (new_decoded_pad_cb), audioconv);
 
     g_object_set (G_OBJECT (source), "location", stream->filename, NULL);
 
@@ -483,6 +484,8 @@ failed:
         gst_object_unref (sink);
     if (volume)
         gst_object_unref (volume);
+    if (audioconv)
+        gst_object_unref (audioconv);
     if (decoder)
         gst_object_unref (decoder);
     if (source)
