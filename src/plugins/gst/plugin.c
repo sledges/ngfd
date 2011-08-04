@@ -75,6 +75,8 @@ static void new_decoded_pad_cb (GstElement *element, GstPad *pad, gboolean is_la
 static int make_pipeline (StreamData *stream);
 static void free_pipeline (StreamData *stream);
 
+static gboolean system_sounds_enabled = TRUE;
+
 static gchar*
 strip_prefix (const gchar *str, const gchar *prefix)
 {
@@ -222,6 +224,7 @@ create_stream_properties (NProplist *props)
 
     GstStructure *s      = gst_structure_empty_new ("props");
     const char   *source = NULL;
+    const char   *role   = NULL;
 
     /* set the stream filename based on the sound file we're
        about to play. */
@@ -234,6 +237,15 @@ create_stream_properties (NProplist *props)
     /* set a media.role to "media" */
 
     set_structure_string (s, "media.role", "media");
+
+    /* if system sound level is off and the flag is set, then we need to
+       use different stream restore role. */
+
+    role = n_proplist_get_string (props ,"system-sounds-role");
+    if (!system_sounds_enabled && role) {
+        N_DEBUG (LOG_CAT "system sounds are off and replace role is set, using '%s'", role);
+        set_structure_string (s, "module-stream-restore.id", role);
+    }
 
     /* convert all properties within the request that begin with
        "sound.stream." prefix. */
@@ -516,6 +528,50 @@ free_pipeline (StreamData *stream)
     }
 }
 
+static void
+system_sound_level_changed (NContext *context,
+                            const char *key,
+                            const NValue *old_value,
+                            const NValue *new_value,
+                            void *userdata)
+{
+    (void) context;
+    (void) key;
+    (void) old_value;
+    (void) userdata;
+
+    int v = 0;
+
+    if (new_value) {
+        v = n_value_get_int (new_value);
+        if (v <= 0 && system_sounds_enabled) {
+            N_DEBUG (LOG_CAT "system sounds are disabled.");
+            system_sounds_enabled = FALSE;
+        }
+        else if (!system_sounds_enabled) {
+            N_DEBUG (LOG_CAT "system sounds are enabled.");
+            system_sounds_enabled = TRUE;
+        }
+    }
+}
+
+static void
+init_done_cb (NHook *hook, void *data, void *userdata)
+{
+    (void) hook;
+    (void) data;
+
+    NContext *context = (NContext*) userdata;
+
+    if (!n_context_subscribe_value_change (context,
+            "profile.current.system.sound.level",
+            system_sound_level_changed, NULL))
+    {
+        N_WARNING (LOG_CAT "failed to subscribe to system sound "
+                           "volume change");
+    }
+}
+
 static int
 gst_sink_initialize (NSinkInterface *iface)
 {
@@ -646,6 +702,9 @@ gst_sink_stop (NSinkInterface *iface, NRequest *request)
 
 N_PLUGIN_LOAD (plugin)
 {
+    NCore    *core    = NULL;
+    NContext *context = NULL;
+
     static const NSinkInterfaceDecl decl = {
         .name       = "gst",
         .initialize = gst_sink_initialize,
@@ -659,10 +718,30 @@ N_PLUGIN_LOAD (plugin)
 
     n_plugin_register_sink (plugin, &decl);
 
+    core = n_plugin_get_core (plugin);
+    context = n_core_get_context (core);
+
+    if (!n_core_connect (core, N_CORE_HOOK_INIT_DONE, 0,
+                         init_done_cb, context))
+    {
+        N_WARNING (LOG_CAT "failed to setup init done hook.");
+    }
+
     return TRUE;
 }
 
 N_PLUGIN_UNLOAD (plugin)
 {
-    (void) plugin;
+    NCore    *core    = NULL;
+    NContext *context = NULL;
+
+    core = n_plugin_get_core (plugin);
+    context = n_core_get_context (core);
+
+    n_context_unsubscribe_value_change (context,
+        "profile.current.system.sound.level",
+        system_sound_level_changed);
+
+    n_core_disconnect (core, N_CORE_HOOK_INIT_DONE,
+        init_done_cb, context);
 }
