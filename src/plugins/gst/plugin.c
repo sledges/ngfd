@@ -40,7 +40,9 @@ typedef struct _StreamData
     NSinkInterface *iface;
     GstElement *pipeline;
     GstElement *volume;
-    gboolean volume_enabled;
+    gboolean volume_linear;
+    gboolean volume_limit;
+    guint volume_cap;
     gint *volumes;
     guint num_volumes;
     GstStructure *properties;
@@ -62,6 +64,7 @@ N_PLUGIN_DESCRIPTION ("GStreamer plugin")
 
 static gchar* strip_prefix (const gchar *str, const gchar *prefix);
 static gboolean parse_linear_volume (const char *str, gint **out_volumes, guint *out_num_volumes);
+static gboolean parse_volume_limit (const char *str, guint *max);
 static void free_linear_volume (gint *volumes);
 static gboolean get_current_volume (StreamData *stream, gdouble *out_volume);
 static gboolean get_current_position (StreamData *stream, gdouble *out_position);
@@ -76,6 +79,7 @@ static int make_pipeline (StreamData *stream);
 static void free_pipeline (StreamData *stream);
 
 static gboolean system_sounds_enabled = TRUE;
+static guint system_sounds_level = 0;
 
 static gchar*
 strip_prefix (const gchar *str, const gchar *prefix)
@@ -127,6 +131,20 @@ done:
     g_strfreev (split);
     g_free (stripped);
     return valid_volume;
+}
+
+static gboolean
+parse_volume_limit (const char *str, guint *max)
+{
+    gchar *stripped = NULL;
+
+    if (!str || !g_str_has_prefix (str, "max:"))
+        return FALSE;
+
+    stripped = strip_prefix (str, "max:");
+    *max = atoi (stripped);
+
+    return TRUE;
 }
 
 static void
@@ -270,44 +288,53 @@ create_volume (StreamData *stream)
     GValue v = {0,{{0}}};
     gdouble time_left = 0.0;
 
-    if (!stream->volume_enabled)
-        return FALSE;
+    if (stream->volume_linear) {
+        time_left = stream->volumes[2] - stream->time_spent;
+        if (time_left <= 0.0) {
+            N_DEBUG (LOG_CAT "volume controller done.");
+            g_object_set (G_OBJECT (stream->volume), "volume", stream->volumes[1] / 100.0, NULL);
+            return FALSE;
+        }
 
-    time_left = stream->volumes[2] - stream->time_spent;
-    if (time_left <= 0.0) {
-        N_DEBUG (LOG_CAT "volume controller done.");
-        g_object_set (G_OBJECT (stream->volume), "volume", stream->volumes[1] / 100.0, NULL);
-        return FALSE;
+        /* create controller and set values */
+
+        N_DEBUG (LOG_CAT "linear volume enabled, raising volume from %.2f to %.2f in %.2f seconds.",
+            stream->last_volume, stream->volumes[1] / 100.0, time_left);
+
+        controller = gst_controller_new (G_OBJECT (stream->volume), "volume", NULL);
+        control_source = gst_interpolation_control_source_new ();
+        gst_controller_set_control_source (controller, "volume", GST_CONTROL_SOURCE (control_source));
+        gst_interpolation_control_source_set_interpolation_mode (control_source, GST_INTERPOLATE_LINEAR);
+
+        g_value_init (&v, G_TYPE_DOUBLE);
+        g_value_set_double (&v, stream->last_volume);
+        gst_interpolation_control_source_set ((GstInterpolationControlSource*) control_source,
+            0, &v); /* start_time */
+
+        g_value_reset (&v);
+        g_value_set_double (&v, stream->volumes[1] / 100.0);
+        gst_interpolation_control_source_set ((GstInterpolationControlSource*) control_source,
+            time_left * GST_SECOND, &v);
+
+        g_value_unset (&v);
+
+        gst_controller_set_disabled (controller, FALSE);
+
+        stream->controller = controller;
+        stream->control_source = control_source;
+
+        return TRUE;
     }
 
-    /* create controller and set values */
+    if (stream->volume_limit) {
+        if (system_sounds_level > stream->volume_cap) {
+            g_object_set (G_OBJECT (stream->volume), "volume", stream->volume_cap / 100.0, NULL);
+        }
 
-    N_DEBUG (LOG_CAT "linear volume enabled, raising volume from %.2f to %.2f in %.2f seconds.",
-        stream->last_volume, stream->volumes[1] / 100.0, time_left);
+        return TRUE;
+    }
 
-    controller = gst_controller_new (G_OBJECT (stream->volume), "volume", NULL);
-    control_source = gst_interpolation_control_source_new ();
-    gst_controller_set_control_source (controller, "volume", GST_CONTROL_SOURCE (control_source));
-    gst_interpolation_control_source_set_interpolation_mode (control_source, GST_INTERPOLATE_LINEAR);
-
-    g_value_init (&v, G_TYPE_DOUBLE);
-    g_value_set_double (&v, stream->last_volume);
-    gst_interpolation_control_source_set ((GstInterpolationControlSource*) control_source,
-        0, &v); /* start_time */
-
-    g_value_reset (&v);
-    g_value_set_double (&v, stream->volumes[1] / 100.0);
-    gst_interpolation_control_source_set ((GstInterpolationControlSource*) control_source,
-        time_left * GST_SECOND, &v);
-
-    g_value_unset (&v);
-
-    gst_controller_set_disabled (controller, FALSE);
-
-    stream->controller = controller;
-    stream->control_source = control_source;
-
-    return TRUE;
+    return FALSE;
 }
 
 static void
@@ -544,6 +571,7 @@ system_sound_level_changed (NContext *context,
 
     if (new_value) {
         v = n_value_get_int (new_value);
+        system_sounds_level = v;
         if (v <= 0 && system_sounds_enabled) {
             N_DEBUG (LOG_CAT "system sounds are disabled.");
             system_sounds_enabled = FALSE;
@@ -561,7 +589,15 @@ init_done_cb (NHook *hook, void *data, void *userdata)
     (void) hook;
     (void) data;
 
+    const NValue *v = NULL;
     NContext *context = (NContext*) userdata;
+
+    v = n_context_get_value (context, "profile.current.system.sound.level");
+    if (!v) {
+        N_WARNING (LOG_CAT "failed to query current system sound level");
+    } else
+        system_sounds_level = n_value_get_int (v);
+
 
     if (!n_context_subscribe_value_change (context,
             "profile.current.system.sound.level",
@@ -623,8 +659,11 @@ gst_sink_prepare (NSinkInterface *iface, NRequest *request)
     stream->properties = create_stream_properties (props);
     stream->first_play = TRUE;
 
-    stream->volume_enabled = parse_linear_volume (
+    stream->volume_linear = parse_linear_volume (
         n_proplist_get_string (props, SOUND_VOLUME_KEY), &stream->volumes, &stream->num_volumes);
+
+    stream->volume_limit = parse_volume_limit (n_proplist_get_string (props, SOUND_VOLUME_KEY),
+        &stream->volume_cap);
 
     n_request_store_data (request, GST_KEY, stream);
 
