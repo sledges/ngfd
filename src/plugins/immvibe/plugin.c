@@ -41,6 +41,7 @@ typedef struct _ImmvibeData
 
 static VibeInt32    device      = VIBE_INVALID_DEVICE_HANDLE_VALUE;
 static const gchar *search_path = NULL;
+NContext* context = NULL;
 
 N_PLUGIN_NAME        ("immvibe")
 N_PLUGIN_VERSION     ("0.1")
@@ -228,6 +229,8 @@ immvibe_sink_initialize (NSinkInterface *iface)
     if (!vibrator_reconnect ())
         N_WARNING ("%s >> failed to connect to vibrator daemon.", __FUNCTION__);
 
+    context = n_core_get_context (n_sink_interface_get_core (iface));
+
     return TRUE;
 }
 
@@ -278,6 +281,8 @@ immvibe_sink_prepare (NSinkInterface *iface, NRequest *request)
     const NProplist *props = n_request_get_properties (request);
     ImmvibeData *data = g_slice_new0 (ImmvibeData);
     gchar *filename = NULL;
+    gchar *keyname = NULL;
+    const NValue *context_audio = NULL;
 
     N_DEBUG (LOG_CAT "sink prepare");
 
@@ -289,14 +294,25 @@ immvibe_sink_prepare (NSinkInterface *iface, NRequest *request)
             filename = build_vibration_filename (search_path, n_proplist_get_string (props, "sound.filename"));
             data->pattern = vibrator_load (filename);
             g_free (filename);
-			}
+        }
     }
     
-	if (n_proplist_has_key (props, "immvibe.filename_original")) {
-			filename = build_vibration_filename (search_path, n_proplist_get_string (props, "immvibe.filename_original"));
-			data->pattern = vibrator_load (filename);
-			g_free (filename);
-	}
+    if (n_proplist_has_key (props, "immvibe.filename_original")) {
+        filename = build_vibration_filename (search_path, n_proplist_get_string (props, "immvibe.filename_original"));
+        data->pattern = vibrator_load (filename);
+        g_free (filename);
+    }
+
+    if (n_proplist_get_bool (props, "immvibe.lookup_from_profile")) {
+        keyname = g_strdup_printf ("profile.current.%s.alert.tone", n_request_get_name (request));
+        context_audio = n_context_get_value (context, keyname);
+        g_free (keyname);
+        if (context_audio) {
+            filename = build_vibration_filename (search_path, n_value_get_string (context_audio));
+            data->pattern = vibrator_load (filename);
+            g_free (filename);
+        }
+    }
      
     if (data->pattern == NULL) {
         data->pattern = vibrator_load (n_proplist_get_string (props, "immvibe.filename"));
