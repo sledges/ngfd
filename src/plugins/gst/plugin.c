@@ -393,9 +393,9 @@ bus_cb (GstBus *bus, GstMessage *msg, gpointer userdata)
                 break;
 
             if (stream->repeat_enabled) {
-                stream->restart_source_id = g_idle_add (restart_stream_cb, stream);
                 N_DEBUG (LOG_CAT "rewinding pipeline.");
                 n_sink_interface_resynchronize (stream->iface, stream->request);
+                stream->restart_source_id = g_idle_add (restart_stream_cb, stream);
                 return FALSE;
             }
 
