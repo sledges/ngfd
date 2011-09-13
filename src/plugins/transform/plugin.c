@@ -27,6 +27,7 @@
 #define TRANSFORM_KEY_PREFIX "transform."
 #define ALLOW_FILENAMES      "transform.allow_custom"
 #define FILENAME_SUFFIX      ".filename"
+#define NO_SOUND             "No sound.wav"
 
 N_PLUGIN_NAME        ("transform")
 N_PLUGIN_VERSION     ("0.1")
@@ -59,8 +60,20 @@ new_request_cb (NHook *hook, void *data, void *userdata)
     GList *iter = NULL;
     NValue *value = NULL;
     gboolean allow_custom = FALSE;
+    NContext* context = NULL;
+    gchar *keyname = NULL;
+    gboolean overwrite_audio = FALSE;
+    const NValue *context_audio = NULL;
 
     NCoreHookTransformPropertiesData *transform = (NCoreHookTransformPropertiesData*) data;
+
+    context = n_core_get_context ((NCore*) userdata);
+    keyname = g_strdup_printf ("profile.current.%s.alert.tone", n_request_get_name (transform->request));
+    context_audio = n_context_get_value (context, keyname);
+    g_free (keyname);
+
+    if (context_audio && g_str_has_suffix (n_value_get_string (context_audio), NO_SOUND))
+        overwrite_audio = TRUE;
 
     N_DEBUG (LOG_CAT "transforming request keys for request '%s'",
         n_request_get_name (transform->request));
@@ -101,6 +114,9 @@ new_request_cb (NHook *hook, void *data, void *userdata)
             n_proplist_set (new_props, key, n_value_copy (value));
         }
     }
+
+    if (!allow_custom && overwrite_audio)
+        n_proplist_set (new_props, "sound.filename", n_value_copy (context_audio));
 
     n_request_set_properties (transform->request, new_props);
     n_proplist_free (new_props);
