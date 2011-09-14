@@ -589,7 +589,6 @@ init_done_cb (NHook *hook, void *data, void *userdata)
     (void) hook;
     (void) data;
 
-    const NValue *v = NULL;
     NContext *context = (NContext*) userdata;
     NValue *v = NULL;
 
@@ -597,13 +596,6 @@ init_done_cb (NHook *hook, void *data, void *userdata)
     v = (NValue*) n_context_get_value (context, "profile.current.system.sound.level");
     if (v)
         system_sounds_enabled = n_value_get_int (v) > 0 ? TRUE : FALSE;
-
-    v = n_context_get_value (context, "profile.current.system.sound.level");
-    if (!v) {
-        N_WARNING (LOG_CAT "failed to query current system sound level");
-    } else
-        system_sounds_level = n_value_get_int (v);
-
 
     if (!n_context_subscribe_value_change (context,
             "profile.current.system.sound.level",
