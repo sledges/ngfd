@@ -262,7 +262,7 @@ create_stream_properties (NProplist *props)
     role = n_proplist_get_string (props ,"system-sounds-role");
     if (!system_sounds_enabled && role) {
         N_DEBUG (LOG_CAT "system sounds are off and replace role is set, using '%s'", role);
-        set_structure_string (s, "module-stream-restore.id", role);
+        n_proplist_set_string (props, STREAM_PREFIX_KEY "module-stream-restore.id", role);
     }
 
     /* convert all properties within the request that begin with
@@ -591,6 +591,12 @@ init_done_cb (NHook *hook, void *data, void *userdata)
 
     const NValue *v = NULL;
     NContext *context = (NContext*) userdata;
+    NValue *v = NULL;
+
+    /* query the initial system sound level value */
+    v = (NValue*) n_context_get_value (context, "profile.current.system.sound.level");
+    if (v)
+        system_sounds_enabled = n_value_get_int (v) > 0 ? TRUE : FALSE;
 
     v = n_context_get_value (context, "profile.current.system.sound.level");
     if (!v) {
