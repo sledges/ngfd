@@ -281,7 +281,7 @@ immvibe_sink_prepare (NSinkInterface *iface, NRequest *request)
     const NProplist *props = n_request_get_properties (request);
     ImmvibeData *data = g_slice_new0 (ImmvibeData);
     gchar *filename = NULL;
-    gchar *keyname = NULL;
+    const gchar *keyname = NULL;
     const NValue *context_audio = NULL;
 
     N_DEBUG (LOG_CAT "sink prepare");
@@ -303,10 +303,8 @@ immvibe_sink_prepare (NSinkInterface *iface, NRequest *request)
         g_free (filename);
     }
 
-    if (n_proplist_get_bool (props, "immvibe.lookup_from_profile")) {
-        keyname = g_strdup_printf ("profile.current.%s.alert.tone", n_request_get_name (request));
+    if ((keyname = n_proplist_get_string (props, "immvibe.lookup_from_key"))) {
         context_audio = n_context_get_value (context, keyname);
-        g_free (keyname);
         if (context_audio) {
             filename = build_vibration_filename (search_path, n_value_get_string (context_audio));
             data->pattern = vibrator_load (filename);

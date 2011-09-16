@@ -48,6 +48,14 @@ query_allow_custom_filenames (NRequest *request)
     return n_proplist_get_bool (props, ALLOW_FILENAMES);
 }
 
+static const char* query_lookup_key (NRequest *request)
+{
+    NEvent *event = (NEvent*) n_request_get_event (request);
+    NProplist *props = (NProplist*) n_event_get_properties (event);
+
+    return n_proplist_get_string (props, "immvibe.lookup_from_key");
+}
+
 static void
 new_request_cb (NHook *hook, void *data, void *userdata)
 {
@@ -61,19 +69,21 @@ new_request_cb (NHook *hook, void *data, void *userdata)
     NValue *value = NULL;
     gboolean allow_custom = FALSE;
     NContext* context = NULL;
-    gchar *keyname = NULL;
+    const gchar *keyname = NULL;
     gboolean overwrite_audio = FALSE;
     const NValue *context_audio = NULL;
 
     NCoreHookTransformPropertiesData *transform = (NCoreHookTransformPropertiesData*) data;
+    props = (NProplist*) n_request_get_properties (transform->request);
 
     context = n_core_get_context ((NCore*) userdata);
-    keyname = g_strdup_printf ("profile.current.%s.alert.tone", n_request_get_name (transform->request));
-    context_audio = n_context_get_value (context, keyname);
-    g_free (keyname);
+    keyname = query_lookup_key (transform->request);
+    if (keyname) {
+        context_audio = n_context_get_value (context, keyname);
 
-    if (context_audio && g_str_has_suffix (n_value_get_string (context_audio), NO_SOUND))
-        overwrite_audio = TRUE;
+        if (context_audio && g_str_has_suffix (n_value_get_string (context_audio), NO_SOUND))
+            overwrite_audio = TRUE;
+    }
 
     N_DEBUG (LOG_CAT "transforming request keys for request '%s'",
         n_request_get_name (transform->request));
@@ -84,7 +94,6 @@ new_request_cb (NHook *hook, void *data, void *userdata)
     }
 
     new_props = n_proplist_new ();
-    props = (NProplist*) n_request_get_properties (transform->request);
     allow_custom = query_allow_custom_filenames (transform->request);
 
     for (iter = g_list_first (transform_allowed_keys); iter; iter = g_list_next (iter)) {
