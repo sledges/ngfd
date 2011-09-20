@@ -33,6 +33,18 @@
 #define SOUND_FILENAME_KEY "sound.filename"
 #define SOUND_REPEAT_KEY   "sound.repeat"
 #define SOUND_VOLUME_KEY   "sound.volume"
+#define FADE_OUT_KEY       "sound.fade-out"
+#define FADE_IN_KEY        "sound.fade-in"
+
+typedef struct _FadeEffect
+{
+    gboolean enabled;   /* effect enabled */
+    gdouble elapsed;    /* effect update time */
+    gdouble position;   /* begin position (in s) */
+    gdouble length;     /* length of the fade (in s) */
+    gdouble start;      /* starting volume */
+    gdouble end;        /* ending volume */
+} FadeEffect;
 
 typedef struct _StreamData
 {
@@ -40,11 +52,8 @@ typedef struct _StreamData
     NSinkInterface *iface;
     GstElement *pipeline;
     GstElement *volume;
-    gboolean volume_linear;
     gboolean volume_limit;
     guint volume_cap;
-    gint *volumes;
-    guint num_volumes;
     GstStructure *properties;
     const gchar *filename;
     gboolean repeat_enabled;
@@ -56,6 +65,9 @@ typedef struct _StreamData
     gdouble time_spent;
     gboolean paused;
     guint bus_watch_id;
+
+    FadeEffect *fade_out;
+    FadeEffect *fade_in;
 } StreamData;
 
 N_PLUGIN_NAME        ("gst")
@@ -63,9 +75,7 @@ N_PLUGIN_VERSION     ("0.1")
 N_PLUGIN_DESCRIPTION ("GStreamer plugin")
 
 static gchar* strip_prefix (const gchar *str, const gchar *prefix);
-static gboolean parse_linear_volume (const char *str, gint **out_volumes, guint *out_num_volumes);
 static gboolean parse_volume_limit (const char *str, guint *max);
-static void free_linear_volume (gint *volumes);
 static gboolean get_current_volume (StreamData *stream, gdouble *out_volume);
 static gboolean get_current_position (StreamData *stream, gdouble *out_position);
 static void set_stream_properties (GstElement *sink, const GstStructure *properties);
@@ -77,6 +87,11 @@ static gboolean bus_cb (GstBus *bus, GstMessage *msg, gpointer userdata);
 static void new_decoded_pad_cb (GstElement *element, GstPad *pad, gboolean is_last, gpointer userdata);
 static int make_pipeline (StreamData *stream);
 static void free_pipeline (StreamData *stream);
+static int convert_number (const char *str, gint *result);
+static FadeEffect* parse_volume_fade (const char *str);
+static void set_fade_effect (GstInterpolationControlSource *source, FadeEffect *effect);
+static void update_fade_effect (FadeEffect *effect, gdouble elapsed, gdouble volume);
+static void free_fade_effect (FadeEffect *effect);
 
 static gboolean system_sounds_enabled = TRUE;
 static guint system_sounds_level = 0;
@@ -92,48 +107,6 @@ strip_prefix (const gchar *str, const gchar *prefix)
 }
 
 static gboolean
-parse_linear_volume (const char *str, gint **out_volumes, guint *out_num_volumes)
-{
-    gchar *stripped = NULL;
-    gchar **split = NULL, **item = NULL;
-    guint num_volumes = 0, i = 0;
-    gint *volumes = NULL;
-    gboolean valid_volume = TRUE;
-
-    if (!str || !g_str_has_prefix (str, "linear:"))
-        return FALSE;
-
-    stripped = strip_prefix (str, "linear:");
-    split = g_strsplit (stripped, ";", -1);
-    if (split[0] == NULL) {
-        valid_volume = FALSE;
-        goto done;
-    }
-
-    for (item = split, num_volumes = 0; *item != NULL; ++item, ++num_volumes) ;
-
-    if (num_volumes != 3) {
-        N_WARNING (LOG_CAT "invalid volume definition");
-        valid_volume = FALSE;
-        goto done;
-    }
-
-    if (num_volumes > 0) {
-        volumes = g_malloc0 (sizeof (gint) * num_volumes);
-        for (i = 0; i < num_volumes; ++i)
-            volumes[i] = atoi (split[i]);
-
-        *out_volumes = volumes;
-        *out_num_volumes = num_volumes;
-    }
-
-done:
-    g_strfreev (split);
-    g_free (stripped);
-    return valid_volume;
-}
-
-static gboolean
 parse_volume_limit (const char *str, guint *max)
 {
     gchar *stripped = NULL;
@@ -145,13 +118,6 @@ parse_volume_limit (const char *str, guint *max)
     *max = atoi (stripped);
 
     return TRUE;
-}
-
-static void
-free_linear_volume (gint *volumes)
-{
-    if (volumes)
-        g_free (volumes);
 }
 
 static gboolean
@@ -284,44 +250,23 @@ static int
 create_volume (StreamData *stream)
 {
     GstController *controller = NULL;
-    GstInterpolationControlSource *control_source = NULL;
-    GValue v = {0,{{0}}};
-    gdouble time_left = 0.0;
+    GstInterpolationControlSource *source = NULL;
 
-    if (stream->volume_linear) {
-        time_left = stream->volumes[2] - stream->time_spent;
-        if (time_left <= 0.0) {
-            N_DEBUG (LOG_CAT "volume controller done.");
-            g_object_set (G_OBJECT (stream->volume), "volume", stream->volumes[1] / 100.0, NULL);
-            return FALSE;
-        }
-
-        /* create controller and set values */
-
-        N_DEBUG (LOG_CAT "linear volume enabled, raising volume from %.2f to %.2f in %.2f seconds.",
-            stream->last_volume, stream->volumes[1] / 100.0, time_left);
-
+    if (stream->fade_in || stream->fade_out) {
         controller = gst_controller_new (G_OBJECT (stream->volume), "volume", NULL);
-        control_source = gst_interpolation_control_source_new ();
-        gst_controller_set_control_source (controller, "volume", GST_CONTROL_SOURCE (control_source));
-        gst_interpolation_control_source_set_interpolation_mode (control_source, GST_INTERPOLATE_LINEAR);
+        source = gst_interpolation_control_source_new ();
+        gst_controller_set_control_source (controller, "volume", GST_CONTROL_SOURCE (source));
 
-        g_value_init (&v, G_TYPE_DOUBLE);
-        g_value_set_double (&v, stream->last_volume);
-        gst_interpolation_control_source_set ((GstInterpolationControlSource*) control_source,
-            0, &v); /* start_time */
+        gst_interpolation_control_source_set_interpolation_mode (
+            source, GST_INTERPOLATE_LINEAR);
 
-        g_value_reset (&v);
-        g_value_set_double (&v, stream->volumes[1] / 100.0);
-        gst_interpolation_control_source_set ((GstInterpolationControlSource*) control_source,
-            time_left * GST_SECOND, &v);
-
-        g_value_unset (&v);
+        set_fade_effect (source, stream->fade_in);
+        set_fade_effect (source, stream->fade_out);
 
         gst_controller_set_disabled (controller, FALSE);
 
         stream->controller = controller;
-        stream->control_source = control_source;
+        stream->control_source = source;
 
         return TRUE;
     }
@@ -367,6 +312,13 @@ restart_stream_cb (gpointer userdata)
 
     free_pipeline (stream);
  
+    /* update the stream effects */
+
+    N_DEBUG (LOG_CAT "fade effect (last volume=%.2f)", stream->last_volume);
+
+    update_fade_effect (stream->fade_in, stream->time_spent, stream->last_volume);
+    update_fade_effect (stream->fade_out, stream->time_spent, stream->last_volume);
+
     /* recreate the stream */
 
     N_DEBUG (LOG_CAT "re-creating pipeline.");
@@ -642,6 +594,158 @@ gst_sink_can_handle (NSinkInterface *iface, NRequest *request)
 }
 
 static int
+convert_number (const char *str, gint *result)
+{
+    long n;
+    char *end;
+    int errcode;
+
+    errno = 0;
+    n = strtol (str, &end, 10);
+    errcode = errno;
+    
+    if ((n == 0 && str == end)
+        || (n == 0 && errcode == EINVAL)
+        || ((n == LONG_MAX || n == LONG_MIN) && errcode == ERANGE)
+        || (n > G_MAXINT || n < G_MININT))
+    {
+        *result = (gint) 0;
+        return 0;
+    }
+
+    *result = (gint) n;
+
+    return 1;
+}
+
+static FadeEffect*
+parse_volume_fade (const char *str)
+{
+#define VALID_NUMBER(in_f) \
+    (valid = (valid == 0) ? 0 : (in_f))
+
+    /* fade key has four values defined: position, length, start value, end value */
+
+    FadeEffect *effect = NULL;
+    gchar **split = NULL;
+    gint position, length, start, end;
+    int valid = 1;
+
+    if (str == NULL)
+        return NULL;
+
+    split = g_strsplit (str, ",", 4);
+
+    if (split[0] && split[1] && split[2] && split[3]) {
+
+        VALID_NUMBER (convert_number (split[0], &position));
+        VALID_NUMBER (convert_number (split[1], &length));
+        VALID_NUMBER (convert_number (split[2], &start));
+        VALID_NUMBER (convert_number (split[3], &end));
+
+        if (valid) {
+            effect = g_slice_new (FadeEffect);
+            effect->enabled  = TRUE;
+            effect->position = position;
+            effect->length   = length;
+            effect->start    = start / 100.0;
+            effect->end      = end / 100.0;
+        }
+    }
+
+    g_strfreev (split);
+
+    if (effect) {
+        N_DEBUG (LOG_CAT "fade effect parsed (enabled=%d elapsed=%.2f position=%.2f "
+                         "length=%.2f start=%.2f stop=%.2f)", effect->enabled ? 1 : 0,
+            effect->elapsed, effect->position, effect->length, effect->start, effect->end);
+    }
+    else {
+        N_DEBUG (LOG_CAT "invalid fade effect, unable to parse: '%s'", str);
+    }
+
+    return effect;
+
+#undef VALID_NUMBER
+}
+
+static void
+set_fade_effect (GstInterpolationControlSource *source, FadeEffect *effect)
+{
+    GValue v;
+    gdouble start_time, new_length;
+
+    if (source == NULL || effect == NULL || !effect->enabled)
+        return;
+
+    /* effect not started yet */
+
+    if (effect->elapsed < effect->position) {
+        start_time = effect->position - effect->elapsed;
+        new_length = effect->length;
+    }
+
+    /* effect in progress */
+
+    else if (effect->elapsed >= effect->position
+             && effect->elapsed < (effect->position + effect->length)) {
+        start_time = 0;
+        new_length = effect->length - (effect->elapsed - effect->position);
+    }
+
+    /* done and finished */
+
+    else {
+        N_DEBUG (LOG_CAT "fade effect disabled (elapsed=%.2f position=%.2f "
+                         "length=%.2f start=%.2f stop=%.2f)", effect->elapsed,
+            effect->position, effect->length, effect->start, effect->end);
+        effect->enabled = FALSE;
+        return;
+    }
+
+    g_value_init (&v, G_TYPE_DOUBLE);
+
+    g_value_set_double (&v, effect->start);
+    gst_interpolation_control_source_set (source,
+        start_time * GST_SECOND, &v);
+
+    g_value_reset (&v);
+
+    g_value_set_double (&v, effect->end);
+    gst_interpolation_control_source_set (source,
+        (start_time + new_length) * GST_SECOND, &v);
+
+    g_value_unset (&v);
+
+    N_DEBUG (LOG_CAT "fade effect (%.2f -> %.2f) to start from %.2f and end at %.2f seconds",
+        effect->start, effect->end, start_time, start_time + new_length);
+}
+
+static void
+update_fade_effect (FadeEffect *effect, gdouble elapsed, gdouble volume)
+{
+    if (effect == NULL || !effect->enabled)
+        return;
+
+    effect->elapsed = elapsed;
+    effect->start = volume;
+
+    N_DEBUG (LOG_CAT "fade effect updated (enabled=%d elapsed=%.2f position=%.2f "
+                     "length=%.2f start=%.2f stop=%.2f)", effect->enabled ? 1 : 0,
+        effect->elapsed, effect->position, effect->length, effect->start, effect->end);
+
+    return;
+}
+
+static void
+free_fade_effect (FadeEffect *effect)
+{
+    if (effect) {
+        g_slice_free (FadeEffect, effect);
+    }
+}
+
+static int
 gst_sink_prepare (NSinkInterface *iface, NRequest *request)
 {
     StreamData *stream = NULL;
@@ -657,11 +761,18 @@ gst_sink_prepare (NSinkInterface *iface, NRequest *request)
     stream->properties = create_stream_properties (props);
     stream->first_play = TRUE;
 
-    stream->volume_linear = parse_linear_volume (
-        n_proplist_get_string (props, SOUND_VOLUME_KEY), &stream->volumes, &stream->num_volumes);
-
     stream->volume_limit = parse_volume_limit (n_proplist_get_string (props, SOUND_VOLUME_KEY),
         &stream->volume_cap);
+
+    /* parse the volume fading keys and setup fades for the stream
+       if available */
+
+    stream->fade_out = parse_volume_fade (
+        n_proplist_get_string (props, FADE_OUT_KEY));
+    stream->fade_in = parse_volume_fade (
+        n_proplist_get_string (props, FADE_IN_KEY));
+
+    /* store data ... */
 
     n_request_store_data (request, GST_KEY, stream);
 
@@ -723,9 +834,6 @@ gst_sink_stop (NSinkInterface *iface, NRequest *request)
     stream = (StreamData*) n_request_get_data (request, GST_KEY);
     g_assert (stream != NULL);
 
-    free_linear_volume (stream->volumes);
-    stream->volumes = NULL;
-
     if (stream->restart_source_id > 0) {
         g_source_remove (stream->restart_source_id);
         stream->restart_source_id = 0;
@@ -733,6 +841,12 @@ gst_sink_stop (NSinkInterface *iface, NRequest *request)
 
     free_pipeline (stream);
     free_stream_properties (stream->properties);
+
+    free_fade_effect (stream->fade_out);
+    stream->fade_out = NULL;
+
+    free_fade_effect (stream->fade_in);
+    stream->fade_in = NULL;
 
     g_slice_free (StreamData, stream);
 }
