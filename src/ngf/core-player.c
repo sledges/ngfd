@@ -70,9 +70,11 @@ n_core_setup_max_timeout (NRequest *request)
     if (request->max_timeout_id > 0)
         return;
 
-    timeout_period = n_proplist_get_uint (props, POLICY_TIMEOUT_KEY);
-    if (timeout_period == 0)
-        timeout_period = n_proplist_get_uint (props, MAX_TIMEOUT_KEY);
+    timeout_period = (guint) n_proplist_get_int (props, MAX_TIMEOUT_KEY);
+    if (timeout_period == 0) {
+        timeout_period = n_proplist_get_uint (props, POLICY_TIMEOUT_KEY);
+    }
+
     if (timeout_period > 0) {
         N_DEBUG (LOG_CAT "maximum timeout set to %d", timeout_period);
         request->max_timeout_id = g_timeout_add (timeout_period,
