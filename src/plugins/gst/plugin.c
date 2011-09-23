@@ -27,15 +27,17 @@
 #include <gst/controller/gstinterpolationcontrolsource.h>
 #include <gio/gio.h>
 
-#define GST_KEY            "plugin.gst.data"
-#define STREAM_PREFIX_KEY  "sound.stream."
-#define LOG_CAT            "gst: "
-#define SOUND_FILENAME_KEY "sound.filename"
-#define SOUND_REPEAT_KEY   "sound.repeat"
-#define SOUND_VOLUME_KEY   "sound.volume"
-#define FADE_OUT_KEY       "sound.fade-out"
-#define FADE_IN_KEY        "sound.fade-in"
-#define MAX_TIMEOUT_KEY    "core.max_timeout"
+#define GST_KEY               "plugin.gst.data"
+#define LOG_CAT               "gst: "
+#define MAX_TIMEOUT_KEY       "core.max_timeout"
+#define STREAM_PREFIX_KEY     "sound.stream."
+#define SOUND_FILENAME_KEY    "sound.filename"
+#define SOUND_REPEAT_KEY      "sound.repeat"
+#define SOUND_VOLUME_KEY      "sound.volume"
+#define FADE_ONLY_CUSTOM_KEY  "sound.fade-only-custom"
+#define FADE_OUT_KEY          "sound.fade-out"
+#define FADE_IN_KEY           "sound.fade-in"
+#define SYSTEM_SOUND_PATH     "/usr/share/sounds/"
 
 typedef struct _FadeEffect
 {
@@ -75,6 +77,7 @@ N_PLUGIN_NAME        ("gst")
 N_PLUGIN_VERSION     ("0.1")
 N_PLUGIN_DESCRIPTION ("GStreamer plugin")
 
+static gboolean is_custom_sound_filename (const char *filename);
 static gchar* strip_prefix (const gchar *str, const gchar *prefix);
 static gboolean parse_volume_limit (const char *str, guint *max);
 static gboolean get_current_volume (StreamData *stream, gdouble *out_volume);
@@ -96,6 +99,15 @@ static void free_fade_effect (FadeEffect *effect);
 
 static gboolean system_sounds_enabled = TRUE;
 static guint system_sounds_level = 0;
+
+static gboolean
+is_custom_sound_filename (const char *filename)
+{
+    if (filename && g_str_has_prefix (filename, SYSTEM_SOUND_PATH))
+        return FALSE;
+
+    return TRUE;
+}
 
 static gchar*
 strip_prefix (const gchar *str, const gchar *prefix)
@@ -752,6 +764,7 @@ gst_sink_prepare (NSinkInterface *iface, NRequest *request)
     StreamData *stream = NULL;
     NProplist *props = NULL;
     gint timeout_ms;
+    gboolean custom_sound, fade_only_custom;
 
     props = (NProplist*) n_request_get_properties (request);
 
@@ -766,19 +779,23 @@ gst_sink_prepare (NSinkInterface *iface, NRequest *request)
     stream->volume_limit = parse_volume_limit (n_proplist_get_string (props, SOUND_VOLUME_KEY),
         &stream->volume_cap);
 
-    timeout_ms = n_proplist_get_int (props, MAX_TIMEOUT_KEY);
-    timeout_ms = timeout_ms < 0 ? 0 : timeout_ms;
+    fade_only_custom = n_proplist_get_bool (props, FADE_ONLY_CUSTOM_KEY);
+    custom_sound = is_custom_sound_filename (stream->filename);
 
-    n_request_set_timeout (request,
-        timeout_ms <= 0 ? n_request_get_timeout (request) : (guint) timeout_ms);
+    if (!fade_only_custom || (fade_only_custom && custom_sound)) {
+        /* parse the volume fading keys and setup fades for the stream
+           if available */
 
-    /* parse the volume fading keys and setup fades for the stream
-       if available */
+        stream->fade_out = parse_volume_fade (
+            n_proplist_get_string (props, FADE_OUT_KEY));
+        stream->fade_in = parse_volume_fade (
+            n_proplist_get_string (props, FADE_IN_KEY));
 
-    stream->fade_out = parse_volume_fade (
-        n_proplist_get_string (props, FADE_OUT_KEY));
-    stream->fade_in = parse_volume_fade (
-        n_proplist_get_string (props, FADE_IN_KEY));
+        timeout_ms = n_proplist_get_int (props, MAX_TIMEOUT_KEY);
+        timeout_ms = timeout_ms < 0 ? 0 : timeout_ms;
+
+        n_request_set_timeout (request, (guint) timeout_ms);
+    }
 
     /* store data ... */
 
