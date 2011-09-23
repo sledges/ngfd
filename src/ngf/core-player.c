@@ -64,20 +64,12 @@ n_core_setup_max_timeout (NRequest *request)
 {
     g_assert (request != NULL);
 
-    NProplist *props    = request->properties;
-    guint timeout_period = 0;
-
     if (request->max_timeout_id > 0)
         return;
 
-    timeout_period = (guint) n_proplist_get_int (props, MAX_TIMEOUT_KEY);
-    if (timeout_period == 0) {
-        timeout_period = n_proplist_get_uint (props, POLICY_TIMEOUT_KEY);
-    }
-
-    if (timeout_period > 0) {
-        N_DEBUG (LOG_CAT "maximum timeout set to %d", timeout_period);
-        request->max_timeout_id = g_timeout_add (timeout_period,
+    if (request->timeout_ms > 0) {
+        N_DEBUG (LOG_CAT "maximum timeout set to %d", request->timeout_ms);
+        request->max_timeout_id = g_timeout_add (request->timeout_ms,
             n_core_max_timeout_reached_cb, request);
     }
 }
@@ -416,10 +408,11 @@ n_core_play_request (NCore *core, NRequest *request)
 
     GList  *all_sinks = NULL;
 
-    /* store the original request properties */
+    /* store the original request properties and default timeout */
 
     request->original_properties = n_proplist_copy (request->properties);
-    request->core                = core;
+    request->timeout_ms = n_proplist_get_uint (request->properties, POLICY_TIMEOUT_KEY);
+    request->core = core;
 
     /* evaluate the request and context to resolve the correct event for
        this specific request. if no event, then there is no default event

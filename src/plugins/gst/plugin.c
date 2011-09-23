@@ -35,6 +35,7 @@
 #define SOUND_VOLUME_KEY   "sound.volume"
 #define FADE_OUT_KEY       "sound.fade-out"
 #define FADE_IN_KEY        "sound.fade-in"
+#define MAX_TIMEOUT_KEY    "core.max_timeout"
 
 typedef struct _FadeEffect
 {
@@ -750,6 +751,7 @@ gst_sink_prepare (NSinkInterface *iface, NRequest *request)
 {
     StreamData *stream = NULL;
     NProplist *props = NULL;
+    gint timeout_ms;
 
     props = (NProplist*) n_request_get_properties (request);
 
@@ -763,6 +765,12 @@ gst_sink_prepare (NSinkInterface *iface, NRequest *request)
 
     stream->volume_limit = parse_volume_limit (n_proplist_get_string (props, SOUND_VOLUME_KEY),
         &stream->volume_cap);
+
+    timeout_ms = n_proplist_get_int (props, MAX_TIMEOUT_KEY);
+    timeout_ms = timeout_ms < 0 ? 0 : timeout_ms;
+
+    n_request_set_timeout (request,
+        timeout_ms <= 0 ? n_request_get_timeout (request) : (guint) timeout_ms);
 
     /* parse the volume fading keys and setup fades for the stream
        if available */

@@ -143,3 +143,19 @@ n_request_get_event (NRequest *request)
     return (request != NULL) ? (const NEvent*) request->event : NULL;
 }
 
+void
+n_request_set_timeout (NRequest *request, guint timeout)
+{
+    if (!request)
+        return;
+
+    request->timeout_ms = timeout;
+}
+
+guint
+n_request_get_timeout (NRequest *request)
+{
+    return (request != NULL) ? request->timeout_ms : 0;
+}
+
+

@@ -74,6 +74,20 @@ const NProplist* n_request_get_properties (NRequest *request);
  */
 const NEvent*    n_request_get_event      (NRequest *request);
 
+/** Set the timeout value for the request
+ * @param request Request
+ * @param timeout Timeout value in milliseconds (ms), 0 to disable
+ */
+
+void             n_request_set_timeout    (NRequest *request, guint timeout);
+
+/** Get a timeout value for the request
+ * @param request Request
+ * @return Timeout value in milliseconds (ms), or 0 if timeout disabled
+ */
+
+guint            n_request_get_timeout    (NRequest *request);
+
 /** Store key/value pair to request
  * @param request Request
  * @param key Key

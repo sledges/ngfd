@@ -59,6 +59,7 @@ struct _NRequest
     NSinkInterface  *master_sink;
 
     guint            max_timeout_id;
+    guint            timeout_ms;
 };
 
 NRequest* n_request_new          ();
