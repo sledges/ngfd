@@ -63,7 +63,6 @@ typedef struct _StreamData
     guint restart_source_id;
     gboolean first_play;
     GstController *controller;
-    GstInterpolationControlSource *control_source;
     gdouble last_volume;
     gdouble time_spent;
     gboolean paused;
@@ -262,13 +261,15 @@ free_stream_properties (GstStructure *s)
 static int
 create_volume (StreamData *stream)
 {
-    GstController *controller = NULL;
     GstInterpolationControlSource *source = NULL;
 
     if (stream->fade_in || stream->fade_out) {
-        controller = gst_controller_new (G_OBJECT (stream->volume), "volume", NULL);
+        stream->controller = gst_controller_new (G_OBJECT (stream->volume),
+            "volume", NULL);
+
         source = gst_interpolation_control_source_new ();
-        gst_controller_set_control_source (controller, "volume", GST_CONTROL_SOURCE (source));
+        gst_controller_set_control_source (stream->controller,
+            "volume", GST_CONTROL_SOURCE (source));
 
         gst_interpolation_control_source_set_interpolation_mode (
             source, GST_INTERPOLATE_LINEAR);
@@ -276,10 +277,7 @@ create_volume (StreamData *stream)
         set_fade_effect (source, stream->fade_in);
         set_fade_effect (source, stream->fade_out);
 
-        gst_controller_set_disabled (controller, FALSE);
-
-        stream->controller = controller;
-        stream->control_source = source;
+        gst_object_unref (source);
 
         return TRUE;
     }
@@ -301,7 +299,6 @@ free_volume (StreamData *stream)
     if (stream->controller) {
         g_object_unref (G_OBJECT (stream->controller));
         stream->controller = NULL;
-        stream->control_source = NULL;
     }
 }
 
@@ -446,7 +443,7 @@ make_pipeline (StreamData *stream)
     volume = gst_element_factory_make ("volume", NULL);
     sink = gst_element_factory_make ("pulsesink", NULL);
 
-    if (!pipeline || !source || !decoder || !volume || !sink) {
+    if (!pipeline || !source || !decoder || !audioconv || !volume || !sink) {
         N_WARNING (LOG_CAT "failed to create required elements.");
         goto failed;
     }
@@ -685,7 +682,7 @@ parse_volume_fade (const char *str)
 static void
 set_fade_effect (GstInterpolationControlSource *source, FadeEffect *effect)
 {
-    GValue v;
+    GValue v = {0,{{0}}};
     gdouble start_time, new_length;
 
     if (source == NULL || effect == NULL || !effect->enabled)
@@ -721,8 +718,6 @@ set_fade_effect (GstInterpolationControlSource *source, FadeEffect *effect)
     g_value_set_double (&v, effect->start);
     gst_interpolation_control_source_set (source,
         start_time * GST_SECOND, &v);
-
-    g_value_reset (&v);
 
     g_value_set_double (&v, effect->end);
     gst_interpolation_control_source_set (source,
