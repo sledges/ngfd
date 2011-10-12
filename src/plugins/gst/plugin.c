@@ -57,6 +57,10 @@ typedef struct _StreamData
     GstElement *volume;
     gboolean volume_limit;
     guint volume_cap;
+    gboolean volume_fixed;
+    guint volume_min;
+    guint volume_max;
+    guint volume_set;
     GstStructure *properties;
     const gchar *filename;
     gboolean repeat_enabled;
@@ -78,7 +82,8 @@ N_PLUGIN_DESCRIPTION ("GStreamer plugin")
 
 static gboolean is_custom_sound_filename (const char *filename);
 static gchar* strip_prefix (const gchar *str, const gchar *prefix);
-static gboolean parse_volume_limit (const char *str, guint *max);
+static gboolean parse_volume_limit (const char *str, guint *min, guint *max);
+static gboolean parse_fixed_volume (const char *str, guint *volume);
 static gboolean get_current_volume (StreamData *stream, gdouble *out_volume);
 static gboolean get_current_position (StreamData *stream, gdouble *out_position);
 static void set_stream_properties (GstElement *sink, const GstStructure *properties);
@@ -119,16 +124,41 @@ strip_prefix (const gchar *str, const gchar *prefix)
 }
 
 static gboolean
-parse_volume_limit (const char *str, guint *max)
+parse_volume_limit (const char *str, guint *min, guint *max)
 {
     gchar *stripped = NULL;
 
-    if (!str || !g_str_has_prefix (str, "max:"))
+    if (!str)
         return FALSE;
+    
+    *min = 0;
+    *max = 0;
+    
+    if (g_str_has_prefix (str, "max:")) {
+        stripped = strip_prefix (str, "max:");
+        *max = atoi (stripped);
+        return TRUE;
+    }
+    
+    if (g_str_has_prefix (str, "min:")) {
+        stripped = strip_prefix (str, "min:");
+        *min = atoi (stripped);
+        return TRUE;
+    }
+    
+    return FALSE;
+}
 
-    stripped = strip_prefix (str, "max:");
-    *max = atoi (stripped);
+static gboolean
+parse_fixed_volume (const char *str, guint *volume)
+{
+    gchar *stripped = NULL;
 
+    if (!str || !g_str_has_prefix (str, "fixed:"))
+        return FALSE;    
+
+    stripped = strip_prefix (str, "fixed:");
+    *volume = atoi (stripped);
     return TRUE;
 }
 
@@ -283,12 +313,19 @@ create_volume (StreamData *stream)
     }
 
     if (stream->volume_limit) {
-        if (system_sounds_level > stream->volume_cap) {
-            g_object_set (G_OBJECT (stream->volume), "volume", stream->volume_cap / 100.0, NULL);
+        if (system_sounds_level < stream->volume_min) {
+            g_object_set (G_OBJECT (stream->volume), "volume", stream->volume_min / 100.0, NULL);
+        }
+        
+        if (stream->volume_max && system_sounds_level > stream->volume_max) {
+            g_object_set (G_OBJECT (stream->volume), "volume", stream->volume_max / 100.0, NULL);
         }
 
         return TRUE;
     }
+    
+    if (stream->volume_fixed)
+        g_object_set (G_OBJECT (stream->volume), "volume", stream->volume_set / 100.0, NULL);
 
     return FALSE;
 }
@@ -772,7 +809,10 @@ gst_sink_prepare (NSinkInterface *iface, NRequest *request)
     stream->first_play = TRUE;
 
     stream->volume_limit = parse_volume_limit (n_proplist_get_string (props, SOUND_VOLUME_KEY),
-        &stream->volume_cap);
+        &stream->volume_min, &stream->volume_max);
+    
+    stream->volume_fixed = parse_fixed_volume (n_proplist_get_string (props, SOUND_VOLUME_KEY),
+        &stream->volume_set);
 
     fade_only_custom = n_proplist_get_bool (props, FADE_ONLY_CUSTOM_KEY);
     custom_sound = is_custom_sound_filename (stream->filename);
