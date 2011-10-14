@@ -24,9 +24,15 @@
 #include <ImmVibeCore.h>
 #include <stdio.h>
 
-#define IMMVIBE_KEY "plugin.immvibe.data"
-#define LOG_CAT  "immvibe: "
-#define POLL_TIMEOUT 500
+#define IMMVIBE_KEY                 "plugin.immvibe.data"
+#define SOUND_FILENAME_KEY          "sound.filename"
+#define SOUND_FILENAME_ORIGINAL_KEY "sound.filename.original"
+#define IMMVIBE_FILENAME_KEY        "immvibe.filename"
+#define IMMVIBE_LOOKUP_KEY          "immvibe.lookup"
+#define IMMVIBE_LOOKUP_FROM_KEY     "immvibe.lookup_from_key"
+#define SYSTEM_SOUND_PATH           "/usr/share/sounds/"
+#define LOG_CAT                     "immvibe: "
+#define POLL_TIMEOUT                500
 
 typedef struct _ImmvibeData
 {
@@ -275,52 +281,86 @@ immvibe_sink_can_handle (NSinkInterface *iface, NRequest *request)
     return FALSE;
 }
 
+static gboolean
+factory_sound_filename (const char *filename)
+{
+    if (filename && g_str_has_prefix (filename, SYSTEM_SOUND_PATH))
+        return TRUE;
+
+    return FALSE;
+}
+
+static const char*
+lookup_sound_from_context (NContext *context, const char *key)
+{
+    NValue *v;
+
+    if (!context || !key)
+        return NULL;
+
+    v = (NValue*) n_context_get_value (context, key);
+    return n_value_get_string (v);
+}
+
 static int
 immvibe_sink_prepare (NSinkInterface *iface, NRequest *request)
 {
     const NProplist *props = n_request_get_properties (request);
     ImmvibeData *data = g_slice_new0 (ImmvibeData);
-    gchar *filename = NULL;
-    const gchar *keyname = NULL;
-    const NValue *context_audio = NULL;
+
+    char *filename;
+    const char *sound_filename, *immvibe_filename, *lookup_key,
+        *custom_file, *factory_sound = NULL;
+    gboolean lookup;
 
     N_DEBUG (LOG_CAT "sink prepare");
 
     data->request    = request;
     data->iface      = iface;
+    
+    sound_filename = n_proplist_get_string (props, SOUND_FILENAME_KEY);
+    immvibe_filename = n_proplist_get_string (props, IMMVIBE_FILENAME_KEY);
+    lookup = n_proplist_get_bool (props, IMMVIBE_LOOKUP_KEY);
+    custom_file = n_proplist_get_string (props, SOUND_FILENAME_ORIGINAL_KEY);
 
-    if (n_proplist_get_bool (props, "immvibe.lookup")) {
-        if (n_proplist_has_key (props, "sound.filename")) { 
-            filename = build_vibration_filename (search_path, n_proplist_get_string (props, "sound.filename"));
+    /* case 1 (factory sounds): custom sound file through audio parameter */
+
+    if (custom_file)
+        factory_sound = custom_file;
+
+    /* case 2 (factory sounds): not a custom file, but we have lookup parameter set to
+       find the vibration pattern based on filename. */
+
+    if (!custom_file && lookup)
+        factory_sound = sound_filename;
+
+    /* case 3 (factory sounds): and if we have a lookup_from_key set, then we don't use the sound
+       filename, but a sound queried from the profile using the given key. */
+
+    if (!custom_file && lookup && (lookup_key = n_proplist_get_string (props, IMMVIBE_LOOKUP_FROM_KEY)))
+        factory_sound = lookup_sound_from_context (context, lookup_key);
+
+    /* all the cases apply to "factory sounds", which are files with custom
+       vibration patterns. */
+
+    if (factory_sound_filename (factory_sound)) {
+        filename = build_vibration_filename (search_path, factory_sound);
+        N_DEBUG (LOG_CAT "sound is factory sound, loading pattern from: %s", filename);
+        data->pattern = vibrator_load (filename);
+        g_free (filename);
+    }
+
+    /* default case: if no pattern yet, then use immvibe.filename to load either
+       absolute path or a filename that is to be searched from the vibration path. */
+
+    if (!data->pattern && immvibe_filename) {
+        if (!(data->pattern = vibrator_load (immvibe_filename))) {
+            filename = build_vibration_filename (search_path, immvibe_filename);
             data->pattern = vibrator_load (filename);
             g_free (filename);
         }
     }
     
-    if (n_proplist_has_key (props, "immvibe.filename_original")) {
-        filename = build_vibration_filename (search_path, n_proplist_get_string (props, "immvibe.filename_original"));
-        data->pattern = vibrator_load (filename);
-        g_free (filename);
-    }
-
-    if ((keyname = n_proplist_get_string (props, "immvibe.lookup_from_key"))) {
-        context_audio = n_context_get_value (context, keyname);
-        if (context_audio) {
-            filename = build_vibration_filename (search_path, n_value_get_string (context_audio));
-            data->pattern = vibrator_load (filename);
-            g_free (filename);
-        }
-    }
-     
-    if (data->pattern == NULL) {
-        data->pattern = vibrator_load (n_proplist_get_string (props, "immvibe.filename"));
-        if (data->pattern == NULL) {
-            filename = build_vibration_filename (search_path, n_proplist_get_string (props, "immvibe.filename"));
-            data->pattern = vibrator_load (filename);
-            g_free (filename);
-        }
-    }
-
     /* succeed even if no data. */
 
     n_request_store_data (request, IMMVIBE_KEY, data);

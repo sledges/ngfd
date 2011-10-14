@@ -72,6 +72,7 @@ new_request_cb (NHook *hook, void *data, void *userdata)
     const gchar *keyname = NULL;
     gboolean overwrite_audio = FALSE;
     const NValue *context_audio = NULL;
+    gchar *tmp;
 
     NCoreHookTransformPropertiesData *transform = (NCoreHookTransformPropertiesData*) data;
     props = (NProplist*) n_request_get_properties (transform->request);
@@ -102,17 +103,17 @@ new_request_cb (NHook *hook, void *data, void *userdata)
         map_key = g_hash_table_lookup (transform_key_map, key);
         target  = map_key ? map_key : key;
 
+        if (value && map_key) {
+            tmp = g_strdup_printf ("%s.original", target);
+            n_proplist_set (new_props, tmp, n_value_copy (value));
+            N_DEBUG (LOG_CAT "storing value before transform for key '%s'", tmp);
+            g_free (tmp);
+        }
+
         if (g_str_has_suffix (target, FILENAME_SUFFIX) && !allow_custom) {
             N_DEBUG (LOG_CAT "+ rejecting key '%s', no custom allowed.", target);            
-           
-            /* Store the original filename if it is not from user's own music library 
-				(because there is no vibra pattern available in that case) */    
-            if (strcmp ("audio", key) == 0)                        
-				if(g_strrstr(n_value_get_string ((NValue*) value), tone_search_path) != NULL )                        
-					n_proplist_set (new_props, "immvibe.filename_original", n_value_copy (value));
-            
             continue;
-        }        
+        }
 
         if (map_key) {
             N_DEBUG (LOG_CAT "+ transforming key '%s' to '%s'", key, map_key);
