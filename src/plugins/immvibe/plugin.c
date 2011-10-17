@@ -30,6 +30,7 @@
 #define IMMVIBE_FILENAME_KEY        "immvibe.filename"
 #define IMMVIBE_LOOKUP_KEY          "immvibe.lookup"
 #define IMMVIBE_LOOKUP_FROM_KEY     "immvibe.lookup_from_key"
+#define ALLOW_CUSTOM_KEY            "transform.allow_custom"
 #define SYSTEM_SOUND_PATH           "/usr/share/sounds/"
 #define LOG_CAT                     "immvibe: "
 #define POLL_TIMEOUT                500
@@ -311,7 +312,7 @@ immvibe_sink_prepare (NSinkInterface *iface, NRequest *request)
     char *filename;
     const char *sound_filename, *immvibe_filename, *lookup_key,
         *custom_file, *factory_sound = NULL;
-    gboolean lookup;
+    gboolean lookup, allow_custom;
 
     N_DEBUG (LOG_CAT "sink prepare");
 
@@ -322,6 +323,17 @@ immvibe_sink_prepare (NSinkInterface *iface, NRequest *request)
     immvibe_filename = n_proplist_get_string (props, IMMVIBE_FILENAME_KEY);
     lookup = n_proplist_get_bool (props, IMMVIBE_LOOKUP_KEY);
     custom_file = n_proplist_get_string (props, SOUND_FILENAME_ORIGINAL_KEY);
+    allow_custom = n_proplist_get_bool (props, ALLOW_CUSTOM_KEY);
+
+    if (custom_file && !allow_custom &&
+        !g_file_test (custom_file, G_FILE_TEST_EXISTS) && !n_request_is_fallback (request))
+    {
+        g_slice_free (ImmvibeData, data);
+        return FALSE;
+    }
+
+    if (n_request_is_fallback (request))
+        custom_file = NULL;
 
     /* case 1 (factory sounds): custom sound file through audio parameter */
 

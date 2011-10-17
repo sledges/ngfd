@@ -476,7 +476,8 @@ n_core_play_request (NCore *core, NRequest *request)
        function defined within the sink, then it is synchronized immediately. */
 
     core->requests = g_list_append (core->requests, request);
-    return n_core_prepare_sinks (all_sinks, request);
+    n_core_prepare_sinks (all_sinks, request);
+    return TRUE;
 
 fail_request:
     request->has_failed     = TRUE;
