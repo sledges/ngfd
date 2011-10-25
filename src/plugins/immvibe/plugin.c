@@ -25,6 +25,7 @@
 #include <stdio.h>
 
 #define IMMVIBE_KEY                 "plugin.immvibe.data"
+#define SOUND_REPEAT_KEY            "sound.repeat"
 #define SOUND_FILENAME_KEY          "sound.filename"
 #define SOUND_FILENAME_ORIGINAL_KEY "sound.filename.original"
 #define IMMVIBE_FILENAME_KEY        "immvibe.filename"
@@ -43,12 +44,15 @@ typedef struct _ImmvibeData
     gpointer        pattern;
     gboolean        paused;
     guint           poll_id;
+    gboolean        repeat_pattern;
     guint           idle_complete_id;
 } ImmvibeData;
 
 static VibeInt32    device      = VIBE_INVALID_DEVICE_HANDLE_VALUE;
 static const gchar *search_path = NULL;
 NContext* context = NULL;
+
+guint vibrator_start (gpointer pattern_data, gpointer userdata);
 
 N_PLUGIN_NAME        ("immvibe")
 N_PLUGIN_VERSION     ("0.1")
@@ -78,7 +82,21 @@ pattern_poll_cb (gpointer userdata)
         N_DEBUG (LOG_CAT "vibration has been completed.");
 
         data->poll_id = 0;
-        n_sink_interface_complete (data->iface, data->request);
+        if (data->repeat_pattern) {
+            N_DEBUG (LOG_CAT "pattern needs to be repeated");
+
+            if (data->id > 0)
+                ImmVibeStopPlayingEffect (device, data->id);
+
+            if (data->pattern)
+                data->id = vibrator_start (data->pattern, data->request);
+
+            if (!data->pattern || data->id == 0)
+                n_sink_interface_complete (data->iface, data->request);
+        }
+        else {
+            n_sink_interface_complete (data->iface, data->request);
+        }
 
         return FALSE;
     }
@@ -312,7 +330,7 @@ immvibe_sink_prepare (NSinkInterface *iface, NRequest *request)
     char *filename;
     const char *sound_filename, *immvibe_filename, *lookup_key,
         *custom_file, *factory_sound = NULL;
-    gboolean lookup, allow_custom;
+    gboolean lookup, allow_custom, sound_repeat;
 
     N_DEBUG (LOG_CAT "sink prepare");
 
@@ -324,6 +342,7 @@ immvibe_sink_prepare (NSinkInterface *iface, NRequest *request)
     lookup = n_proplist_get_bool (props, IMMVIBE_LOOKUP_KEY);
     custom_file = n_proplist_get_string (props, SOUND_FILENAME_ORIGINAL_KEY);
     allow_custom = n_proplist_get_bool (props, ALLOW_CUSTOM_KEY);
+    sound_repeat = n_proplist_get_bool (props, SOUND_REPEAT_KEY);
 
     if (custom_file && !allow_custom &&
         !g_file_test (custom_file, G_FILE_TEST_EXISTS) && !n_request_is_fallback (request))
@@ -366,13 +385,17 @@ immvibe_sink_prepare (NSinkInterface *iface, NRequest *request)
        absolute path or a filename that is to be searched from the vibration path. */
 
     if (!data->pattern && immvibe_filename) {
+
+        /* if repeat is set, then we need to repeat the pattern too */
+        data->repeat_pattern = sound_repeat;
+
         if (!(data->pattern = vibrator_load (immvibe_filename))) {
             filename = build_vibration_filename (search_path, immvibe_filename);
             data->pattern = vibrator_load (filename);
             g_free (filename);
         }
     }
-    
+
     /* succeed even if no data. */
 
     n_request_store_data (request, IMMVIBE_KEY, data);
@@ -474,6 +497,8 @@ immvibe_sink_stop (NSinkInterface *iface, NRequest *request)
 
     g_free       (data->pattern);
     g_slice_free (ImmvibeData, data);
+
+    n_request_store_data (request, IMMVIBE_KEY, NULL);
 }
 
 N_PLUGIN_LOAD (plugin)
