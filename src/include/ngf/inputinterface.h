@@ -83,8 +83,9 @@ int    n_input_interface_pause_request (NInputInterface *iface, NRequest *reques
 /** Stops playback of the request
  * @param iface NInputInterface structure
  * @param request NRequest structure
+ * @param timeout Timeout in ms
  * @return TRUE if success
  */
-void   n_input_interface_stop_request  (NInputInterface *iface, NRequest *request);
+void   n_input_interface_stop_request  (NInputInterface *iface, NRequest *request, guint timeout);
 
 #endif /* N_INPUT_INTERFACE_H */

@@ -53,10 +53,10 @@ n_input_interface_pause_request (NInputInterface *iface, NRequest *request)
 }
 
 void
-n_input_interface_stop_request  (NInputInterface *iface, NRequest *request)
+n_input_interface_stop_request  (NInputInterface *iface, NRequest *request, guint timeout)
 {
     if (!iface || !request)
         return;
 
-    n_core_stop_request (iface->core, request);
+    n_core_stop_request (iface->core, request, timeout);
 }

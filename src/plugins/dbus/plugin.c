@@ -46,6 +46,8 @@ N_PLUGIN_DESCRIPTION ("D-Bus interface")
 #define NGF_DBUS_METHOD_STOP  "Stop"
 #define NGF_DBUS_METHOD_PAUSE "Pause"
 
+#define RINGTONE_STOP_TIMEOUT 2000
+
 static gboolean          msg_parse_variant       (DBusMessageIter *iter,
                                                   NProplist *proplist,
                                                   const char *key);
@@ -256,7 +258,7 @@ dbusif_stop_all (NInputInterface *iface)
 
     for (iter = g_list_first (active_requests); iter; iter = g_list_next (iter)) {
         request = (NRequest*) iter->data;
-        n_input_interface_stop_request (iface, request);
+        n_input_interface_stop_request (iface, request, 0);
     }
 }
 
@@ -267,6 +269,7 @@ dbusif_stop_handler (DBusConnection *connection, DBusMessage *msg,
     DBusMessage     *reply     = NULL;
     dbus_uint32_t    policy_id = 0;
     NRequest        *request   = NULL;
+    const char      *name      = NULL;
 
     if (!dbus_message_get_args (msg, NULL,
                                 DBUS_TYPE_UINT32, &policy_id,
@@ -278,8 +281,22 @@ dbusif_stop_handler (DBusConnection *connection, DBusMessage *msg,
     N_INFO (LOG_CAT ">> stop received for id '%d'", policy_id);
 
     request = dbusif_lookup_request (iface, policy_id);
-    if (request)
-        n_input_interface_stop_request (iface, request);
+    if (request) {
+
+        name = n_request_get_name (request);
+        if (name && g_str_equal (name, "ringtone")) {
+            N_DEBUG (LOG_CAT "mute ringtone for delayed stop");
+            n_input_interface_pause_request (iface, request);
+
+            N_DEBUG (LOG_CAT "setup stop timeout for ringtone in %d ms",
+                RINGTONE_STOP_TIMEOUT);
+
+            n_input_interface_stop_request (iface, request, RINGTONE_STOP_TIMEOUT);
+        }
+        else {
+            n_input_interface_stop_request (iface, request, 0);
+        }
+    }
 
     reply = dbus_message_new_method_return (msg);
     if (reply) {

@@ -54,7 +54,7 @@ n_core_max_timeout_reached_cb (gpointer userdata)
 
     N_DEBUG (LOG_CAT "maximum timeout reached, stopping request.");
     request->max_timeout_id = 0;
-    n_core_stop_request (request->core, request);
+    n_core_stop_request (request->core, request, 0);
 
     return FALSE;
 }
@@ -543,7 +543,7 @@ n_core_resume_request (NCore *core, NRequest *request)
 }
 
 void
-n_core_stop_request (NCore *core, NRequest *request)
+n_core_stop_request (NCore *core, NRequest *request, guint timeout)
 {
     g_assert (core != NULL);
     g_assert (request != NULL);
@@ -558,7 +558,11 @@ n_core_stop_request (NCore *core, NRequest *request)
         request->play_source_id = 0;
     }
 
-    request->stop_source_id = g_idle_add (n_core_request_done_cb, request);
+    if (timeout > 0)
+        request->stop_source_id = g_timeout_add (timeout, n_core_request_done_cb, request);
+    else
+        request->stop_source_id = g_idle_add (n_core_request_done_cb, request);
+
     n_core_clear_max_timeout (request);
 }
 
