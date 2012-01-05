@@ -539,19 +539,19 @@ failed_pipeline:
 static void
 free_pipeline (StreamData *stream)
 {
-    free_volume (stream);
-
-    if (stream->bus_watch_id > 0) {
-        g_source_remove (stream->bus_watch_id);
-        stream->bus_watch_id = 0;
-    }
-
     if (stream->pipeline) {
         N_DEBUG (LOG_CAT "freeing pipeline");
         gst_element_set_state (stream->pipeline, GST_STATE_NULL);
         gst_object_unref (stream->pipeline);
         stream->pipeline = NULL;
     }
+
+    if (stream->bus_watch_id > 0) {
+        g_source_remove (stream->bus_watch_id);
+        stream->bus_watch_id = 0;
+    }
+
+    free_volume (stream);
 }
 
 static void
