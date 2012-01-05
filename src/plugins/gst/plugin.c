@@ -693,6 +693,7 @@ parse_volume_fade (const char *str)
         if (valid) {
             effect = g_slice_new (FadeEffect);
             effect->enabled  = TRUE;
+            effect->elapsed  = 0;
             effect->position = position;
             effect->length   = length;
             effect->start    = start / 100.0;
