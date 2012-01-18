@@ -46,7 +46,7 @@ N_PLUGIN_DESCRIPTION ("D-Bus interface")
 #define NGF_DBUS_METHOD_STOP  "Stop"
 #define NGF_DBUS_METHOD_PAUSE "Pause"
 
-#define RINGTONE_STOP_TIMEOUT 3000
+#define RINGTONE_STOP_TIMEOUT 200
 
 static gboolean          msg_parse_variant       (DBusMessageIter *iter,
                                                   NProplist *proplist,
