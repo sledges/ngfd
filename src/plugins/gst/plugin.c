@@ -137,12 +137,14 @@ parse_volume_limit (const char *str, guint *min, guint *max)
     if (g_str_has_prefix (str, "max:")) {
         stripped = strip_prefix (str, "max:");
         *max = atoi (stripped);
+        g_free (stripped);
         return TRUE;
     }
     
     if (g_str_has_prefix (str, "min:")) {
         stripped = strip_prefix (str, "min:");
         *min = atoi (stripped);
+        g_free (stripped);
         return TRUE;
     }
     
@@ -155,10 +157,11 @@ parse_fixed_volume (const char *str, guint *volume)
     gchar *stripped = NULL;
 
     if (!str || !g_str_has_prefix (str, "fixed:"))
-        return FALSE;    
+        return FALSE;
 
     stripped = strip_prefix (str, "fixed:");
     *volume = atoi (stripped);
+    g_free (stripped);
     return TRUE;
 }
 
