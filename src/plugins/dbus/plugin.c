@@ -35,6 +35,8 @@ N_PLUGIN_NAME        ("dbus")
 N_PLUGIN_VERSION     ("0.1")
 N_PLUGIN_DESCRIPTION ("D-Bus interface")
 
+#include "com.nokia.NonGraphicFeedback1.Backend.xml.h"
+
 #define LOG_CAT "dbus: "
 
 #define NGF_DBUS_PROXY_NAME   "com.nokia.NonGraphicFeedback1"
@@ -457,6 +459,24 @@ dbusif_disconnect_handler (NInputInterface *iface, const gchar *client)
 }
 
 static DBusHandlerResult
+dbusif_introspect_handler (DBusConnection *connection, DBusMessage *msg)
+{
+
+    N_DEBUG (LOG_CAT "Introspect was called!");
+
+    DBusMessage *reply = NULL;
+
+    reply = dbus_message_new_method_return (msg);
+    if (reply) {
+        dbus_message_append_args (reply, DBUS_TYPE_STRING, &dbus_plugin_introspect_string, DBUS_TYPE_INVALID);
+        dbus_connection_send (connection, reply, NULL);
+        dbus_message_unref (reply);
+    }
+
+    return DBUS_HANDLER_RESULT_HANDLED;
+}
+
+static DBusHandlerResult
 dbusif_message_function (DBusConnection *connection, DBusMessage *msg,
                          void *userdata)
 {
@@ -491,6 +511,9 @@ dbusif_message_function (DBusConnection *connection, DBusMessage *msg,
 
     if (member == NULL)
         return DBUS_HANDLER_RESULT_HANDLED;
+
+    if (dbus_message_has_interface (msg, "org.freedesktop.DBus.Introspectable"))
+        return dbusif_introspect_handler (connection, msg);
 
     if (!dbus_message_has_interface (msg, NGF_DBUS_IFACE))
         return DBUS_HANDLER_RESULT_HANDLED;
