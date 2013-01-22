@@ -108,7 +108,7 @@ static int ffm_get_int_value(const NProplist *props, const char *prefix,
 
 	value = ffm_get_str_value(props, prefix, key);
 	if (value == NULL)
-		result = 0;
+		result = min;
 	else
 		result = atoi(value);
 
