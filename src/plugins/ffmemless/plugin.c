@@ -107,6 +107,7 @@ static int ffm_get_int_value(const NProplist *props, const char *prefix,
 	int result;
 
 	value = ffm_get_str_value(props, prefix, key);
+	N_DEBUG (LOG_CAT "For %s%s got value %s", prefix, key, value);
 	if (value == NULL)
 		result = min;
 	else
