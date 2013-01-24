@@ -146,6 +146,10 @@ static NProplist* ffm_read_props(const char *file_name)
 	GError     *error     = NULL;
 	gchar      *value     = NULL;
 
+	if (!file_name) {
+		N_DEBUG (LOG_CAT "NULL file_name parameter, cannot read props");
+		return NULL;
+	}
 	keyfile   = g_key_file_new ();
 
 	N_DEBUG (LOG_CAT "Loading properties from file \"%s\"", file_name);
