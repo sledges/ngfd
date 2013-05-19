@@ -1,0 +1,6 @@
+[Unit]
+Description=Non-Graphic Feedback Daemon
+Requires=dbus.socket
+
+[Service]
+ExecStart=/usr/bin/ngfd
