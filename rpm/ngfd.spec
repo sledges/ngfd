@@ -8,7 +8,6 @@ License:    LGPL 2.1
 URL:        https://meego.gitorious.org/maemo-multimedia/ngfd
 Source0:    %{name}-%{version}.tar.gz
 Source1:    ngfd.service
-Source100:  ngfd.yaml
 Requires:   %{name}-settings
 Requires:   systemd-user-session-targets
 BuildRequires:  pkgconfig(glib-2.0) >= 2.18.0
