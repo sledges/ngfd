@@ -30,6 +30,8 @@ Configure: none
 Builder: make
 Requires:
     - "%{name}-settings"
+    - systemd-user-session-targets
+
 SubPackages:
     - Name: plugin-devel
       Summary: Development package for ngfd plugin creation
