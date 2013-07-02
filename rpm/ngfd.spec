@@ -88,6 +88,7 @@ fi
 %postun
 if [ "$1" -eq 0 ]; then
     systemctl-user stop ngfd.service || true
+    systemctl-user daemon-reload || true
 fi
 
 %files
