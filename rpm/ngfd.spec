@@ -85,6 +85,11 @@ if [ "$1" -ge 1 ]; then
     systemctl-user restart ngfd.service || true
 fi
 
+%postun
+if [ "$1" -eq 0 ]; then
+    systemctl-user stop ngfd.service || true
+fi
+
 %files
 %defattr(-,root,root,-)
 %doc COPYING
