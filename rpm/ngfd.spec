@@ -9,6 +9,7 @@ URL:        https://meego.gitorious.org/maemo-multimedia/ngfd
 Source0:    %{name}-%{version}.tar.gz
 Source1:    ngfd.service
 Requires:   %{name}-settings
+Requires:   systemd
 Requires:   systemd-user-session-targets
 BuildRequires:  pkgconfig(glib-2.0) >= 2.18.0
 BuildRequires:  pkgconfig(dbus-1) >= 1.0.2
