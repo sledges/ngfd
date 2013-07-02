@@ -79,6 +79,12 @@ install -D -m 644 %{SOURCE1} %{buildroot}%{_libdir}/systemd/user/ngfd.service
 mkdir -p %{buildroot}%{_libdir}/systemd/user/user-session.target.wants
 ln -s ../ngfd.service %{buildroot}%{_libdir}/systemd/user/user-session.target.wants/
 
+%post
+if [ "$1" -ge 1 ]; then
+    systemctl-user daemon-reload || true
+    systemctl-user restart ngfd.service || true
+fi
+
 %files
 %defattr(-,root,root,-)
 %doc COPYING
