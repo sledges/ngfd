@@ -21,6 +21,9 @@
 #include <ngf/plugin.h>
 #include <canberra.h>
 
+#include <string.h>
+
+#define STREAM_PREFIX_KEY "sound.stream."
 #define CANBERRA_KEY "plugin.canberra.data"
 #define LOG_CAT "canberra: "
 #define SOUND_FILENAME_KEY "canberra.filename"
@@ -107,6 +110,24 @@ canberra_sink_prepare (NSinkInterface *iface, NRequest *request)
     return TRUE;
 }
 
+static void
+proplist_to_structure_cb (const char *key, const NValue *value, gpointer userdata)
+{
+    ca_proplist *target     = (ca_proplist*) userdata;
+    const char   *prop_key   = NULL;
+    const char   *prop_value = NULL;
+
+    if (!g_str_has_prefix (key, STREAM_PREFIX_KEY))
+        return;
+
+    prop_key = key + strlen (STREAM_PREFIX_KEY);
+    if (*prop_key == '\0')
+        return;
+
+    prop_value = n_value_get_string ((NValue*) value);
+    ca_proplist_sets (target, prop_key, prop_value);
+}
+
 static int
 canberra_sink_play (NSinkInterface *iface, NRequest *request)
 {
@@ -121,24 +142,27 @@ canberra_sink_play (NSinkInterface *iface, NRequest *request)
     CanberraData *data = (CanberraData*) n_request_get_data (request, CANBERRA_KEY);
     g_assert (data != NULL);
 
-    ca_proplist *props = 0;
+    NProplist *props = props = (NProplist*) n_request_get_properties (request);
+    ca_proplist *ca_props = 0;
     int error;
-    ca_proplist_create (&props);
+    ca_proplist_create (&ca_props);
 
     /* TODO: don't hardcode */
-    ca_proplist_sets (props, CA_PROP_CANBERRA_XDG_THEME_NAME, "jolla-ambient");
-    ca_proplist_sets (props, CA_PROP_EVENT_ID, data->filename);
+    ca_proplist_sets (ca_props, CA_PROP_CANBERRA_XDG_THEME_NAME, "jolla-ambient");
+    ca_proplist_sets (ca_props, CA_PROP_EVENT_ID, data->filename);
 
-    /* TODO: other props? */
+    /* convert all properties within the request that begin with
+       "sound.stream." prefix. */
+    n_proplist_foreach (props, proplist_to_structure_cb, ca_props);
 
     /* TODO: optional caching, caching before playing at plugin load time */
-    error = ca_context_cache_full (c_context, props);
+    error = ca_context_cache_full (c_context, ca_props);
 
     if (!error) {
-        error = ca_context_play_full (c_context, 0, props, NULL, NULL);
+        error = ca_context_play_full (c_context, 0, ca_props, NULL, NULL);
     }
 
-    ca_proplist_destroy (props);
+    ca_proplist_destroy (ca_props);
 
     if (error) {
         N_WARNING (LOG_CAT "sink play had a warning: %s", ca_strerror (error));
