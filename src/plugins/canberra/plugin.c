@@ -139,6 +139,11 @@ canberra_sink_play (NSinkInterface *iface, NRequest *request)
         return FALSE;
 
 
+    static GHashTable *cached_samples = NULL;
+    if (!cached_samples) {
+        cached_samples = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+    }
+
     CanberraData *data = (CanberraData*) n_request_get_data (request, CANBERRA_KEY);
     g_assert (data != NULL);
 
@@ -155,13 +160,20 @@ canberra_sink_play (NSinkInterface *iface, NRequest *request)
        "sound.stream." prefix. */
     n_proplist_foreach (props, proplist_to_structure_cb, ca_props);
 
-    /* TODO: optional caching, caching before playing at plugin load time */
-    error = ca_context_cache_full (c_context, ca_props);
+    if (g_hash_table_lookup_extended (cached_samples, data->filename, NULL, NULL) == FALSE) {
+        N_DEBUG (LOG_CAT "caching sample %s", data->filename);
+        error = ca_context_cache_full (c_context, ca_props);
+        if (error) {
+            N_WARNING (LOG_CAT "canberra couldn't cache sample %s", data->filename);
+            return FALSE;
+        }
 
-    if (!error) {
-        error = ca_context_play_full (c_context, 0, ca_props, NULL, NULL);
+        g_hash_table_add (cached_samples, strdup(data->filename));
+    } else {
+        N_DEBUG (LOG_CAT "sample %s is cached", data->filename);
     }
 
+    error = ca_context_play_full (c_context, 0, ca_props, NULL, NULL);
     ca_proplist_destroy (ca_props);
 
     if (error) {
