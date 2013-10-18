@@ -26,6 +26,7 @@
 
 int ffmemless_play(int effect_id, int device_file, int play);
 int ffmemless_upload_effect(struct ff_effect *effect, int device_file);
+int ffmemless_erase_effect(int effect_id, int device_file);
 
 /**
  * ffmemless_evdev_file_open - Open given device file.

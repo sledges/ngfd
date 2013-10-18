@@ -314,6 +314,14 @@ static int ffm_setup_effects(const NProplist *props, GHashTable *effects)
 			continue;
 		}
 
+		if (data->id != -1) {
+			if(ffmemless_erase_effect(data->id, ffm.dev_file)) {
+				N_WARNING (LOG_CAT "Failed to remove id %d",
+								data->id);
+				continue;
+			}
+			data->id = -1;
+		}
 		ff.id = data->id;
 
 		N_DEBUG (LOG_CAT "Creating / updating effect %s", key);
