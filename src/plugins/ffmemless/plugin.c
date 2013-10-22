@@ -57,6 +57,7 @@ struct ffm_effect_data {
 	NSinkInterface *iface;
 	int id;
 	int repeat;
+	int touch_effect;
 	guint playback_time;
 	int poll_id;
 };
@@ -337,6 +338,9 @@ static int ffm_setup_effects(const NProplist *props, GHashTable *effects)
 
 		data->repeat = ffm_get_int_value(props, key, "_REPEAT", 1,
 								 INT32_MAX);
+		data->touch_effect = ffm_get_int_value(props, key, "_TOUCH", 0,
+								 1);
+		N_DEBUG (LOG_CAT "Got touch_effect = %d", data->touch_effect);
 
 		ff.replay.delay = ffm_get_int_value(props, key,
 						"_DELAY", 0, UINT16_MAX);
@@ -551,14 +555,34 @@ static int ffm_sink_can_handle(NSinkInterface *iface, NRequest *request)
 	NCore    *core    = n_sink_interface_get_core     (iface);
 	NContext *context = n_core_get_context            (core);
 	NValue   *enabled = NULL;
+	NValue   *touch_level = NULL;
+	const struct ffm_effect_data *data;
+	const gchar *key;
 
 	N_DEBUG (LOG_CAT "can handle %s?", n_request_get_name(request));
 
 	enabled = (NValue*) n_context_get_value (context,
 		"profile.current.vibrating.alert.enabled");
+	touch_level = (NValue*) n_context_get_value (context,
+		"profile.current.touchscreen.vibration.level");
+
+	if (touch_level == NULL)
+		N_WARNING (LOG_CAT "No value for touchscreen.vibration.level!");
 
 	if (!enabled || !n_value_get_bool (enabled)) {
 		N_DEBUG (LOG_CAT "no, vibration disabled in profile");
+		return FALSE;
+	}
+
+	key = n_proplist_get_string(props, FFM_EFFECT_KEY);
+	if (key == NULL) {
+		N_DEBUG (LOG_CAT "No, effect key missing");
+		return FALSE;
+	}
+
+	data = g_hash_table_lookup(ffm.effects, key);
+	if (data->touch_effect && n_value_get_int(touch_level) == 0) {
+		N_DEBUG (LOG_CAT "No, touch vibra level at 0, skipping vibra");
 		return FALSE;
 	}
 
