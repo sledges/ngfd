@@ -558,7 +558,7 @@ static int ffm_sink_can_handle(NSinkInterface *iface, NRequest *request)
 		"profile.current.vibrating.alert.enabled");
 
 	if (!enabled || !n_value_get_bool (enabled)) {
-		N_DEBUG (LOG_CAT "no, vibration not enabled in profile");
+		N_DEBUG (LOG_CAT "no, vibration disabled in profile");
 		return FALSE;
 	}
 
