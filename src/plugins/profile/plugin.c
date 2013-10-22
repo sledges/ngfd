@@ -36,6 +36,7 @@
 #define PROFILE_KEY_PATTERN     ".profile"
 
 #define KEY_VIBRATION_ENABLED   "vibrating.alert.enabled"
+#define KEY_TOUCH_VIBRA_LEVEL	"touchscreen.vibration.level"
 #define CURRENT_PROFILE_KEY     "profile.current_profile"
 #define TONE_SUFFIX             ".tone"
 #define VOLUME_SUFFIX           ".volume"
@@ -372,8 +373,9 @@ update_context_value (NContext *context, const char *profile, const char *key,
     }
     else if (g_str_equal (key, KEY_VIBRATION_ENABLED)) {
         n_value_set_bool (context_val, profile_parse_bool (value));
-    }
-    else {
+    } else if (g_str_equal (key, KEY_TOUCH_VIBRA_LEVEL)) {
+        n_value_set_int (context_val, profile_parse_int (value));
+    } else {
         n_value_set_string (context_val, value);
     }
 
