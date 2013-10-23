@@ -68,6 +68,7 @@ This package contains documentation to header files for creating plugins to non-
 Summary:    Test suite for ngfd
 Group:      System/Daemons
 Requires:   %{name} = %{version}-%{release}
+Requires:   %{name}-plugin-fake = %{version}-%{release}
 
 %description tests
 This package contains test suite for ngfd.
