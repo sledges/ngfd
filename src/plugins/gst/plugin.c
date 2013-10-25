@@ -35,6 +35,8 @@
 #define SOUND_FILENAME_KEY    "sound.filename"
 #define SOUND_REPEAT_KEY      "sound.repeat"
 #define SOUND_VOLUME_KEY      "sound.volume"
+#define SOUND_ENABLED_KEY     "sound.enabled"
+#define SOUND_OFF             "Off"
 #define FADE_ONLY_CUSTOM_KEY  "sound.fade-only-custom"
 #define FADE_OUT_KEY          "sound.fade-out"
 #define FADE_IN_KEY           "sound.fade-in"
@@ -72,6 +74,7 @@ typedef struct _StreamData
     gdouble time_spent;
     gboolean paused;
     guint bus_watch_id;
+    gboolean sound_enabled;
 
     FadeEffect *fade_out;
     FadeEffect *fade_in;
@@ -798,6 +801,24 @@ free_fade_effect (FadeEffect *effect)
     }
 }
 
+static gboolean
+gst_sink_fake_play_cb(gpointer userdata) {
+    StreamData *stream = (StreamData*)userdata;
+
+    n_sink_interface_synchronize (stream->iface, stream->request);
+
+    return FALSE;
+}
+
+static gboolean
+gst_sink_fake_play_complete_cb(gpointer userdata) {
+    StreamData *stream = (StreamData*)userdata;
+
+    n_sink_interface_complete (stream->iface, stream->request);
+
+    return FALSE;
+}
+
 static int
 gst_sink_prepare (NSinkInterface *iface, NRequest *request)
 {
@@ -805,6 +826,7 @@ gst_sink_prepare (NSinkInterface *iface, NRequest *request)
     NProplist *props = NULL;
     gint timeout_ms;
     gboolean custom_sound, fade_only_custom;
+    const char *enabled = NULL;
 
     props = (NProplist*) n_request_get_properties (request);
 
@@ -815,6 +837,9 @@ gst_sink_prepare (NSinkInterface *iface, NRequest *request)
     stream->repeat_enabled = n_proplist_get_bool (props, SOUND_REPEAT_KEY);
     stream->properties = create_stream_properties (props);
     stream->first_play = TRUE;
+
+    enabled = n_proplist_get_string (props, SOUND_ENABLED_KEY);
+    stream->sound_enabled = (enabled && g_str_equal(enabled, SOUND_OFF)) ? FALSE : TRUE;
 
     stream->volume_limit = parse_volume_limit (n_proplist_get_string (props, SOUND_VOLUME_KEY),
         &stream->volume_min, &stream->volume_max);
@@ -844,6 +869,13 @@ gst_sink_prepare (NSinkInterface *iface, NRequest *request)
 
     n_request_store_data (request, GST_KEY, stream);
 
+    /* sound not enabled. pipeline not needed */
+    if (!stream->sound_enabled) {
+        g_timeout_add(20,gst_sink_fake_play_cb, stream);
+        N_DEBUG (LOG_CAT "sound disabled");
+        return TRUE;
+    }
+
     if (!make_pipeline (stream))
         return FALSE;
 
@@ -862,6 +894,12 @@ gst_sink_play (NSinkInterface *iface, NRequest *request)
 
     stream = (StreamData*) n_request_get_data (request, GST_KEY);
     g_assert (stream != NULL);
+
+    /* sound not enabled, complete */
+    if (!stream->sound_enabled) {
+        g_timeout_add(20, gst_sink_fake_play_complete_cb, stream);
+        return TRUE;
+    }
 
     if (stream->pipeline) {
         N_DEBUG (LOG_CAT "setting pipeline to playing");
