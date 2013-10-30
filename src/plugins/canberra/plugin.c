@@ -27,12 +27,14 @@
 #define CANBERRA_KEY "plugin.canberra.data"
 #define LOG_CAT "canberra: "
 #define SOUND_FILENAME_KEY "canberra.filename"
+#define SOUND_VOLUME_KEY "sound.volume"
 
 typedef struct _CanberraData
 {
     NRequest       *request;
     NSinkInterface *iface;
-    const gchar *filename;
+    const gchar    *filename;
+    gboolean        sound_enabled;
 } CanberraData;
 
 N_PLUGIN_NAME        ("canberra")
@@ -103,9 +105,13 @@ canberra_sink_prepare (NSinkInterface *iface, NRequest *request)
     data->request    = request;
     data->iface      = iface;
     data->filename = n_proplist_get_string (props, SOUND_FILENAME_KEY);
+    data->sound_enabled = TRUE;
 
     n_request_store_data (request, CANBERRA_KEY, data);
     n_sink_interface_synchronize (iface, request);
+
+    if (n_proplist_has_key (props, SOUND_VOLUME_KEY))
+        data->sound_enabled = n_proplist_get_int (props, SOUND_VOLUME_KEY) > 0;
 
     return TRUE;
 }
@@ -128,24 +134,35 @@ proplist_to_structure_cb (const char *key, const NValue *value, gpointer userdat
     ca_proplist_sets (target, prop_key, prop_value);
 }
 
+static gboolean
+canberra_complete_cb (gpointer userdata) {
+    CanberraData *data = (CanberraData*) userdata;
+
+    n_sink_interface_complete (data->iface, data->request);
+
+    return FALSE;
+}
+
 static int
 canberra_sink_play (NSinkInterface *iface, NRequest *request)
 {
+    CanberraData *data = (CanberraData*) n_request_get_data (request, CANBERRA_KEY);
+    (void) iface;
+
     N_DEBUG (LOG_CAT "sink play");
 
-    (void) iface;
+    g_assert (data != NULL);
+
+    if (!data->sound_enabled)
+        goto complete;
 
     if (canberra_connect () == FALSE)
         return FALSE;
-
 
     static GHashTable *cached_samples = NULL;
     if (!cached_samples) {
         cached_samples = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
     }
-
-    CanberraData *data = (CanberraData*) n_request_get_data (request, CANBERRA_KEY);
-    g_assert (data != NULL);
 
     NProplist *props = props = (NProplist*) n_request_get_properties (request);
     ca_proplist *ca_props = 0;
@@ -190,7 +207,9 @@ canberra_sink_play (NSinkInterface *iface, NRequest *request)
         return FALSE;
     }
 
-     n_sink_interface_complete (data->iface, request);
+complete:
+    g_timeout_add (20, canberra_complete_cb, data);
+
     return TRUE;
 }
 
