@@ -556,6 +556,7 @@ static int ffm_sink_can_handle(NSinkInterface *iface, NRequest *request)
 	NContext *context = n_core_get_context            (core);
 	NValue   *enabled = NULL;
 	NValue   *touch_level = NULL;
+	NValue   *call_state = NULL;
 	const struct ffm_effect_data *data;
 	const gchar *key;
 
@@ -566,11 +567,24 @@ static int ffm_sink_can_handle(NSinkInterface *iface, NRequest *request)
 	touch_level = (NValue*) n_context_get_value (context,
 		"profile.current.touchscreen.vibration.level");
 
-	if (touch_level == NULL)
+	call_state = (NValue*) n_context_get_value (context,
+		"call_state.mode");
+
+	if (touch_level == NULL) {
 		N_WARNING (LOG_CAT "No value for touchscreen.vibration.level!");
+	}
+
+	if (call_state == NULL) {
+		N_WARNING (LOG_CAT "Call state not available!");
+	}
 
 	if (!enabled || !n_value_get_bool (enabled)) {
 		N_DEBUG (LOG_CAT "no, vibration disabled in profile");
+		return FALSE;
+	}
+
+	if (call_state && !strcmp(n_value_get_string(call_state), "active")) {
+		N_DEBUG (LOG_CAT "no, should not vibrate during call");
 		return FALSE;
 	}
 
