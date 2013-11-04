@@ -218,17 +218,6 @@ complete:
     return TRUE;
 }
 
-static int
-canberra_sink_pause (NSinkInterface *iface, NRequest *request)
-{
-    N_DEBUG (LOG_CAT "sink pause");
-
-    (void) iface;
-    (void) request;
-
-    return TRUE;
-}
-
 static void
 canberra_sink_stop (NSinkInterface *iface, NRequest *request)
 {
@@ -256,7 +245,7 @@ N_PLUGIN_LOAD (plugin)
         .can_handle = canberra_sink_can_handle,
         .prepare    = canberra_sink_prepare,
         .play       = canberra_sink_play,
-        .pause      = canberra_sink_pause,
+        .pause      = NULL,
         .stop       = canberra_sink_stop
     };
 
