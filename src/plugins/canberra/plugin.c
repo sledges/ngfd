@@ -41,7 +41,7 @@ N_PLUGIN_NAME        ("canberra")
 N_PLUGIN_VERSION     ("0.1")
 N_PLUGIN_DESCRIPTION ("libcanberra plugin")
 
-ca_context *c_context;
+static ca_context *c_context = NULL;
 
 static int canberra_connect ()
 {
