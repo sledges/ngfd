@@ -58,9 +58,15 @@ typedef struct _ProfileEntry
     gchar  *target;
 } ProfileEntry;
 
+typedef struct _SoundLevelEntry
+{
+    gchar  *key;
+    int    *levels;
+    guint   count;
+} SoundLevelEntry;
+
 static DBusConnection *session_bus = NULL;
-static guint       num_system_sound_levels = 0;
-static int        *system_sound_levels     = NULL;
+static GList      *sound_levels            = NULL; /* contains SoundLevelEntry entries */
 static GList      *request_keys            = NULL;
 static GHashTable *profile_entries         = NULL;
 static gchar      *file_search_path        = NULL;
@@ -352,6 +358,8 @@ update_context_value (NContext *context, const char *profile, const char *key,
     NValue *context_val = NULL;
     gint    level       = 0;
     gchar  *new_val     = NULL;
+    GList  *iter        = NULL;
+    SoundLevelEntry *e  = NULL;
 
     context_key = construct_context_key (profile, key);
     context_val = n_value_new ();
@@ -367,9 +375,14 @@ update_context_value (NContext *context, const char *profile, const char *key,
         n_value_set_int (context_val, profile_parse_int (value));
     }
     else if (g_str_has_suffix (key, SYSTEM_SUFFIX)) {
-        level = profile_parse_int (value);
-        level = CLAMP_VALUE (level, 0, (gint) num_system_sound_levels-1);
-        n_value_set_int (context_val, system_sound_levels[level]);
+        for (iter = g_list_first (sound_levels); iter; iter = g_list_next (iter)) {
+            e = (SoundLevelEntry*) iter->data;
+            if (g_str_has_suffix (key, e->key)) {
+                level = profile_parse_int (value);
+                level = CLAMP_VALUE (level, 0, (gint) e->count - 1);
+                n_value_set_int (context_val, e->levels[level]);
+            }
+        }
     }
     else if (g_str_equal (key, KEY_VIBRATION_ENABLED)) {
         n_value_set_bool (context_val, profile_parse_bool (value));
@@ -484,32 +497,56 @@ query_current_values (NCore *core)
 }
 
 static void
-setup_system_sound_levels (NValue *value)
+setup_level (const char *key, const NValue *value)
 {
-    gchar **split = NULL;
-    gchar **iter  = NULL;
-    guint   i     = 0;
+    gchar             **split = NULL;
+    gchar             **iter  = NULL;
+    guint               i     = 0;
+    SoundLevelEntry    *entry = NULL;
 
     if (!value) {
-        N_WARNING (LOG_CAT "no system-sound-levels key defined "
-                           "in profile.ini!");
+        N_WARNING (LOG_CAT "parameters for %s not found!", key);
         return;
     }
 
     if (n_value_type (value) != N_VALUE_TYPE_STRING) {
-        N_WARNING (LOG_CAT "invalid value type for system sound levels!");
+        N_WARNING (LOG_CAT "invalid value type for %s!", key);
         return;
     }
 
+    entry = (SoundLevelEntry*) g_malloc0 (sizeof (SoundLevelEntry));
+    entry->key = g_strdup (key);
+
     split = g_strsplit (n_value_get_string (value), ";", -1);
     for (iter = split; *iter; ++iter)
-        ++num_system_sound_levels;
+        ++entry->count;
 
-    system_sound_levels = (int*) g_malloc0 (sizeof (int) * num_system_sound_levels);
+    entry->levels = (int*) g_malloc0 (sizeof (int) * entry->count);
     for (iter = split, i = 0; *iter; ++iter, ++i) {
-        system_sound_levels[i] = atoi (*iter);
-        system_sound_levels[i] = CLAMP_VALUE (system_sound_levels[i], 0, 100);
+        entry->levels[i] = atoi (*iter);
+        entry->levels[i] = CLAMP_VALUE (entry->levels[i], 0, 100);
     }
+
+    N_DEBUG (LOG_CAT "adding profile convert entry '%s' with %d sound levels", entry->key, entry->count);
+    sound_levels = g_list_append (sound_levels, entry);
+}
+
+static void
+setup_sound_levels (NProplist *params)
+{
+    gchar **split = NULL;
+    gchar **iter  = NULL;
+
+    g_assert (params);
+
+    if (!n_proplist_has_key (params, "sound-levels")) {
+        N_WARNING (LOG_CAT "no sound-levels defined in profile.ini!");
+        return;
+    }
+
+    split = g_strsplit (n_proplist_get_string (params, "sound-levels"), ";", -1);
+    for (iter = split; *iter; ++iter)
+        setup_level (*iter, n_proplist_get (params, *iter));
 
     g_strfreev (split);
 }
@@ -561,8 +598,7 @@ N_PLUGIN_LOAD (plugin)
 
     params = (NProplist*) n_plugin_get_params (plugin);
 
-    setup_system_sound_levels (n_proplist_get (params,
-        "system-sound-levels"));
+    setup_sound_levels (params);
 
     file_search_path = g_strdup (n_proplist_get_string (params, "search-path"));
 
@@ -582,12 +618,21 @@ N_PLUGIN_LOAD (plugin)
     return TRUE;
 }
 
+static void
+sound_levels_free_cb (gpointer data)
+{
+    SoundLevelEntry *e = (SoundLevelEntry*) data;
+    g_free (e->key);
+    g_free (e->levels);
+    g_free (e);
+}
+
 N_PLUGIN_UNLOAD (plugin)
 {
     profile_tracker_quit ();
 
     g_free               (file_search_path);
-    g_free               (system_sound_levels);
+    g_list_free_full     (sound_levels, sound_levels_free_cb);
     g_hash_table_destroy (profile_entries);
     g_list_foreach       (request_keys, (GFunc) g_free, NULL);
     g_list_free          (request_keys);
