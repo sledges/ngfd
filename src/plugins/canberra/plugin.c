@@ -35,13 +35,14 @@ typedef struct _CanberraData
     NSinkInterface *iface;
     const gchar    *filename;
     gboolean        sound_enabled;
+    guint           complete_cb_id;
 } CanberraData;
 
 N_PLUGIN_NAME        ("canberra")
 N_PLUGIN_VERSION     ("0.1")
 N_PLUGIN_DESCRIPTION ("libcanberra plugin")
 
-ca_context *c_context;
+static ca_context *c_context = NULL;
 
 static int canberra_connect ()
 {
@@ -106,6 +107,7 @@ canberra_sink_prepare (NSinkInterface *iface, NRequest *request)
     data->iface      = iface;
     data->filename = n_proplist_get_string (props, SOUND_FILENAME_KEY);
     data->sound_enabled = TRUE;
+    data->complete_cb_id = 0;
 
     n_request_store_data (request, CANBERRA_KEY, data);
     n_sink_interface_synchronize (iface, request);
@@ -138,6 +140,7 @@ static gboolean
 canberra_complete_cb (gpointer userdata) {
     CanberraData *data = (CanberraData*) userdata;
 
+    data->complete_cb_id = 0;
     n_sink_interface_complete (data->iface, data->request);
 
     return FALSE;
@@ -208,18 +211,9 @@ canberra_sink_play (NSinkInterface *iface, NRequest *request)
     }
 
 complete:
-    g_timeout_add (20, canberra_complete_cb, data);
-
-    return TRUE;
-}
-
-static int
-canberra_sink_pause (NSinkInterface *iface, NRequest *request)
-{
-    N_DEBUG (LOG_CAT "sink pause");
-
-    (void) iface;
-    (void) request;
+    /* We do not know how long our samples play, but let's guess we
+     * are done in 200ms. */
+    data->complete_cb_id = g_timeout_add (200, canberra_complete_cb, data);
 
     return TRUE;
 }
@@ -233,6 +227,9 @@ canberra_sink_stop (NSinkInterface *iface, NRequest *request)
 
     CanberraData *data = (CanberraData*) n_request_get_data (request, CANBERRA_KEY);
     g_assert (data != NULL);
+
+    if (data->complete_cb_id > 0)
+        g_source_remove (data->complete_cb_id);
 
     g_slice_free (CanberraData, data);
 }
@@ -248,7 +245,7 @@ N_PLUGIN_LOAD (plugin)
         .can_handle = canberra_sink_can_handle,
         .prepare    = canberra_sink_prepare,
         .play       = canberra_sink_play,
-        .pause      = canberra_sink_pause,
+        .pause      = NULL,
         .stop       = canberra_sink_stop
     };
 
