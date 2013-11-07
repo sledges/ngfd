@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
  
+#include <string.h>
 #include <ngf/plugin.h>
 #include <dbus/dbus.h>
 #include <dbus/dbus-glib-lowlevel.h>
@@ -37,10 +38,16 @@ typedef struct _MceData
     NRequest       *request;
     NSinkInterface *iface;
     gchar          *pattern;
-    guint           timeout_id;
 } MceData;
 
-DBusConnection *bus = NULL;
+typedef struct _MceStateData
+{
+    DBusConnection *bus;
+    GList *active_requests;
+    guint pattern_timeout;
+} MceStateData;
+
+static MceStateData state;
 
 static gboolean
 call_dbus_method (DBusConnection *bus, DBusMessage *msg)
@@ -59,14 +66,14 @@ backlight_on (void)
     DBusMessage *msg = NULL;
     gboolean     ret = FALSE;
 
-    if (bus == NULL)
+    if (state.bus == NULL)
         return FALSE;
 
     msg = dbus_message_new_method_call (MCE_SERVICE, MCE_REQUEST_PATH, MCE_REQUEST_IF, MCE_DISPLAY_ON_REQ);
     if (msg == NULL)
         return FALSE;
 
-    ret = call_dbus_method (bus, msg);
+    ret = call_dbus_method (state.bus, msg);
     dbus_message_unref (msg);
 
     return ret;
@@ -78,7 +85,7 @@ toggle_pattern (const char *pattern, gboolean activate)
     DBusMessage *msg = NULL;
     gboolean     ret = FALSE;
 
-    if (bus == NULL || pattern == NULL)
+    if (state.bus == NULL || pattern == NULL)
         return FALSE;
 
     msg = dbus_message_new_method_call (MCE_SERVICE, MCE_REQUEST_PATH, MCE_REQUEST_IF,
@@ -92,7 +99,7 @@ toggle_pattern (const char *pattern, gboolean activate)
         return FALSE;
     }
 
-    ret = call_dbus_method (bus, msg);
+    ret = call_dbus_method (state.bus, msg);
     dbus_message_unref (msg);
 
     if (ret)
@@ -101,20 +108,119 @@ toggle_pattern (const char *pattern, gboolean activate)
     return ret;
 }
 
+static void
+mce_playback_active_request_done (gpointer pdata, gpointer userdata)
+{
+    (void) userdata;
+
+    MceData *data = (MceData *) pdata;
+
+    n_sink_interface_complete (data->iface, data->request);
+}
+
+static DBusHandlerResult
+mce_bus_filter (DBusConnection *connection, DBusMessage *message, void *user_data)
+{
+    (void) connection;
+    (void) user_data;
+    int clear_requests = FALSE;
+
+    if (g_list_first (state.active_requests) == NULL) {
+        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+    }
+
+    if (dbus_message_is_signal (message, MCE_SIGNAL_IF, MCE_INACTIVITY_SIG)) {
+        DBusError error;
+        int inactive = FALSE;
+
+        dbus_error_init (&error);
+        if (!dbus_message_get_args (message, &error, DBUS_TYPE_BOOLEAN, &inactive, DBUS_TYPE_INVALID)) {
+            N_WARNING (LOG_CAT "failed to get arguments: %s",
+                error.message);
+            dbus_error_free (&error);
+            return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+        }
+
+        /* Always clear patterns if there's activity */
+        if (!inactive) {
+            N_DEBUG(LOG_CAT "Clearing mce led patterns due to activity");
+            clear_requests = TRUE;
+        }
+
+    } else if (dbus_message_is_signal (message, MCE_SIGNAL_IF, MCE_DISPLAY_SIG)) {
+        DBusError error;
+        char *status = NULL;
+
+        dbus_error_init(&error);
+        if (!dbus_message_get_args (message, &error, DBUS_TYPE_STRING, &status, DBUS_TYPE_INVALID)) {
+            N_WARNING (LOG_CAT "failed to get arguments: %s",
+                error.message);
+            dbus_error_free (&error);
+            return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+        }
+
+        if (status == NULL)
+            return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+
+        /* Clear patterns when screen goes on, unless there was a pattern added just before.
+         * This is an suboptimal way to detect race between activating a pattern and turning
+         * the screen on without user interaction (eg. incoming SMS, call might do this).
+         * This means we don't clear requests that come in just before the user happens to
+         * turn the display on. This is not a huge problem since the user probably turned
+         * the display on to interact and thus it will be cleared on activity.
+         */
+        if (g_str_equal (status, "on") && state.pattern_timeout == 0) {
+            N_DEBUG (LOG_CAT "Clearing mce led patterns due to display on");
+            clear_requests = TRUE;
+        }
+
+    } else {
+        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+    }
+
+    if (clear_requests) {
+        g_list_foreach (state.active_requests, mce_playback_active_request_done, NULL);
+    }
+
+    return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+}
+
 static int
 mce_sink_initialize (NSinkInterface *iface)
 {
     (void) iface;
-    DBusError       error;
+    DBusError error;
+
+    memset (&state, 0, sizeof(MceStateData));
 
     dbus_error_init (&error);
-    bus = dbus_bus_get (DBUS_BUS_SYSTEM, &error);
-    if (bus == NULL) {
+    state.bus = dbus_bus_get (DBUS_BUS_SYSTEM, &error);
+    if (state.bus == NULL) {
         N_WARNING ("%s >> failed to get system bus: %s",error.message);
         dbus_error_free (&error);
         return FALSE;
     }
-    
+
+    dbus_connection_setup_with_g_main (state.bus, NULL);
+
+    dbus_bus_add_match (state.bus,
+                        "interface=" MCE_SIGNAL_IF ","
+                        "path=" MCE_SIGNAL_PATH ","
+                        "member=" MCE_DISPLAY_SIG,
+                        &error);
+
+    if (dbus_error_is_set (&error)) {
+        N_WARNING (LOG_CAT "failed to add watch: %s",
+            error.message);
+        dbus_error_free (&error);
+        return FALSE;
+    }
+
+    if (!dbus_connection_add_filter (state.bus, mce_bus_filter, &state, NULL)) {
+        N_WARNING (LOG_CAT "failed to add filter");
+        return FALSE;
+    }
+
     return TRUE;
 }
 
@@ -155,13 +261,11 @@ mce_sink_prepare (NSinkInterface *iface, NRequest *request)
 }
 
 static gboolean
-mce_playback_done(gpointer userdata)
+mce_last_pattern_timeout (gpointer userdata)
 {
-    MceData *data = (MceData *) userdata;
+    (void) userdata;
 
-    data->timeout_id = 0;
-    n_sink_interface_complete(data->iface, data->request);
-
+    state.pattern_timeout = 0;
     return FALSE;
 }
 
@@ -187,8 +291,13 @@ mce_sink_play (NSinkInterface *iface, NRequest *request)
         }
     }
 
-    /* Call n_sink_interface_complete() after 100ms. */
-    data->timeout_id = g_timeout_add(100, mce_playback_done, data);
+    if (state.pattern_timeout != 0) {
+        N_DEBUG(LOG_CAT "restarting led patterns timeout");
+        g_source_remove (state.pattern_timeout);
+    }
+
+    state.pattern_timeout = g_timeout_add (2000, mce_last_pattern_timeout, data);
+    state.active_requests = g_list_append (state.active_requests, (gpointer)data);
 
     return TRUE;
 }
@@ -209,6 +318,8 @@ mce_sink_stop (NSinkInterface *iface, NRequest *request)
 
     MceData *data = (MceData*) n_request_get_data (request, MCE_KEY);
     g_assert (data != NULL);
+
+    state.active_requests = g_list_remove (state.active_requests, (gpointer)data);
 
     if (data->pattern) {
         toggle_pattern (data->pattern, FALSE);
