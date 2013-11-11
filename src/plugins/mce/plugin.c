@@ -211,7 +211,10 @@ mce_sink_stop (NSinkInterface *iface, NRequest *request)
     g_assert (data != NULL);
 
     if (data->pattern) {
-        toggle_pattern (data->pattern, FALSE);
+        const NProplist *props = n_request_get_properties (request);
+        /* Unless specified otherwise, we'll let MCE clear the pattern */
+        if (n_proplist_get_bool (props, "mce.clear_pattern"))
+            toggle_pattern (data->pattern, FALSE);
         g_free (data->pattern);
         data->pattern = NULL;
     }
