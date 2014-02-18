@@ -183,10 +183,14 @@ fi
 
 AM_CONDITIONAL(BUILD_MCE, test x$enable_mce = xyes)
 
+PKG_CHECK_MODULES([DROIDHEADERS], [android-headers])
+AC_SUBST(DROIDHEADERS_CFLAGS)
+
 # Android vibrator plugin
-AC_CHECK_HEADERS([linux/input.h sys/ioctl.h], [has_android_vibrator=yes], [has_android_vibrator=no])
-AC_SUBST(ANDROID_VIBRATOR_CFLAGS, "")
-AC_SUBST(ANDROID_VIBRATOR_LIBS, "")
+
+PKG_CHECK_MODULES([ANDROID_VIBRATOR], libvibrator, [has_android_vibrator=yes], [has_android_vibrator=no])
+AC_SUBST(ANDROID_VIBRATOR_CFLAGS)
+AC_SUBST(ANDROID_VIBRATOR_LIBS)
 
 if test x$has_android_vibrator = xyes; then
     enable_android_vibrator=yes
@@ -194,6 +198,8 @@ else
     enable_android_vibrator=no
 fi
 AM_CONDITIONAL(BUILD_ANDROID_VIBRATOR, test x$enable_android_vibrator = xyes)
+
+echo "Hard rock: ${ANDROID_VIBRATOR_LIBS}"
 
 # Stream restore plugin needs DBus
 

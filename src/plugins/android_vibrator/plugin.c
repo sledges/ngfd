@@ -22,6 +22,7 @@
  */
 
 #include <ngf/plugin.h>
+#include <hardware_legacy/vibrator.h>
 
 #define AV_KEY "plugin.android_vibrator.data"
 #define LOG_CAT  "android_vibrator: "
@@ -102,6 +103,8 @@ android_vibrator_sink_play (NSinkInterface *iface, NRequest *request)
 
     AndroidVibratorData *data = (AndroidVibratorData*) n_request_get_data (request, AV_KEY);
     g_assert (data != NULL);
+
+    vibrator_on(100);
 
     data->timeout_id = g_timeout_add_seconds (2, timeout_cb, data);
 

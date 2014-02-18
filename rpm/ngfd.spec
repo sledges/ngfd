@@ -25,6 +25,8 @@ BuildRequires:  pkgconfig(mce)
 BuildRequires:  pkgconfig(profile)
 BuildRequires:  pkgconfig(libcanberra)
 BuildRequires:  doxygen
+BuildRequires:  pkgconfig(libvibrator)
+BuildRequires:  pkgconfig(android-headers)
 
 %description
 This package contains the daemon servicing the non-graphical feedback
@@ -46,6 +48,15 @@ Requires:   %{name} = %{version}-%{release}
 
 %description plugin-fake
 Fake plugins for ngfd testing.
+
+%package plugin-android_vibrator
+Summary:    Android Vibrator plugin for ngfd
+Group:      System/Libraries
+Requires:   %{name} = %{version}-%{release}
+
+%description plugin-android_vibrator
+Android Vibrator plugins for ngfd.
+
 
 %package settings-basic
 Summary:    Example settings for ngfd
@@ -131,6 +142,10 @@ fi
 %defattr(-,root,root,-)
 %{_libdir}/ngf/libngfd_fake.so
 %{_libdir}/ngf/libngfd_test_fake.so
+
+%files plugin-android_vibrator
+%defattr(-,root,root,-)
+%{_libdir}/ngf/libngfd_android_vibrator.so
 
 %files settings-basic
 %defattr(-,root,root,-)
