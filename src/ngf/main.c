@@ -30,7 +30,7 @@
 
 #define LOG_CAT "core: "
 
-static gint _default_loglevel = N_LOG_LEVEL_NONE;
+static gint _default_loglevel = N_LOG_LEVEL_DEBUG;
 
 typedef struct _AppData
 {
