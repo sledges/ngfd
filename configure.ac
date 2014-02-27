@@ -183,6 +183,29 @@ fi
 
 AM_CONDITIONAL(BUILD_MCE, test x$enable_mce = xyes)
 
+PKG_CHECK_MODULES([DROIDHEADERS], [android-headers], [has_android_headers=yes], [has_android_headers=no])
+
+if test x$has_android_headers = xyes; then
+
+    AC_SUBST(DROIDHEADERS_CFLAGS)
+
+    # Android vibrator plugin
+
+    PKG_CHECK_MODULES([ANDROID_VIBRATOR], [libvibrator], [has_android_vibrator=yes], [has_android_vibrator=no])
+    AC_SUBST(ANDROID_VIBRATOR_CFLAGS)
+    AC_SUBST(ANDROID_VIBRATOR_LIBS)
+
+    if test x$has_android_vibrator = xyes; then
+        enable_android_vibrator=yes
+    else
+        enable_android_vibrator=no
+    fi
+
+    AM_CONDITIONAL(BUILD_ANDROID_VIBRATOR, test x$enable_android_vibrator = xyes)
+
+    echo "Hard rock: ${ANDROID_VIBRATOR_LIBS}"
+fi
+
 # Stream restore plugin needs DBus
 
 if test x$enable_dbus = xyes ; then
@@ -241,6 +264,7 @@ src/plugins/tonegen/Makefile
 src/plugins/gst/Makefile
 src/plugins/canberra/Makefile
 src/plugins/callstate/Makefile
+src/plugins/android_vibrator/Makefile
 doc/Makefile
 data/Makefile
 data/events.d/Makefile
